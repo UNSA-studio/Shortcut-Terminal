@@ -1,25 +1,15 @@
+# Shortcut Terminal
 
-Installation information
-=======
+A Minecraft NeoForge mod that adds Linux-like terminal commands to the game.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Developed by UNSA-STUDIO.
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Features
+- `/ST Help` - Show available commands
+- `/ST ls`, `/ST mkdir`, `/ST touch`, `/ST rm`, `/ST cat` - File operations
+- `/ST cd` - Change directory (sandboxed per player)
+- `/ST User` - Admin player management
+- `/ST open terminal page` - Enter immersive terminal mode
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
-
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
-
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+## License
+MIT License

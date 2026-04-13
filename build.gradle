@@ -6,17 +6,14 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = mod_version
-group = mod_group_id
-
-base {
-    archivesName = mod_id
-}
+version = '1.0.0'
+group = 'unsa.st.com'
+base.archivesName = 'st'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
-    version = neo_version
+    version = '21.1.219'
 
     runs {
         client {
@@ -28,13 +25,11 @@ neoForge {
     }
 
     mods {
-        "${mod_id}" {
+        st {
             sourceSet(sourceSets.main)
         }
     }
 }
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
     // NeoForge API included via plugin
@@ -42,11 +37,4 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-}
-
-idea {
-    module {
-        downloadSources = true
-        downloadJavadoc = true
-    }
 }
