@@ -29,8 +29,8 @@ dependencies {
     // NeoForge API included via plugin
 }
 
-// 处理 templates 目录下的模版文件，替换占位符
-tasks.named('processResources', ProcessResources).configure {
+// 关键：使用官方推荐的方式处理资源文件和模组信息
+processResources {
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: "[1.21,1.21.2)",
@@ -42,10 +42,10 @@ tasks.named('processResources', ProcessResources).configure {
             mod_license            : mod_license,
             mod_version            : mod_version,
             mod_authors            : mod_authors,
-            mod_description        : mod_description,
-            mod_url                : "https://github.com/UNSA-STUDIO/ShortcutTerminal"
+            mod_description        : mod_description
     ]
     inputs.properties replaceProperties
+
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
     }

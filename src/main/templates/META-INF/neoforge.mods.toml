@@ -1,6 +1,7 @@
 modLoader="javafml"
 loaderVersion="${loader_version_range}"
 license="${mod_license}"
+
 [[mods]]
 modId="${mod_id}"
 version="${mod_version}"
@@ -16,12 +17,14 @@ Features:
 - /ST User - Admin command to manage players
 - /ST open terminal page - Enter terminal mode
 '''
+
 [[dependencies.${mod_id}]]
     modId="neoforge"
     mandatory=true
     versionRange="${neo_version_range}"
     ordering="NONE"
     side="BOTH"
+
 [[dependencies.${mod_id}]]
     modId="minecraft"
     mandatory=true
