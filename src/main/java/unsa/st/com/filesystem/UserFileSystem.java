@@ -17,7 +17,8 @@ public class UserFileSystem {
         if (basePath == null) {
             MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
             if (server != null) {
-                basePath = server.getServerDirectory().toPath().resolve(BASE_FOLDER);
+                // server.getServerDirectory() 已经返回 Path，无需 toPath()
+                basePath = server.getServerDirectory().resolve(BASE_FOLDER);
             } else {
                 basePath = Paths.get(BASE_FOLDER);
             }
