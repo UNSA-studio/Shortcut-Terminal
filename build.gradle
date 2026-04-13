@@ -4,16 +4,9 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-tasks.named('wrapper', Wrapper).configure {
-    distributionType = Wrapper.DistributionType.BIN
-}
-
 version = mod_version
 group = mod_group
-
-base {
-    archivesName = mod_id
-}
+base.archivesName = mod_id
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
@@ -36,7 +29,8 @@ dependencies {
     // NeoForge API included via plugin
 }
 
-var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+// 处理 templates 目录下的模版文件，替换占位符
+tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: "[1.21,1.21.2)",
@@ -52,13 +46,10 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_url                : "https://github.com/UNSA-STUDIO/ShortcutTerminal"
     ]
     inputs.properties replaceProperties
-    expand replaceProperties
-    from "src/main/templates"
-    into "build/generated/sources/modMetadata"
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
 }
-
-sourceSets.main.resources.srcDir generateModMetadata
-neoForge.ideSyncTask generateModMetadata
 
 publishing {
     publications {
@@ -76,5 +67,3 @@ publishing {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
-
-// idea 配置已移除，因为 CI 构建不需要它
