@@ -1,13 +1,14 @@
 modLoader = "javafml"
-loaderVersion = "${loader_version_range}"
-license = "${mod_license}"
+loaderVersion = "[4,)"
+license = "MIT"
 
 [[mods]]
-modId = "${mod_id}"
-version = "${mod_version}"
-displayName = "${mod_name}"
-authors = "${mod_authors}"
-description = '''${mod_description}
+modId = "st"
+version = "1.0.0"
+displayName = "Shortcut Terminal"
+authors = "UNSA-STUDIO"
+description = '''
+Shortcut Terminal - Linux commands in Minecraft!
 
 Features:
 - /ST Help - List all available commands
@@ -15,18 +16,19 @@ Features:
 - /ST cd - Change directory (restricted to user folder)
 - /ST User - Admin command to manage players
 - /ST open terminal page - Enter terminal mode
+- /ST refresh bf - Refresh binary plugins
 '''
 
-[[dependencies.${mod_id}]]
+[[dependencies.st]]
     modId = "neoforge"
     type = "required"
-    versionRange = "${neo_version_range}"
+    versionRange = "[21.1,)"
     ordering = "NONE"
     side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.st]]
     modId = "minecraft"
     type = "required"
-    versionRange = "${minecraft_version_range}"
+    versionRange = "[1.21,1.21.2)"
     ordering = "NONE"
     side = "BOTH"
