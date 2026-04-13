@@ -20,12 +20,6 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 neoForge {
     version = neo_version
 
-    // 移除 parchment 配置，使用默认 MCP 映射，避免依赖问题
-    // parchment {
-    //     minecraftVersion = "1.21.1"
-    //     mappingsVersion = "2024.11.17"
-    // }
-
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
@@ -83,9 +77,4 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-idea {
-    module {
-        downloadSources = true
-        downloadJavadoc = true
-    }
-}
+// idea 配置已移除，因为 CI 构建不需要它
