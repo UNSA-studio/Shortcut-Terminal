@@ -31,6 +31,14 @@ neoForge {
     }
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+}
+
 dependencies {
     // NeoForge API included via plugin
 }

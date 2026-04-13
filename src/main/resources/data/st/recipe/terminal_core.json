@@ -1,0 +1,19 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "R R",
+        "SBL",
+        " G "
+    ],
+    "key": {
+        "R": { "item": "minecraft:redstone" },
+        "S": { "item": "minecraft:stone_button" },
+        "B": { "item": "minecraft:repeater" },
+        "L": { "item": "minecraft:redstone_lamp" },
+        "G": { "item": "minecraft:glass" }
+    },
+    "result": {
+        "id": "st:terminal_core",
+        "count": 1
+    }
+}

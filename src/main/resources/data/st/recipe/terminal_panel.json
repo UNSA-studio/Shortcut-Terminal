@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "III",
+        "ICI",
+        "III"
+    ],
+    "key": {
+        "I": { "item": "minecraft:iron_ingot" },
+        "C": { "item": "st:terminal_core" }
+    },
+    "result": {
+        "id": "st:terminal_panel",
+        "count": 1
+    }
+}

@@ -2,8 +2,11 @@ package unsa.st.com.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,9 +14,18 @@ import unsa.st.com.terminal.TerminalManager;
 import unsa.st.com.terminal.TerminalSession;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.util.CommandExecutor;
+import unsa.st.com.plugin.BinaryPluginManager;
+
+import java.util.List;
+import java.util.Locale;
 
 public class ModCommands {
     private static final CommandExecutor executor = new CommandExecutor();
+
+    // 玩家名称补全建议
+    private static final SuggestionProvider<CommandSourceStack> ONLINE_PLAYERS = (ctx, builder) -> {
+        return SharedSuggestionProvider.suggest(ctx.getSource().getOnlinePlayerNames(), builder);
+    };
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
@@ -35,15 +47,16 @@ public class ModCommands {
                     .executes(ctx -> executeEcho(ctx.getSource(), StringArgumentType.getString(ctx, "text")))))
                 .then(Commands.literal("clear").executes(ctx -> executeClear(ctx.getSource())))
                 .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
-                .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
-                    .executes(ctx -> openTerminal(ctx.getSource())))))
-                .then(Commands.literal("User").then(Commands.argument("player", StringArgumentType.string())
-                    .then(Commands.argument("action", StringArgumentType.string())
-                        .then(Commands.argument("params", StringArgumentType.greedyString())
-                            .executes(ctx -> executeUser(ctx.getSource(),
-                                StringArgumentType.getString(ctx, "player"),
-                                StringArgumentType.getString(ctx, "action"),
-                                StringArgumentType.getString(ctx, "params")))))))
+                .then(Commands.literal("refresh").then(Commands.literal("bf")
+                    .executes(ctx -> executeRefresh(ctx.getSource()))))
+                .then(Commands.literal("User")
+                    .then(Commands.argument("player", StringArgumentType.word()).suggests(ONLINE_PLAYERS)
+                        .then(Commands.argument("action", StringArgumentType.word())
+                            .then(Commands.argument("params", StringArgumentType.greedyString())
+                                .executes(ctx -> executeUser(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "player"),
+                                    StringArgumentType.getString(ctx, "action"),
+                                    StringArgumentType.getString(ctx, "params")))))))
         );
     }
 
@@ -153,17 +166,10 @@ public class ModCommands {
         return 1;
     }
 
-    private static int openTerminal(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
-        TerminalManager.enterTerminalMode(player);
-        UserFileSystem.createUserDirectory(player.getUUID());
-        player.sendSystemMessage(Component.literal("=================================").withStyle(ChatFormatting.GREEN));
-        player.sendSystemMessage(Component.literal("Shortcut Terminal - Terminal Mode").withStyle(ChatFormatting.AQUA));
-        player.sendSystemMessage(Component.literal("Type commands without /ST prefix").withStyle(ChatFormatting.YELLOW));
-        player.sendSystemMessage(Component.literal("Type 'help' for available commands").withStyle(ChatFormatting.YELLOW));
-        player.sendSystemMessage(Component.literal("Type 'exit' to leave terminal mode").withStyle(ChatFormatting.YELLOW));
-        player.sendSystemMessage(Component.literal("=================================").withStyle(ChatFormatting.GREEN));
+    private static int executeRefresh(CommandSourceStack source) {
+        BinaryPluginManager.refreshPlugins();
+        int count = BinaryPluginManager.getPluginCount();
+        source.sendSuccess(() -> Component.literal("Binary plugins refreshed. Found " + count + " plugins."), false);
         return 1;
     }
 
