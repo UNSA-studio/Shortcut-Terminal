@@ -22,8 +22,11 @@ public class ShortcutTerminal {
     public ShortcutTerminal(IEventBus modEventBus) {
         LOGGER.info("Shortcut Terminal Mod initializing...");
 
+        // 确保物品和方块被注册
         ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
+        LOGGER.info("Items and blocks registered");
+
         BinaryPluginManager.init();
 
         NeoForge.EVENT_BUS.register(this);
