@@ -1,23 +1,21 @@
 package unsa.st.com.item;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.WrittenBookItem;
 import net.minecraft.world.level.Level;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import unsa.st.com.gui.GuideBookScreen;
 
-import java.util.List;
-
-public class GuideBookItem extends Item {
+public class GuideBookItem extends WrittenBookItem {
     public GuideBookItem(Properties properties) {
         super(properties);
     }
@@ -25,24 +23,50 @@ public class GuideBookItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (player instanceof ServerPlayer serverPlayer) {
-            // 服务器端打开书本界面（通过发包）
-            // 这里简化：直接显示消息，后续可改为真正的GUI
-            serverPlayer.sendSystemMessage(Component.translatable("st.guide.open"));
-        } else if (level.isClientSide) {
-            // 客户端打开GUI
-            openClientScreen();
+        if (!stack.has(DataComponents.WRITTEN_BOOK_CONTENT)) {
+            // 设置书本内容
+            var content = new net.minecraft.world.item.component.WrittenBookContent(
+                Component.translatable("st.guide.title"),
+                "UNSA-STUDIO",
+                0,
+                createPages(),
+                true
+            );
+            stack.set(DataComponents.WRITTEN_BOOK_CONTENT, content);
         }
-        return InteractionResultHolder.success(stack);
+        return super.use(level, player, hand);
     }
 
-    @OnlyIn(Dist.CLIENT)
-    private void openClientScreen() {
-        Minecraft.getInstance().setScreen(new GuideBookScreen());
-    }
-
-    @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("st.guide.tooltip"));
+    private static java.util.List<Component> createPages() {
+        return java.util.List.of(
+            Component.literal(
+                "=== Shortcut Terminal ===\n\n" +
+                "Welcome to Shortcut Terminal!\n\n" +
+                "This guide contains all commands.\n\n" +
+                "Use /ST Help in chat to see them."
+            ),
+            Component.literal(
+                "/ST ls - List files\n" +
+                "/ST mkdir <name> - Create directory\n" +
+                "/ST touch <name> - Create file\n" +
+                "/ST rm <name> - Remove file\n" +
+                "/ST cat <name> - View file\n" +
+                "/ST cd <path> - Change directory\n" +
+                "/ST pwd - Show current path\n" +
+                "/ST whoami - Show username\n" +
+                "/ST clear - Clear screen\n" +
+                "/ST refresh bf - Refresh plugins"
+            ),
+            Component.literal(
+                "/ST User <player> <action> [params]\n\n" +
+                "Actions:\n" +
+                "- switchingmode <mode>\n" +
+                "- changebirthpoint\n" +
+                "- transmitto_online <x y z|home>\n" +
+                "- transmitto_offline <x y z|home>\n\n" +
+                "Example:\n" +
+                "/ST User Steve switchingmode creative"
+            )
+        );
     }
 }
