@@ -10,9 +10,11 @@ import org.slf4j.Logger;
 import unsa.st.com.command.ModCommands;
 import unsa.st.com.terminal.TerminalManager;
 import unsa.st.com.event.ClientEventHandler;
+import unsa.st.com.event.PlayerJoinHandler;
 import unsa.st.com.registry.ModItems;
 import unsa.st.com.registry.ModBlocks;
 import unsa.st.com.plugin.BinaryPluginManager;
+import unsa.st.com.util.OfflineTeleportManager;
 
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
@@ -22,16 +24,16 @@ public class ShortcutTerminal {
     public ShortcutTerminal(IEventBus modEventBus) {
         LOGGER.info("Shortcut Terminal Mod initializing...");
 
-        // 确保物品和方块被注册
         ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
-        LOGGER.info("Items and blocks registered");
-
         BinaryPluginManager.init();
+        OfflineTeleportManager.init();
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TerminalManager());
         NeoForge.EVENT_BUS.register(new ClientEventHandler());
+        NeoForge.EVENT_BUS.register(new PlayerJoinHandler());
+        NeoForge.EVENT_BUS.register(new OfflineTeleportManager());
     }
 
     @SubscribeEvent
