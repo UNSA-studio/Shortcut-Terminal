@@ -11,7 +11,10 @@ public class GuideBookScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        // 不使用 renderBackground，避免模糊效果，直接填充纯色背景
+        this.renderPanorama(guiGraphics, partialTick); // 或者用 fill 纯黑
+        guiGraphics.fill(0, 0, this.width, this.height, 0x80000000);
+        
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
         
         String[] lines = {
