@@ -5,7 +5,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class GuideBookScreen extends Screen {
-    protected GuideBookScreen() {
+    public GuideBookScreen() {
         super(Component.translatable("st.guide.title"));
     }
 
@@ -14,7 +14,6 @@ public class GuideBookScreen extends Screen {
         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
         
-        // 简单显示帮助内容（后续可做翻页）
         String[] lines = {
             "=== Shortcut Terminal Commands ===",
             "/ST Help - Show this help",
