@@ -6,26 +6,22 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = mod_version
-group = mod_group
-base.archivesName = mod_id
+version = '1.0.0'
+group = 'unsa.st.com'
+base.archivesName = 'st'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
-    version = neo_version
+    version = '21.1.219'
 
     runs {
-        client {
-            client()
-        }
-        server {
-            server()
-        }
+        client { client() }
+        server { server() }
     }
 
     mods {
-        "${mod_id}" {
+        st {
             sourceSet(sourceSets.main)
         }
     }
