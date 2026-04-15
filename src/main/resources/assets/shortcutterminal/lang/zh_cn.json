@@ -14,3 +14,6 @@
     "st.command.user.unknown_action": "未知操作: %s",
     "st.command.refresh.success": "二进制插件已刷新。发现 %d 个插件。"
 }
+{
+    "itemGroup.shortcutterminal": "快捷终端"
+}

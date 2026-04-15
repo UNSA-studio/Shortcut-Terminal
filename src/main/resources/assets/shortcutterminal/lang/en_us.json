@@ -14,3 +14,6 @@
     "st.command.user.unknown_action": "Unknown action: %s",
     "st.command.refresh.success": "Binary plugins refreshed. Found %d plugins."
 }
+{
+    "itemGroup.shortcutterminal": "Shortcut Terminal"
+}

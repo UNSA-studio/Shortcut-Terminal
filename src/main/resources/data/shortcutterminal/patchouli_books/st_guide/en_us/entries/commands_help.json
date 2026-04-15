@@ -9,8 +9,8 @@
         },
         {
             "type": "patchouli:text",
-            "title": "命令示例",
-            "text": "/ST ls$(br)/ST mkdir test$(br)/ST User Steve switchingmode creative"
+            "title": "常用命令",
+            "text": "/ST ls$(br)/ST mkdir <目录>$(br)/ST touch <文件>$(br)/ST cd <路径>$(br)/ST User <玩家> <操作>"
         }
     ]
 }

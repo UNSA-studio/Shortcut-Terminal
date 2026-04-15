@@ -13,6 +13,7 @@ import unsa.st.com.event.ClientEventHandler;
 import unsa.st.com.event.PlayerJoinHandler;
 import unsa.st.com.registry.ModItems;
 import unsa.st.com.registry.ModBlocks;
+import unsa.st.com.registry.ModCreativeTabs;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.util.OfflineTeleportManager;
 
@@ -26,6 +27,8 @@ public class ShortcutTerminal {
 
         ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
+        ModCreativeTabs.register(modEventBus);
+
         BinaryPluginManager.init();
         OfflineTeleportManager.init();
 
