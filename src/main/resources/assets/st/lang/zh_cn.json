@@ -4,7 +4,7 @@
     "block.st.terminal_panel": "终端面板",
     "st.terminal_panel.desc": "精巧且紧密的一块终端面板，命令提示符正在闪烁着等待输入",
     "st.terminal_core.desc": "复杂且巧妙的核心，造价稍贵，但值得，拿上它开启你的终端之旅",
-    "st.deps.patchouli": "本模组需要安装 §n帕秋莉手册 (Patchouli)§r 作为前置！",
+    "st.deps.patchouli": "§c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！",
     "st.command.user.usage": "用法: /ST User <玩家名> <操作> [参数...]",
     "st.command.user.actions": "可用操作: switchingmode, changebirthpoint, transmitto_online, transmitto_offline",
     "st.command.user.mode_set": "已将玩家 %s 的游戏模式设置为 %s",
