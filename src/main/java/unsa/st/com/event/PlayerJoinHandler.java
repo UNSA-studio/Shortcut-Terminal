@@ -1,7 +1,9 @@
 package unsa.st.com.event;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import vazkii.patchouli.api.PatchouliAPI;
@@ -10,14 +12,17 @@ public class PlayerJoinHandler {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家背包是否已有我们的指南书
+            ResourceLocation ourBookId = ResourceLocation.fromNamespaceAndPath("st", "st_guide");
+            
+            // 检查玩家背包是否已包含我们的 Patchouli 指南书
             boolean hasBook = player.getInventory().items.stream()
-                    .anyMatch(stack -> stack.getItem() == PatchouliAPI.get().getBookItem() &&
-                            "st:st_guide".equals(PatchouliAPI.get().getBookId(stack)));
+                    .anyMatch(stack -> stack.getItem() == Items.WRITTEN_BOOK &&
+                            ourBookId.equals(stack.get(PatchouliAPI.BOOK_COMPONENT)));
             
             if (!hasBook) {
-                // 使用 Patchouli API 直接生成书籍
-                ItemStack book = PatchouliAPI.get().getBookStack("st:st_guide");
+                ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
+                book.set(PatchouliAPI.BOOK_COMPONENT, ourBookId);
+                
                 if (!player.getInventory().add(book)) {
                     player.drop(book, false);
                 }
