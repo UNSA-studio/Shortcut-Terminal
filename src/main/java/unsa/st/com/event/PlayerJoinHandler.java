@@ -2,24 +2,22 @@ package unsa.st.com.event;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.nbt.CompoundTag;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import vazkii.patchouli.api.PatchouliAPI;
 
 public class PlayerJoinHandler {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家背包是否已有 Patchouli 指南书
+            // 检查玩家背包是否已有我们的指南书
             boolean hasBook = player.getInventory().items.stream()
-                    .anyMatch(stack -> stack.getItem() == Items.WRITTEN_BOOK &&
-                            stack.hasTag() &&
-                            "st:st_guide".equals(stack.getTag().getString("patchouli:book")));
+                    .anyMatch(stack -> stack.getItem() == PatchouliAPI.get().getBookItem() &&
+                            "st:st_guide".equals(PatchouliAPI.get().getBookId(stack)));
+            
             if (!hasBook) {
-                ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
-                CompoundTag tag = book.getOrCreateTag();
-                tag.putString("patchouli:book", "st:st_guide");
+                // 使用 Patchouli API 直接生成书籍
+                ItemStack book = PatchouliAPI.get().getBookStack("st:st_guide");
                 if (!player.getInventory().add(book)) {
                     player.drop(book, false);
                 }
