@@ -3,7 +3,7 @@ loaderVersion = "[4,)"
 license = "MIT"
 
 [[mods]]
-modId = "st"
+modId = "shortcutterminal"
 version = "1.0.0"
 displayName = "Shortcut Terminal"
 authors = "UNSA-STUDIO"
@@ -21,21 +21,21 @@ Features:
 §c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！否则将无法启动。
 '''
 
-[[dependencies.st]]
+[[dependencies.shortcutterminal]]
     modId = "neoforge"
     type = "required"
     versionRange = "[21.1,)"
     ordering = "NONE"
     side = "BOTH"
 
-[[dependencies.st]]
+[[dependencies.shortcutterminal]]
     modId = "minecraft"
     type = "required"
     versionRange = "[1.21,1.21.2)"
     ordering = "NONE"
     side = "BOTH"
 
-[[dependencies.st]]
+[[dependencies.shortcutterminal]]
     modId = "patchouli"
     type = "required"
     versionRange = "[1.21.1-93,)"

@@ -13,7 +13,7 @@
         "G": { "item": "minecraft:glass" }
     },
     "result": {
-        "id": "st:terminal_core",
+        "id": "shortcutterminal:terminal_core",
         "count": 1
     }
 }

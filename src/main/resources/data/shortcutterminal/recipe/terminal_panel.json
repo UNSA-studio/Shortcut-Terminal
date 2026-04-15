@@ -7,10 +7,10 @@
     ],
     "key": {
         "I": { "item": "minecraft:iron_ingot" },
-        "C": { "item": "st:terminal_core" }
+        "C": { "item": "shortcutterminal:terminal_core" }
     },
     "result": {
-        "id": "st:terminal_panel",
+        "id": "shortcutterminal:terminal_panel",
         "count": 1
     }
 }

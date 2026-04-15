@@ -11,7 +11,7 @@ import net.minecraft.world.item.component.CustomData;
 
 public class PlayerJoinHandler {
     private static final String PATCHOULI_MOD_ID = "patchouli";
-    private static final String OUR_BOOK_ID = "st:st_guide";
+    private static final String OUR_BOOK_ID = "shortcutterminal:st_guide";
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {

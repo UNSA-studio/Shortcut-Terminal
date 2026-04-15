@@ -1,7 +1,7 @@
 {
-    "item.st.terminal_core": "终端核心",
-    "item.st.terminal_panel": "终端面板",
-    "block.st.terminal_panel": "终端面板",
+    "item.shortcutterminal.terminal_core": "终端核心",
+    "item.shortcutterminal.terminal_panel": "终端面板",
+    "block.shortcutterminal.terminal_panel": "终端面板",
     "st.terminal_panel.desc": "精巧且紧密的一块终端面板，命令提示符正在闪烁着等待输入",
     "st.terminal_core.desc": "复杂且巧妙的核心，造价稍贵，但值得，拿上它开启你的终端之旅",
     "st.deps.patchouli": "§c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！",

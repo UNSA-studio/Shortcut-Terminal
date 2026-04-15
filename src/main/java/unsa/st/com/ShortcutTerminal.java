@@ -18,7 +18,7 @@ import unsa.st.com.util.OfflineTeleportManager;
 
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
-    public static final String MODID = "st";
+    public static final String MODID = "shortcutterminal";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public ShortcutTerminal(IEventBus modEventBus) {

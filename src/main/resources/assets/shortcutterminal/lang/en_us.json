@@ -1,7 +1,7 @@
 {
-    "item.st.terminal_core": "Terminal Core",
-    "item.st.terminal_panel": "Terminal Panel",
-    "block.st.terminal_panel": "Terminal Panel",
+    "item.shortcutterminal.terminal_core": "Terminal Core",
+    "item.shortcutterminal.terminal_panel": "Terminal Panel",
+    "block.shortcutterminal.terminal_panel": "Terminal Panel",
     "st.terminal_panel.desc": "A compact and intricate terminal panel. The command prompt is blinking, waiting for input.",
     "st.terminal_core.desc": "A complex and clever core. A bit pricey, but worth it. Pick it up to start your terminal journey.",
     "st.deps.patchouli": "This mod requires §nPatchouli§r as a dependency!",

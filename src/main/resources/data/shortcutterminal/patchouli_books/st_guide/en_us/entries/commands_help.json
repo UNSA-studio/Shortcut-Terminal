@@ -1,6 +1,6 @@
 {
     "name": "/ST Help",
-    "category": "st:commands",
+    "category": "shortcutterminal:commands",
     "icon": "minecraft:book",
     "pages": [
         {
