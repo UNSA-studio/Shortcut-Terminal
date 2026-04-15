@@ -1,19 +1,9 @@
 {
     "item.shortcutterminal.terminal_core": "终端核心",
     "item.shortcutterminal.terminal_panel": "终端面板",
-    "block.shortcutterminal.terminal_panel": "终端面板",
-    "st.terminal_panel.desc": "精巧且紧密的一块终端面板，命令提示符正在闪烁着等待输入",
+    "item.shortcutterminal.guide_book": "快捷终端使用指南",
+    "itemGroup.shortcutterminal": "快捷终端",
     "st.terminal_core.desc": "复杂且巧妙的核心，造价稍贵，但值得，拿上它开启你的终端之旅",
-    "st.deps.patchouli": "§c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！",
-    "st.command.user.usage": "用法: /ST User <玩家名> <操作> [参数...]",
-    "st.command.user.actions": "可用操作: switchingmode, changebirthpoint, transmitto_online, transmitto_offline",
-    "st.command.user.mode_set": "已将玩家 %s 的游戏模式设置为 %s",
-    "st.command.user.birth_set": "已将玩家 %s 的出生点设置为当前位置",
-    "st.command.user.teleport_online": "已将玩家 %s 传送至 %s",
-    "st.command.user.teleport_offline": "玩家 %s 将在下次上线时传送至 %s",
-    "st.command.user.unknown_action": "未知操作: %s",
-    "st.command.refresh.success": "二进制插件已刷新。发现 %d 个插件。"
-}
-{
-    "itemGroup.shortcutterminal": "快捷终端"
+    "st.terminal_panel.desc": "精巧且紧密的一块终端面板，命令提示符正在闪烁着等待输入",
+    "st.guide_book.desc": "一本包含了所有终端命令的指南书"
 }

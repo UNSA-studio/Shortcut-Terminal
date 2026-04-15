@@ -8,7 +8,7 @@ plugins {
 
 version = '1.0.0'
 group = 'unsa.st.com'
-base.archivesName = 'st'
+base.archivesName = 'shortcutterminal'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
@@ -19,7 +19,6 @@ repositories {
 }
 
 dependencies {
-    // Patchouli 1.21.1 NeoForge 93 版本
     implementation "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
 }
 
@@ -32,7 +31,7 @@ neoForge {
     }
 
     mods {
-        st {
+        shortcutterminal {
             sourceSet(sourceSets.main)
         }
     }
@@ -45,7 +44,7 @@ processResources {
         neo_version            : '21.1.219',
         neo_version_range      : "[21.1,)",
         loader_version_range   : "[4,)",
-        mod_id                 : 'st',
+        mod_id                 : 'shortcutterminal',
         mod_name               : 'Shortcut Terminal',
         mod_license            : 'MIT',
         mod_version            : '1.0.0',
@@ -55,6 +54,11 @@ processResources {
     inputs.properties replaceProperties
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
+    }
+    // 确保 logo.png 被复制到 JAR 根目录
+    from('src/main/resources') {
+        include 'logo.png'
+        into ''
     }
 }
 

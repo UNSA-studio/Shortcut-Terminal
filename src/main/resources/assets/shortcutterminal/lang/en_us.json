@@ -1,19 +1,9 @@
 {
     "item.shortcutterminal.terminal_core": "Terminal Core",
     "item.shortcutterminal.terminal_panel": "Terminal Panel",
-    "block.shortcutterminal.terminal_panel": "Terminal Panel",
-    "st.terminal_panel.desc": "A compact and intricate terminal panel. The command prompt is blinking, waiting for input.",
+    "item.shortcutterminal.guide_book": "Shortcut Terminal Guide",
+    "itemGroup.shortcutterminal": "Shortcut Terminal",
     "st.terminal_core.desc": "A complex and clever core. A bit pricey, but worth it. Pick it up to start your terminal journey.",
-    "st.deps.patchouli": "This mod requires §nPatchouli§r as a dependency!",
-    "st.command.user.usage": "Usage: /ST User <player> <action> [params...]",
-    "st.command.user.actions": "Available actions: switchingmode, changebirthpoint, transmitto_online, transmitto_offline",
-    "st.command.user.mode_set": "Set game mode of %s to %s",
-    "st.command.user.birth_set": "Set spawn point of %s to current location",
-    "st.command.user.teleport_online": "Teleported %s to %s",
-    "st.command.user.teleport_offline": "%s will be teleported to %s upon next login",
-    "st.command.user.unknown_action": "Unknown action: %s",
-    "st.command.refresh.success": "Binary plugins refreshed. Found %d plugins."
-}
-{
-    "itemGroup.shortcutterminal": "Shortcut Terminal"
+    "st.terminal_panel.desc": "A compact and intricate terminal panel. The command prompt is blinking, waiting for input.",
+    "st.guide_book.desc": "A guide book containing all terminal commands."
 }

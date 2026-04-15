@@ -21,7 +21,7 @@ public class PlayerJoinHandler {
         if (event.getEntity() instanceof ServerPlayer player) {
             ItemStack book = PatchouliAPI.get().getBookStack(OUR_BOOK_ID);
             
-            // 检查背包是否已有相同的书（包括组件完全相同）
+            // 检查背包是否已有相同的书
             if (!player.getInventory().contains(book)) {
                 if (!player.getInventory().add(book)) {
                     player.drop(book, false);
