@@ -17,6 +17,8 @@ Features:
 - /ST User - Admin command to manage players
 - /ST open terminal page - Enter terminal mode
 - /ST refresh bf - Refresh binary plugins
+
+§c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！否则将无法启动。
 '''
 
 [[dependencies.st]]
@@ -31,4 +33,11 @@ Features:
     type = "required"
     versionRange = "[1.21,1.21.2)"
     ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.st]]
+    modId = "patchouli"
+    type = "required"
+    versionRange = "[1.21.1-93,)"
+    ordering = "AFTER"
     side = "BOTH"
