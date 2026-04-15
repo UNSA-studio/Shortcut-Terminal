@@ -1,15 +1,10 @@
 {
     "item.st.terminal_core": "Terminal Core",
     "item.st.terminal_panel": "Terminal Panel",
-    "item.st.guide_book": "Shortcut Terminal User's Guide",
     "block.st.terminal_panel": "Terminal Panel",
     "st.terminal_panel.desc": "A compact and intricate terminal panel. The command prompt is blinking, waiting for input.",
     "st.terminal_core.desc": "A complex and clever core. A bit pricey, but worth it. Pick it up to start your terminal journey.",
-    "st.terminal.open": "Terminal Panel opened (GUI in development)",
-    "st.guide.title": "Shortcut Terminal User's Guide",
-    "st.guide.tooltip": "Right-click to read",
-    "st.guide.open": "Opening guide...",
-    
+    "st.deps.patchouli": "This mod requires §nPatchouli§r as a dependency!",
     "st.command.user.usage": "Usage: /ST User <player> <action> [params...]",
     "st.command.user.actions": "Available actions: switchingmode, changebirthpoint, transmitto_online, transmitto_offline",
     "st.command.user.mode_set": "Set game mode of %s to %s",
@@ -17,7 +12,5 @@
     "st.command.user.teleport_online": "Teleported %s to %s",
     "st.command.user.teleport_offline": "%s will be teleported to %s upon next login",
     "st.command.user.unknown_action": "Unknown action: %s",
-    "st.command.user.invalid_coords": "Invalid coordinates format, use x y z or home",
-    
     "st.command.refresh.success": "Binary plugins refreshed. Found %d plugins."
 }

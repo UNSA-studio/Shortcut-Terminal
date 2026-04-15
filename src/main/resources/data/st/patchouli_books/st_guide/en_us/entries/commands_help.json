@@ -1,0 +1,16 @@
+{
+    "name": "/ST Help",
+    "category": "st:commands",
+    "icon": "minecraft:book",
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "输入 /ST Help 可查看所有可用命令列表。$(br)包括文件操作、玩家管理、终端模式等。"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "命令示例",
+            "text": "/ST ls$(br)/ST mkdir test$(br)/ST User Steve switchingmode creative"
+        }
+    ]
+}
