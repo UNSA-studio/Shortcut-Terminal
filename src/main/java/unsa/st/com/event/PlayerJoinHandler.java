@@ -19,16 +19,10 @@ public class PlayerJoinHandler {
         }
 
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家背包是否已包含我们的指南书
-            boolean hasBook = player.getInventory().items.stream()
-                    .anyMatch(stack -> {
-                        ResourceLocation bookId = PatchouliAPI.get().getOpenBook(stack);
-                        return OUR_BOOK_ID.equals(bookId);
-                    });
-
-            if (!hasBook) {
-                // 使用官方 API 获取书籍物品栈
-                ItemStack book = PatchouliAPI.get().getBookStack(OUR_BOOK_ID);
+            ItemStack book = PatchouliAPI.get().getBookStack(OUR_BOOK_ID);
+            
+            // 检查背包是否已有相同的书（包括组件完全相同）
+            if (!player.getInventory().contains(book)) {
                 if (!player.getInventory().add(book)) {
                     player.drop(book, false);
                 }
