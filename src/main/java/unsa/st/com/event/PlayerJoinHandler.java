@@ -1,8 +1,7 @@
 package unsa.st.com.event;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -13,28 +12,36 @@ public class PlayerJoinHandler {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            String ourBookId = "st:st_guide";
+
             // 检查玩家背包是否已有我们的手册
             boolean hasBook = player.getInventory().items.stream().anyMatch(stack -> {
-                if (stack.getItem() == Items.WRITTEN_BOOK && stack.hasTag()) {
-                    CompoundTag tag = stack.getTag();
-                    // 检查 patchouli:book 标签是否等于我们的书籍ID
-                    return tag != null && tag.contains("patchouli:book") &&
-                           "st:st_guide".equals(tag.getString("patchouli:book"));
+                if (stack.getItem() == Items.WRITTEN_BOOK) {
+                    CompoundTag customData = stack.get(DataComponents.CUSTOM_DATA);
+                    return customData != null && ourBookId.equals(customData.getString("patchouli:book"));
                 }
                 return false;
             });
 
             if (!hasBook) {
-                // 创建一本成书，并通过NBT将其标记为Patchouli手册
                 ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
-                CompoundTag tag = book.getOrCreateTag();
-                tag.putString("patchouli:book", "st:st_guide");
+                
+                // 通过 CUSTOM_DATA 组件附加 patchouli:book 标识
+                CompoundTag customData = new CompoundTag();
+                customData.putString("patchouli:book", ourBookId);
+                book.set(DataComponents.CUSTOM_DATA, customData);
 
-                // 给书一个显眼的名称，方便识别（可选）
-                tag.putString("title", "Shortcut Terminal Guide");
-                tag.putString("author", "UNSA-STUDIO");
+                // 设置成书的基本内容（可选）
+                book.set(DataComponents.WRITTEN_BOOK_CONTENT, 
+                    new net.minecraft.world.item.component.WrittenBookContent(
+                        net.minecraft.util.Filterable.passThrough("Shortcut Terminal Guide"),
+                        net.minecraft.util.Filterable.passThrough("UNSA-STUDIO"),
+                        0,
+                        java.util.List.of(),
+                        true
+                    )
+                );
 
-                // 将书放入玩家背包，如果背包满了就掉落在脚边
                 if (!player.getInventory().add(book)) {
                     player.drop(book, false);
                 }
