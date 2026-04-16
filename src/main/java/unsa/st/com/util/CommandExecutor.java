@@ -3,6 +3,8 @@ package unsa.st.com.util;
 import net.minecraft.server.level.ServerPlayer;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.plugin.BinaryPluginManager;
+import unsa.st.com.terminal.TerminalManager;
+import unsa.st.com.terminal.TerminalSession;
 
 import java.util.*;
 
@@ -27,7 +29,7 @@ public class CommandExecutor {
             case "cd": return executeCd(uuid, args);
             case "pwd": return executePwd(uuid);
             case "whoami": return player.getName().getString();
-            case "clear": return ""; // 在GUI中由客户端处理
+            case "clear": return "";
             case "user": return isOp ? executeUserCommand(args) : "Error: Permission denied";
             case "refresh": return executeRefresh(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
@@ -42,10 +44,20 @@ public class CommandExecutor {
         System.arraycopy(parts, 1, args, 0, args.length);
         
         CommandExecutor executor = new CommandExecutor();
-        // 从 TerminalManager 获取当前路径，如果没有会话则使用默认
-        unsa.st.com.terminal.TerminalSession session = unsa.st.com.terminal.TerminalManager.getSession(player);
+        TerminalSession session = TerminalManager.getSession(player);
+        if (session == null) {
+            TerminalManager.enterTerminalMode(player);
+            session = TerminalManager.getSession(player);
+        }
         String sessionPath = session != null ? session.getCurrentPath() : "";
-        return executor.execute(player, command, args, sessionPath);
+        String result = executor.execute(player, command, args, sessionPath);
+        
+        // 如果执行了 cd 并且成功，更新会话路径
+        if (command.equalsIgnoreCase("cd") && executor.wasCdSuccessful()) {
+            session.setCurrentPath(executor.getCurrentPath());
+        }
+        
+        return result;
     }
 
     private String getHelp() {
@@ -110,12 +122,12 @@ public class CommandExecutor {
         if (!UserFileSystem.isPathValid(uuid, newPath)) {
             return "§cYou do not have permission to access this user's folder";
         }
-        if (UserFileSystem.directoryExists(uuid, currentPath, targetPath)) {
+        if (targetPath.isEmpty() || targetPath.equals(".") || UserFileSystem.directoryExists(uuid, currentPath, targetPath)) {
             this.currentPath = newPath;
             this.cdSuccessful = true;
-            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
+            return ""; // cd 成功通常不输出
         }
-        return "Error: Directory not found: " + targetPath;
+        return "bash: cd: " + targetPath + ": No such file or directory";
     }
 
     private String executePwd(UUID uuid) {
