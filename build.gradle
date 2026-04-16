@@ -55,11 +55,6 @@ processResources {
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
     }
-    // 确保 logo.png 被复制到 JAR 根目录
-    from('src/main/resources') {
-        include 'logo.png'
-        into ''
-    }
 }
 
 tasks.withType(JavaCompile).configureEach {
