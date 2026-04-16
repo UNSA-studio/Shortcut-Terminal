@@ -1,0 +1,16 @@
+{
+    "name": "管理员命令",
+    "category": "shortcutterminal:commands",
+    "icon": "minecraft:command_block",
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "/ST User 命令允许管理员对玩家进行各种操作。$(br)用法：/ST User <玩家> <操作> [参数...]"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "可用操作",
+            "text": "$(li)switchingmode <模式> - 切换玩家游戏模式（creative/1, survival/0, adventure/2, spectator/3）$(li)changebirthpoint - 设置玩家出生点为当前位置$(li)transmitto_online <坐标|home> - 传送在线玩家$(li)transmitto_offline <坐标|home> - 玩家下次上线时传送"
+        }
+    ]
+}

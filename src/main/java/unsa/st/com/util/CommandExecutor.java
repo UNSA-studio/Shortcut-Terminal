@@ -2,6 +2,8 @@ package unsa.st.com.util;
 
 import net.minecraft.server.level.ServerPlayer;
 import unsa.st.com.filesystem.UserFileSystem;
+import unsa.st.com.plugin.BinaryPluginManager;
+
 import java.util.*;
 
 public class CommandExecutor {
@@ -14,9 +16,9 @@ public class CommandExecutor {
         UUID uuid = player.getUUID();
         boolean isOp = player.hasPermissions(2);
 
-        switch (command.toLowerCase()) {
+        switch (command.toLowerCase(Locale.ROOT)) {
             case "help": return getHelp();
-            case "ls": return executeLs(uuid, args);
+            case "ls": return executeLs(uuid);
             case "mkdir": return executeMkdir(uuid, args);
             case "touch": return executeTouch(uuid, args);
             case "rm": return executeRm(uuid, args);
@@ -25,10 +27,25 @@ public class CommandExecutor {
             case "cd": return executeCd(uuid, args);
             case "pwd": return executePwd(uuid);
             case "whoami": return player.getName().getString();
-            case "clear": return "\n".repeat(20);
+            case "clear": return ""; // 在GUI中由客户端处理
             case "user": return isOp ? executeUserCommand(args) : "Error: Permission denied";
+            case "refresh": return executeRefresh(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
         }
+    }
+
+    public static String executeFromGUI(ServerPlayer player, String input) {
+        if (input.isBlank()) return "";
+        String[] parts = input.trim().split("\\s+");
+        String command = parts[0];
+        String[] args = new String[parts.length - 1];
+        System.arraycopy(parts, 1, args, 0, args.length);
+        
+        CommandExecutor executor = new CommandExecutor();
+        // 从 TerminalManager 获取当前路径，如果没有会话则使用默认
+        unsa.st.com.terminal.TerminalSession session = unsa.st.com.terminal.TerminalManager.getSession(player);
+        String sessionPath = session != null ? session.getCurrentPath() : "";
+        return executor.execute(player, command, args, sessionPath);
     }
 
     private String getHelp() {
@@ -40,18 +57,17 @@ public class CommandExecutor {
                §ftouch <name> §7- Create a file
                §frm <name> §7- Remove a file or empty directory
                §fcat <name> §7- Display file contents
-               §fecho <text> > <file> §7- Write text to file
                §fcd <path> §7- Change directory
                §fpwd §7- Print working directory
                §fwhoami §7- Display your username
                §fclear §7- Clear the terminal screen
                §fuser <player> <action> §7- Admin player management
-               §fexit §7- Exit terminal mode
+               §frefresh bf §7- Refresh binary plugins
                §a================================
                """;
     }
 
-    private String executeLs(UUID uuid, String[] args) {
+    private String executeLs(UUID uuid) {
         List<String> files = UserFileSystem.listDirectory(uuid, currentPath);
         if (files == null) return "Error: Directory not found";
         if (files.isEmpty()) return "(empty)";
@@ -61,8 +77,6 @@ public class CommandExecutor {
     private String executeMkdir(UUID uuid, String[] args) {
         if (args.length == 0) return "Error: mkdir: missing operand";
         String name = args[0];
-        if (name.contains("..") || name.contains("/") || name.contains("\\")) 
-            return "Error: Invalid directory name";
         return UserFileSystem.createDirectory(uuid, currentPath, name) 
             ? "Directory created: " + name : "Error: Directory already exists or invalid path";
     }
@@ -70,8 +84,6 @@ public class CommandExecutor {
     private String executeTouch(UUID uuid, String[] args) {
         if (args.length == 0) return "Error: touch: missing file operand";
         String name = args[0];
-        if (name.contains("..") || name.contains("/") || name.contains("\\")) 
-            return "Error: Invalid file name";
         return UserFileSystem.createFile(uuid, currentPath, name) 
             ? "File created: " + name : "Error: File already exists or invalid path";
     }
@@ -94,24 +106,11 @@ public class CommandExecutor {
 
     private String executeCd(UUID uuid, String[] args) {
         String targetPath = args.length == 0 ? "" : args[0];
-        if (targetPath.startsWith("..") || targetPath.contains("../")) {
-            String newPath = UserFileSystem.normalizePath(currentPath, targetPath);
-            if (UserFileSystem.isPathValid(uuid, newPath)) {
-                this.currentPath = newPath;
-                this.cdSuccessful = true;
-                return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
-            } else {
-                return "§cYou do not have permission to access this user's folder";
-            }
-        }
-        if (!targetPath.isEmpty() && !targetPath.equals(".") && !targetPath.equals("..")) {
-            String newPath = UserFileSystem.normalizePath(currentPath, targetPath);
-            if (!UserFileSystem.isPathValid(uuid, newPath)) {
-                return "§cYou do not have permission to access this user's folder";
-            }
+        String newPath = UserFileSystem.normalizePath(currentPath, targetPath);
+        if (!UserFileSystem.isPathValid(uuid, newPath)) {
+            return "§cYou do not have permission to access this user's folder";
         }
         if (UserFileSystem.directoryExists(uuid, currentPath, targetPath)) {
-            String newPath = UserFileSystem.normalizePath(currentPath, targetPath);
             this.currentPath = newPath;
             this.cdSuccessful = true;
             return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
@@ -126,6 +125,14 @@ public class CommandExecutor {
     private String executeUserCommand(String[] args) {
         if (args.length < 2) return "Error: Usage: user <playername> <action> [params...]";
         return "User command executed. (Admin feature)";
+    }
+
+    private String executeRefresh(String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("bf")) {
+            BinaryPluginManager.refreshPlugins();
+            return "Binary plugins refreshed. Found " + BinaryPluginManager.getPluginCount() + " plugins.";
+        }
+        return "Usage: refresh bf";
     }
 
     public boolean wasCdSuccessful() { return cdSuccessful; }

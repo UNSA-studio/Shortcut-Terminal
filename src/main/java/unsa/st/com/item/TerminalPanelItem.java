@@ -23,7 +23,6 @@ public class TerminalPanelItem extends Item {
         if (player instanceof ServerPlayer serverPlayer) {
             // 服务端可以做一些准备工作（如创建用户目录）
             unsa.st.com.filesystem.UserFileSystem.createUserDirectory(serverPlayer.getUUID());
-            // 通知客户端打开 GUI 可以通过发包，这里简化：客户端直接打开
         }
         if (level.isClientSide) {
             openTerminalScreen();

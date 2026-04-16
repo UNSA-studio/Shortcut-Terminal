@@ -1,0 +1,16 @@
+{
+    "name": "终端面板",
+    "category": "shortcutterminal:start",
+    "icon": "shortcutterminal:terminal_panel",
+    "pages": [
+        {
+            "type": "patchouli:crafting",
+            "recipe": "shortcutterminal:terminal_panel",
+            "text": "使用 8 个铁锭围绕终端核心合成。"
+        },
+        {
+            "type": "patchouli:text",
+            "text": "右键终端面板可以打开一个终端界面。$(br)在这里你可以输入各种命令，就像在真正的终端中一样。"
+        }
+    ]
+}

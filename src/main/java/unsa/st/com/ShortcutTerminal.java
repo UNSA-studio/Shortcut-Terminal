@@ -16,6 +16,7 @@ import unsa.st.com.registry.ModBlocks;
 import unsa.st.com.registry.ModCreativeTabs;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.util.OfflineTeleportManager;
+import unsa.st.com.network.ModPackets;
 
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
@@ -28,7 +29,7 @@ public class ShortcutTerminal {
         ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
-
+        
         BinaryPluginManager.init();
         OfflineTeleportManager.init();
 
@@ -37,6 +38,7 @@ public class ShortcutTerminal {
         NeoForge.EVENT_BUS.register(new ClientEventHandler());
         NeoForge.EVENT_BUS.register(new PlayerJoinHandler());
         NeoForge.EVENT_BUS.register(new OfflineTeleportManager());
+        modEventBus.register(ModPackets.class);
     }
 
     @SubscribeEvent

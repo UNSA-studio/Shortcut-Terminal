@@ -1,0 +1,16 @@
+{
+    "name": "欢迎",
+    "category": "shortcutterminal:start",
+    "icon": "minecraft:book",
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "欢迎使用快捷终端！这个模组为 Minecraft 添加了一系列类似 Linux 的终端命令。$(br)你可以通过聊天框输入 /ST 开头的命令，或者使用终端面板来获得更沉浸的体验。"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "如何开始",
+            "text": "1. 合成一个$(l:shortcutterminal:terminal_core)终端核心$()。$(br)2. 使用 8 个铁锭围绕终端核心合成一个$(l:shortcutterminal:terminal_panel)终端面板$()。$(br)3. 右键终端面板打开终端界面，开始输入命令！"
+        }
+    ]
+}

@@ -1,26 +1,37 @@
 package unsa.st.com.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
+import unsa.st.com.network.ExecuteCommandPayload;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TerminalScreen extends Screen {
     private static final int BORDER_COLOR = 0xFFFFFFFF;
     private static final int BG_COLOR = 0xFF000000;
     private static final int TEXT_COLOR = 0xFF55FF55;
-
-    // 书本风格的尺寸
-    private static final int GUI_WIDTH = 220;
+    private static final int GUI_WIDTH = 280;
     private static final int GUI_HEIGHT = 180;
-
-    private StringBuilder inputBuffer = new StringBuilder();
-    private String prompt = "~/User $ ";
+    private static final int PADDING = 8;
 
     private int leftPos;
     private int topPos;
+    private EditBox commandInput;
+    private List<String> outputLines = new ArrayList<>();
+    private static TerminalScreen instance;
+    private List<String> commandHistory = new ArrayList<>();
+    private int historyIndex = -1;
 
     public TerminalScreen() {
         super(Component.literal("Terminal"));
+        instance = this;
     }
 
     @Override
@@ -28,42 +39,100 @@ public class TerminalScreen extends Screen {
         super.init();
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
+
+        // 初始化输入框
+        this.commandInput = new EditBox(
+                this.font,
+                this.leftPos + PADDING,
+                this.topPos + GUI_HEIGHT - this.font.lineHeight - PADDING,
+                GUI_WIDTH - 2 * PADDING,
+                this.font.lineHeight + 2,
+                Component.literal("")
+        );
+        this.commandInput.setMaxLength(256);
+        this.commandInput.setFocused(true);
+        this.commandInput.setBordered(false);
+        this.commandInput.setTextColor(TEXT_COLOR);
+        this.commandInput.setCanLoseFocus(false);
+        this.addRenderableWidget(this.commandInput);
+        
+        this.setInitialFocus(this.commandInput);
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // 不调用 super.render，完全自己绘制，避免背景模糊
         // 绘制黑色背景
         guiGraphics.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + GUI_HEIGHT, BG_COLOR);
         // 绘制白色边框
         guiGraphics.renderOutline(leftPos, topPos, GUI_WIDTH, GUI_HEIGHT, BORDER_COLOR);
 
-        // 绘制命令提示符和输入内容
-        String displayText = prompt + inputBuffer.toString();
-        int y = topPos + GUI_HEIGHT - 15;
-        guiGraphics.drawString(this.font, displayText, leftPos + 5, y, TEXT_COLOR);
-    }
+        // 绘制输出区域
+        int outputStartY = this.topPos + PADDING;
+        int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
+        int lineHeight = this.font.lineHeight + 1;
+        int maxLines = outputHeight / lineHeight;
+        
+        // 从后往前绘制，最新的在底部
+        int startIndex = Math.max(0, outputLines.size() - maxLines);
+        for (int i = startIndex; i < outputLines.size(); i++) {
+            int y = outputStartY + (i - startIndex) * lineHeight;
+            guiGraphics.drawString(this.font, outputLines.get(i), leftPos + PADDING, y, TEXT_COLOR);
+        }
 
-    @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        inputBuffer.append(codePoint);
-        return true;
+        // 绘制提示符
+        String prompt = "~/User $ ";
+        int promptWidth = this.font.width(prompt);
+        guiGraphics.drawString(this.font, prompt, leftPos + PADDING, this.commandInput.getY(), TEXT_COLOR);
+        
+        // 调整输入框位置，使其紧跟在提示符后面
+        this.commandInput.setX(leftPos + PADDING + promptWidth);
+        this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth);
+        
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 259) { // 退格
-            if (!inputBuffer.isEmpty()) {
-                inputBuffer.deleteCharAt(inputBuffer.length() - 1);
+        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+            String command = this.commandInput.getValue();
+            if (!command.isBlank()) {
+                outputLines.add("~/User $ " + command);
+                commandHistory.add(command);
+                historyIndex = commandHistory.size();
+                
+                PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
+                
+                this.commandInput.setValue("");
             }
             return true;
         }
-        if (keyCode == 257 || keyCode == 335) { // 回车
-            // 执行命令逻辑（可后续扩展）
-            inputBuffer.setLength(0);
+        
+        // 处理命令历史
+        if (keyCode == GLFW.GLFW_KEY_UP) {
+            if (!commandHistory.isEmpty() && historyIndex > 0) {
+                historyIndex--;
+                this.commandInput.setValue(commandHistory.get(historyIndex));
+            }
             return true;
         }
+        if (keyCode == GLFW.GLFW_KEY_DOWN) {
+            if (historyIndex < commandHistory.size() - 1) {
+                historyIndex++;
+                this.commandInput.setValue(commandHistory.get(historyIndex));
+            } else {
+                historyIndex = commandHistory.size();
+                this.commandInput.setValue("");
+            }
+            return true;
+        }
+        
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    public static void receiveCommandResult(String result) {
+        if (instance != null) {
+            instance.outputLines.add(result);
+        }
     }
 
     @Override
@@ -74,5 +143,16 @@ public class TerminalScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         // 空实现，完全阻止默认的背景渲染（避免模糊）
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return true;
+    }
+
+    @Override
+    public void tick() {
+        this.commandInput.tick();
+        super.tick();
     }
 }
