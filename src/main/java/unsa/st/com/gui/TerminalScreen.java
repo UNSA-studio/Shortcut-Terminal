@@ -9,8 +9,6 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 import unsa.st.com.network.ExecuteCommandPayload;
-import unsa.st.com.terminal.TerminalManager;
-import unsa.st.com.terminal.TerminalSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +36,7 @@ public class TerminalScreen extends Screen {
     private List<String> commandHistory = new ArrayList<>();
     private int historyIndex = -1;
     
-    // 当前提示符（从 TerminalSession 获取）
+    // 当前提示符（客户端本地维护，初始为 "~ $ "，之后由服务端响应更新）
     private String currentPrompt = "~ $ ";
     
     // 单例实例，用于接收服务端返回的结果
@@ -55,7 +53,6 @@ public class TerminalScreen extends Screen {
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
 
-        // 初始化输入框（位于底部）
         this.commandInput = new EditBox(
                 this.font,
                 this.leftPos + PADDING,
@@ -72,21 +69,6 @@ public class TerminalScreen extends Screen {
         this.addRenderableWidget(this.commandInput);
         
         this.setInitialFocus(this.commandInput);
-        
-        // 如果已有会话，获取当前路径以显示正确提示符
-        updatePrompt();
-    }
-
-    private void updatePrompt() {
-        if (Minecraft.getInstance().player != null) {
-            TerminalSession session = TerminalManager.getSession(
-                (net.minecraft.server.level.ServerPlayer) Minecraft.getInstance().player
-            );
-            if (session != null) {
-                String path = session.getCurrentPath();
-                currentPrompt = path.isEmpty() ? "~ $ " : "~/" + path + " $ ";
-            }
-        }
     }
 
     @Override
@@ -95,7 +77,6 @@ public class TerminalScreen extends Screen {
         guiGraphics.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + GUI_HEIGHT, BG_COLOR);
         guiGraphics.renderOutline(leftPos, topPos, GUI_WIDTH, GUI_HEIGHT, BORDER_COLOR);
 
-        // 计算输出区域
         int outputStartX = leftPos + PADDING;
         int outputStartY = topPos + PADDING;
         int outputWidth = GUI_WIDTH - 2 * PADDING - SCROLLBAR_WIDTH;
@@ -103,28 +84,22 @@ public class TerminalScreen extends Screen {
         int lineHeight = this.font.lineHeight + 1;
         int maxVisibleLines = outputHeight / lineHeight;
         
-        // 总内容高度（行数 * 行高）
         int totalContentHeight = outputLines.size() * lineHeight;
         int maxScroll = Math.max(0, totalContentHeight - outputHeight);
         
-        // 处理滚轮滚动
         if (isMouseOver(mouseX, mouseY)) {
-            // 滚轮逻辑在主渲染循环外处理，见 mouseScrolled 方法
+            // 滚轮逻辑在 mouseScrolled 中
         }
         
-        // 裁剪滚动偏移量
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
         
-        // 计算起始绘制行索引
         int startLine = (int) (scrollOffset / lineHeight);
         int endLine = Math.min(outputLines.size(), startLine + maxVisibleLines + 1);
         
-        // 绘制可见的输出行
         for (int i = startLine; i < endLine; i++) {
             int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
             String line = outputLines.get(i);
             
-            // 简单语法高亮：如果行以 "$" 或 "~" 开头，视为提示符行，用不同颜色
             int color = TEXT_COLOR;
             if (line.startsWith("~") || line.contains(" $ ")) {
                 color = PROMPT_COLOR;
@@ -134,7 +109,6 @@ public class TerminalScreen extends Screen {
             guiGraphics.drawString(this.font, line, outputStartX, y, color);
         }
         
-        // 绘制滚动条
         if (maxScroll > 0) {
             int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
             int scrollbarHeight = outputHeight;
@@ -144,19 +118,17 @@ public class TerminalScreen extends Screen {
             guiGraphics.fill(scrollbarX, thumbY, scrollbarX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFAAAAAA);
         }
 
-        // 绘制提示符和输入框
         String promptDisplay = currentPrompt;
         int promptWidth = this.font.width(promptDisplay);
         guiGraphics.drawString(this.font, promptDisplay, leftPos + PADDING, this.commandInput.getY(), PROMPT_COLOR);
         
-        // 调整输入框位置
         this.commandInput.setX(leftPos + PADDING + promptWidth);
         this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
         
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private boolean isMouseOver(double mouseX, double mouseY) {
+    public boolean isMouseOver(double mouseX, double mouseY) {
         return mouseX >= leftPos && mouseX <= leftPos + GUI_WIDTH &&
                mouseY >= topPos && mouseY <= topPos + GUI_HEIGHT;
     }
@@ -164,7 +136,7 @@ public class TerminalScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (isMouseOver(mouseX, mouseY)) {
-            scrollOffset -= scrollY * 20; // 每滚动一格移动20像素
+            scrollOffset -= scrollY * 20;
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -211,16 +183,14 @@ public class TerminalScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             String command = this.commandInput.getValue();
             if (!command.isBlank()) {
-                // 将当前提示符和命令添加到输出
                 outputLines.add(currentPrompt + command);
                 commandHistory.add(command);
                 historyIndex = commandHistory.size();
                 
-                // 发送到服务端执行
                 PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
                 
                 this.commandInput.setValue("");
-                scrollOffset = Double.MAX_VALUE; // 滚动到底部
+                scrollOffset = Double.MAX_VALUE;
             }
             return true;
         }
@@ -243,7 +213,6 @@ public class TerminalScreen extends Screen {
             return true;
         }
         
-        // Ctrl+L 清屏
         if (keyCode == GLFW.GLFW_KEY_L && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
             outputLines.clear();
             scrollOffset = 0;
@@ -256,14 +225,17 @@ public class TerminalScreen extends Screen {
     public static void receiveCommandResult(String result) {
         if (instance != null) {
             if (result != null && !result.isEmpty()) {
-                // 将结果分行添加到输出缓冲区
                 for (String line : result.split("\n")) {
                     instance.outputLines.add(line);
                 }
             }
-            // 更新提示符（因为可能执行了 cd）
-            instance.updatePrompt();
-            instance.scrollOffset = Double.MAX_VALUE; // 自动滚动到底部
+            // 向服务端请求当前路径以更新提示符（可后续实现）
+            // 暂时通过解析结果中的 "Changed directory to" 来更新提示符
+            if (result != null && result.contains("Changed directory to")) {
+                String path = result.substring(result.indexOf(":") + 1).trim();
+                instance.currentPrompt = path.isEmpty() ? "~ $ " : "~/" + path + " $ ";
+            }
+            instance.scrollOffset = Double.MAX_VALUE;
         }
     }
 
@@ -274,17 +246,11 @@ public class TerminalScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // 不绘制默认背景，避免模糊
+        // 不绘制默认背景
     }
 
     @Override
     public boolean shouldCloseOnEsc() {
         return true;
-    }
-
-    @Override
-    public void tick() {
-        // 每 tick 更新提示符（应对可能的外部变化）
-        updatePrompt();
     }
 }
