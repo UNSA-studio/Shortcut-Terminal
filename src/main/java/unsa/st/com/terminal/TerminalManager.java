@@ -16,7 +16,9 @@ public class TerminalManager {
     public static void enterTerminalMode(ServerPlayer player) {
         UUID uuid = player.getUUID();
         terminalMode.put(uuid, true);
-        sessions.put(uuid, new TerminalSession(player));
+        TerminalSession session = new TerminalSession(player);
+        session.setCurrentPath(""); // 根目录就是用户UUID目录
+        sessions.put(uuid, session);
         UserFileSystem.createUserDirectory(uuid);
     }
 
