@@ -40,7 +40,6 @@ public class TerminalScreen extends Screen {
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
 
-        // 初始化输入框
         this.commandInput = new EditBox(
                 this.font,
                 this.leftPos + PADDING,
@@ -61,30 +60,24 @@ public class TerminalScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // 绘制黑色背景
         guiGraphics.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + GUI_HEIGHT, BG_COLOR);
-        // 绘制白色边框
         guiGraphics.renderOutline(leftPos, topPos, GUI_WIDTH, GUI_HEIGHT, BORDER_COLOR);
 
-        // 绘制输出区域
         int outputStartY = this.topPos + PADDING;
         int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
         int lineHeight = this.font.lineHeight + 1;
         int maxLines = outputHeight / lineHeight;
         
-        // 从后往前绘制，最新的在底部
         int startIndex = Math.max(0, outputLines.size() - maxLines);
         for (int i = startIndex; i < outputLines.size(); i++) {
             int y = outputStartY + (i - startIndex) * lineHeight;
             guiGraphics.drawString(this.font, outputLines.get(i), leftPos + PADDING, y, TEXT_COLOR);
         }
 
-        // 绘制提示符
         String prompt = "~/User $ ";
         int promptWidth = this.font.width(prompt);
         guiGraphics.drawString(this.font, prompt, leftPos + PADDING, this.commandInput.getY(), TEXT_COLOR);
         
-        // 调整输入框位置，使其紧跟在提示符后面
         this.commandInput.setX(leftPos + PADDING + promptWidth);
         this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth);
         
@@ -107,7 +100,6 @@ public class TerminalScreen extends Screen {
             return true;
         }
         
-        // 处理命令历史
         if (keyCode == GLFW.GLFW_KEY_UP) {
             if (!commandHistory.isEmpty() && historyIndex > 0) {
                 historyIndex--;
@@ -142,17 +134,11 @@ public class TerminalScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // 空实现，完全阻止默认的背景渲染（避免模糊）
+        // 空实现，避免背景模糊
     }
 
     @Override
     public boolean shouldCloseOnEsc() {
         return true;
-    }
-
-    @Override
-    public void tick() {
-        this.commandInput.tick();
-        super.tick();
     }
 }
