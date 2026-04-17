@@ -4,9 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.*;
@@ -18,64 +17,46 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final String REPO_URL = "https://raw.githubusercontent.com/termux/termux-packages/master/packages";
+    // 镜像源：Linux 和 Windows 各一个（实际上 Windows 服务器一般也用 Linux 模拟，这里预设两个源方便扩展）
+    private static final String[] REPO_URLS = {
+        "https://packages.termux.dev/apt/termux-main",           // Termux 官方 (ARM64)
+        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main" // 清华镜像 (ARM64)
+    };
+    private static String activeRepo = REPO_URLS[0];
+
     private static final String PROGRAM_DIR = "Program";
     private static final String BINARY_DIR = "Binary file";
     private static final String PATH_FILE = "PATH.txt";
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
 
-    private static Path gameDir;
-    private static Path programPath;
-    private static Path binaryPath;
-    private static Path dbPath;
-    private static Path pathFile;
-    private static Path pathBackupFile;
-
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
     private static Map<String, PackageInfo> localDb = new HashMap<>();
 
     public static void init() {
-        Minecraft mc = Minecraft.getInstance();
-        gameDir = mc.gameDirectory.toPath();
-        programPath = gameDir.resolve(PROGRAM_DIR);
-        binaryPath = gameDir.resolve(BINARY_DIR);
-        dbPath = programPath.resolve(INSTALLED_DB);
-        pathFile = gameDir.resolve(PATH_FILE);
-        pathBackupFile = binaryPath.resolve(PATH_FILE);
-
-        try {
-            Files.createDirectories(programPath);
-            Files.createDirectories(binaryPath);
-            Files.createDirectories(dbPath.getParent());
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to create directories", e);
-        }
-
-        loadLocalDatabase();
-        ensurePath();
+        // 初始化由主类调用，无需在此处理
     }
 
-    private static void ensurePath() {
-        try {
-            Set<String> paths = new LinkedHashSet<>();
-            if (Files.exists(pathFile)) {
-                paths.addAll(Files.readAllLines(pathFile));
-            }
-            paths.add(programPath.resolve("bin").toAbsolutePath().toString());
-            paths.add(binaryPath.toAbsolutePath().toString());
-            Files.write(pathFile, paths);
-            Files.createDirectories(binaryPath);
-            Files.write(pathBackupFile, paths);
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to update PATH", e);
+    private static Path getGameDir(boolean isClient) {
+        if (isClient) {
+            return Minecraft.getInstance().gameDirectory.toPath();
+        } else {
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            return server.getServerDirectory().toPath();
         }
     }
 
-    private static void loadLocalDatabase() {
+    private static Path getProgramPath(boolean isClient) { return getGameDir(isClient).resolve(PROGRAM_DIR); }
+    private static Path getBinaryPath(boolean isClient) { return getGameDir(isClient).resolve(BINARY_DIR); }
+    private static Path getDbPath(boolean isClient) { return getProgramPath(isClient).resolve(INSTALLED_DB); }
+    private static Path getPathFile(boolean isClient) { return getGameDir(isClient).resolve(PATH_FILE); }
+
+    private static void loadLocalDatabase(boolean isClient) {
         localDb.clear();
+        Path dbPath = getDbPath(isClient);
         if (Files.exists(dbPath)) {
             try {
                 String content = Files.readString(dbPath);
@@ -87,8 +68,9 @@ public class PkgManager {
         }
     }
 
-    private static void saveLocalDatabase() {
+    private static void saveLocalDatabase(boolean isClient) {
         try {
+            Path dbPath = getDbPath(isClient);
             Files.createDirectories(dbPath.getParent());
             Files.writeString(dbPath, GSON.toJson(localDb));
         } catch (IOException e) {
@@ -96,123 +78,152 @@ public class PkgManager {
         }
     }
 
-    public static String updateIndex() {
+    private static void ensurePath(boolean isClient) {
         try {
-            // 使用 Termux 的包列表作为演示 (简化，真实场景应使用 Packages 文件)
-            // 这里直接返回一些预定义包
-            remoteIndex.clear();
-            
-            // BusyBox
+            Path pathFile = getPathFile(isClient);
+            Path programBin = getProgramPath(isClient).resolve("bin");
+            Path binaryPath = getBinaryPath(isClient);
+            Set<String> paths = new LinkedHashSet<>();
+            if (Files.exists(pathFile)) paths.addAll(Files.readAllLines(pathFile));
+            paths.add(programBin.toAbsolutePath().toString());
+            paths.add(binaryPath.toAbsolutePath().toString());
+            Files.write(pathFile, paths);
+        } catch (IOException e) {
+            ShortcutTerminal.LOGGER.error("Failed to update PATH", e);
+        }
+    }
+
+    public static String updateIndex() {
+        remoteIndex.clear();
+        for (String repo : REPO_URLS) {
+            try {
+                URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+                InputStream is = conn.getInputStream();
+                if (conn.getHeaderField("Content-Encoding") != null && conn.getHeaderField("Content-Encoding").contains("gzip")) {
+                    is = new GZIPInputStream(is);
+                }
+                parsePackagesStream(is);
+                activeRepo = repo;
+                break;
+            } catch (Exception e) {
+                ShortcutTerminal.LOGGER.warn("Failed to fetch from {}: {}", repo, e.getMessage());
+            }
+        }
+        if (remoteIndex.isEmpty()) {
+            // 保底内置包
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
             busybox.architecture = "arm64";
-            busybox.filename = "pool/main/b/busybox/busybox_1.36.1_arm64.ipk";
+            busybox.filename = "pool/main/b/busybox/busybox_1.36.1_arm64.deb";
             busybox.description = "Tiny versions of many common UNIX utilities";
             remoteIndex.put("busybox", busybox);
-            
-            // Toybox
-            PackageInfo toybox = new PackageInfo();
-            toybox.packageName = "toybox";
-            toybox.version = "0.8.11";
-            toybox.architecture = "arm64";
-            toybox.filename = "pool/main/t/toybox/toybox_0.8.11_arm64.ipk";
-            toybox.description = "All-in-one Linux command line";
-            remoteIndex.put("toybox", toybox);
-            
-            return "Package index updated. " + remoteIndex.size() + " packages available.";
-        } catch (Exception e) {
-            return "Failed to update index: " + e.getMessage();
+            return "Remote fetch failed, using built-in fallback. 1 package available.";
+        }
+        return "Package index updated from " + activeRepo + ". " + remoteIndex.size() + " packages available.";
+    }
+
+    private static void parsePackagesStream(InputStream is) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        StringBuilder block = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.trim().isEmpty()) {
+                if (block.length() > 0) {
+                    PackageInfo info = PackageInfo.parse(block.toString());
+                    remoteIndex.put(info.packageName, info);
+                    block.setLength(0);
+                }
+            } else {
+                block.append(line).append("\n");
+            }
+        }
+        if (block.length() > 0) {
+            PackageInfo info = PackageInfo.parse(block.toString());
+            remoteIndex.put(info.packageName, info);
         }
     }
 
-    public static String install(String packageName) {
-        if (!remoteIndex.containsKey(packageName)) {
-            return "Package not found: " + packageName;
-        }
+    public static String install(String packageName, boolean isClient) {
+        loadLocalDatabase(isClient);
+        if (!remoteIndex.containsKey(packageName)) return "Package not found: " + packageName;
+        if (localDb.containsKey(packageName)) return "Package already installed: " + packageName;
         PackageInfo pkg = remoteIndex.get(packageName);
-        if (localDb.containsKey(packageName)) {
-            return "Package already installed: " + packageName;
-        }
 
         try {
-            // 简化：直接从预设位置复制（实际应从网络下载）
-            Path source = binaryPath.resolve(packageName);
-            if (!Files.exists(source)) {
-                // 如果没有本地文件，尝试从内置资源解压
-                return "Package file not found in Binary file. Please download " + packageName + " first.";
+            String repo = activeRepo;
+            URL url = new URL(repo + "/" + pkg.filename);
+            Path tmpFile = Files.createTempFile("pkg_", ".deb");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+            try (InputStream in = conn.getInputStream()) {
+                Files.copy(in, tmpFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 创建 bin 目录
-            Path binDir = programPath.resolve("bin");
+            Path binDir = getProgramPath(isClient).resolve("bin");
             Files.createDirectories(binDir);
-            
-            // 复制可执行文件
+            // 简化：只复制二进制文件（实际应解压 deb 包，这里先保持简单）
             Path dest = binDir.resolve(packageName);
-            Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(tmpFile, dest, StandardCopyOption.REPLACE_EXISTING);
             dest.toFile().setExecutable(true);
-            
-            // 记录到本地数据库
+
             localDb.put(packageName, pkg);
-            saveLocalDatabase();
-            
-            // 更新 PATH
-            ensurePath();
-            
+            saveLocalDatabase(isClient);
+            ensurePath(isClient);
             return "Package installed: " + packageName + " (" + pkg.version + ")";
-        } catch (IOException e) {
+        } catch (Exception e) {
             return "Installation failed: " + e.getMessage();
         }
     }
 
-    public static String remove(String packageName) {
-        if (!localDb.containsKey(packageName)) {
-            return "Package not installed: " + packageName;
-        }
+    public static String remove(String packageName, boolean isClient) {
+        loadLocalDatabase(isClient);
+        if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
         try {
-            Path binDir = programPath.resolve("bin");
-            Path target = binDir.resolve(packageName);
+            Path target = getProgramPath(isClient).resolve("bin").resolve(packageName);
             Files.deleteIfExists(target);
             localDb.remove(packageName);
-            saveLocalDatabase();
+            saveLocalDatabase(isClient);
             return "Package removed: " + packageName;
         } catch (IOException e) {
             return "Removal failed: " + e.getMessage();
         }
     }
 
-    public static List<String> listInstalled() {
-        return new ArrayList<>(localDb.keySet());
+    public static String listInstalled(boolean isClient) {
+        loadLocalDatabase(isClient);
+        if (localDb.isEmpty()) return "No packages installed.";
+        return "Installed:\n" + String.join("\n", localDb.keySet());
     }
 
-    public static List<String> listAvailable() {
-        return new ArrayList<>(remoteIndex.keySet());
-    }
-
-    public static List<String> search(String keyword) {
-        return remoteIndex.keySet().stream()
-                .filter(name -> name.contains(keyword) || 
-                        remoteIndex.get(name).description.toLowerCase().contains(keyword.toLowerCase()))
+    public static String search(String keyword) {
+        List<String> results = remoteIndex.keySet().stream()
+                .filter(name -> name.contains(keyword) || remoteIndex.get(name).description.toLowerCase().contains(keyword.toLowerCase()))
                 .collect(Collectors.toList());
+        if (results.isEmpty()) return "No packages found.";
+        return "Found:\n" + String.join("\n", results);
     }
 
     public static String showInfo(String packageName) {
         PackageInfo pkg = remoteIndex.get(packageName);
-        if (pkg == null) pkg = localDb.get(packageName);
         if (pkg == null) return "Package not found.";
         return String.format("Package: %s\nVersion: %s\nArchitecture: %s\nDescription: %s",
                 pkg.packageName, pkg.version, pkg.architecture, pkg.description);
     }
 
-    public static List<String> getPathEntries() {
+    public static String getPathEntries(boolean isClient) {
         try {
+            Path pathFile = getPathFile(isClient);
             if (Files.exists(pathFile)) {
-                return Files.readAllLines(pathFile);
+                return String.join("\n", Files.readAllLines(pathFile));
             }
         } catch (IOException ignored) {}
-        return new ArrayList<>();
+        return "PATH not found";
     }
 
-    public static Map<String, PackageInfo> getRemoteIndex() { return remoteIndex; }
-    public static Map<String, PackageInfo> getLocalDb() { return localDb; }
+    public static List<String> listAvailable() {
+        return new ArrayList<>(remoteIndex.keySet());
+    }
 }
