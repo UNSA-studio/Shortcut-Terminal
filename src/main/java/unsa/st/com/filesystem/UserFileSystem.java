@@ -17,7 +17,6 @@ public class UserFileSystem {
         if (basePath == null) {
             MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
             if (server != null) {
-                // server.getServerDirectory() 已经返回 Path，无需 toPath()
                 basePath = server.getServerDirectory().resolve(BASE_FOLDER);
             } else {
                 basePath = Paths.get(BASE_FOLDER);
@@ -116,6 +115,16 @@ public class UserFileSystem {
             return Files.readString(filePath);
         } catch (IOException e) {
             return null;
+        }
+    }
+    
+    public static void writeFile(UUID uuid, String relativePath, String name, String content) {
+        if (!isPathValid(uuid, relativePath)) return;
+        Path filePath = getUserPath(uuid).resolve(relativePath).resolve(name);
+        try {
+            Files.writeString(filePath, content);
+        } catch (IOException e) {
+            ShortcutTerminal.LOGGER.error("Failed to write file", e);
         }
     }
 
