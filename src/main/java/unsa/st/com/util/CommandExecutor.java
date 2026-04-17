@@ -125,7 +125,7 @@ public class CommandExecutor {
         if (targetPath.isEmpty() || targetPath.equals(".") || UserFileSystem.directoryExists(uuid, currentPath, targetPath)) {
             this.currentPath = newPath;
             this.cdSuccessful = true;
-            return ""; // cd 成功通常不输出
+            return "";
         }
         return "bash: cd: " + targetPath + ": No such file or directory";
     }

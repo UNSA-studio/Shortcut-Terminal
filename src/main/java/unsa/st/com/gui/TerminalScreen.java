@@ -8,7 +8,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
-import unsa.st.com.network.ExecuteCommandPayload;
+import unsa.st.com.network.ExecuteCommandPacket;
+import unsa.st.com.terminal.TerminalManager;
+import unsa.st.com.terminal.TerminalSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +19,7 @@ public class TerminalScreen extends Screen {
     private static final int BORDER_COLOR = 0xFFFFFFFF;
     private static final int BG_COLOR = 0xFF000000;
     private static final int TEXT_COLOR = 0xFF55FF55;
-    private static final int PROMPT_COLOR = 0xFF55FFFF;
+    private static final int PROMPT_COLOR = 0xFF55FF55; // 提示符也改为绿色
     private static final int GUI_WIDTH = 320;
     private static final int GUI_HEIGHT = 200;
     private static final int PADDING = 6;
@@ -54,14 +56,27 @@ public class TerminalScreen extends Screen {
                 Component.literal("")
         );
         this.commandInput.setMaxLength(256);
+        this.commandInput.setFocused(true);
         this.commandInput.setBordered(false);
         this.commandInput.setTextColor(TEXT_COLOR);
         this.commandInput.setCanLoseFocus(false);
         this.addRenderableWidget(this.commandInput);
         
-        // 确保焦点在输入框
         this.setInitialFocus(this.commandInput);
-        this.commandInput.setFocused(true);
+        
+        updatePrompt();
+    }
+
+    private void updatePrompt() {
+        if (Minecraft.getInstance().player != null) {
+            TerminalSession session = TerminalManager.getSession(
+                (net.minecraft.server.level.ServerPlayer) Minecraft.getInstance().player
+            );
+            if (session != null) {
+                String path = session.getCurrentPath();
+                currentPrompt = path.isEmpty() ? "~ $ " : "~/" + path + " $ ";
+            }
+        }
     }
 
     @Override
@@ -86,8 +101,11 @@ public class TerminalScreen extends Screen {
             int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
             String line = outputLines.get(i);
             int color = TEXT_COLOR;
-            if (line.startsWith("~") || line.contains(" $ ")) color = PROMPT_COLOR;
-            else if (line.startsWith("Error:") || line.startsWith("bash:")) color = 0xFFFF5555;
+            if (line.startsWith("~") || line.contains(" $ ")) {
+                color = PROMPT_COLOR;
+            } else if (line.startsWith("Error:") || line.startsWith("bash:")) {
+                color = 0xFFFF5555;
+            }
             guiGraphics.drawString(this.font, line, outputStartX, y, color);
         }
         
@@ -111,7 +129,8 @@ public class TerminalScreen extends Screen {
     }
 
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return mouseX >= leftPos && mouseX <= leftPos + GUI_WIDTH && mouseY >= topPos && mouseY <= topPos + GUI_HEIGHT;
+        return mouseX >= leftPos && mouseX <= leftPos + GUI_WIDTH &&
+               mouseY >= topPos && mouseY <= topPos + GUI_HEIGHT;
     }
 
     @Override
@@ -121,26 +140,6 @@ public class TerminalScreen extends Screen {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
-            int outputStartY = topPos + PADDING;
-            int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
-            if (mouseX >= scrollbarX && mouseX <= scrollbarX + SCROLLBAR_WIDTH && mouseY >= outputStartY && mouseY <= outputStartY + outputHeight) {
-                isDraggingScrollbar = true;
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) isDraggingScrollbar = false;
-        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
@@ -157,6 +156,29 @@ public class TerminalScreen extends Screen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
+            int outputStartY = topPos + PADDING;
+            int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
+            if (mouseX >= scrollbarX && mouseX <= scrollbarX + SCROLLBAR_WIDTH &&
+                mouseY >= outputStartY && mouseY <= outputStartY + outputHeight) {
+                isDraggingScrollbar = true;
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            isDraggingScrollbar = false;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             String command = this.commandInput.getValue();
@@ -164,12 +186,15 @@ public class TerminalScreen extends Screen {
                 outputLines.add(currentPrompt + command);
                 commandHistory.add(command);
                 historyIndex = commandHistory.size();
-                PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
+                
+                PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
+                
                 this.commandInput.setValue("");
                 scrollOffset = Double.MAX_VALUE;
             }
             return true;
         }
+        
         if (keyCode == GLFW.GLFW_KEY_UP) {
             if (!commandHistory.isEmpty() && historyIndex > 0) {
                 historyIndex--;
@@ -187,39 +212,45 @@ public class TerminalScreen extends Screen {
             }
             return true;
         }
+        
         if (keyCode == GLFW.GLFW_KEY_L && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
             outputLines.clear();
             scrollOffset = 0;
             return true;
         }
-        // 将其他按键传递给输入框
-        return this.commandInput.keyPressed(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        return this.commandInput.charTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
+        
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     public static void receiveCommandResult(String result) {
-        if (instance != null && result != null) {
-            if (!result.isEmpty()) {
+        if (instance != null) {
+            if (result != null && !result.isEmpty()) {
                 for (String line : result.split("\n")) {
                     instance.outputLines.add(line);
                 }
             }
-            if (result.contains("Changed directory to")) {
-                String path = result.substring(result.indexOf(":") + 1).trim();
-                instance.currentPrompt = path.isEmpty() ? "~ $ " : "~/" + path + " $ ";
-            }
+            instance.updatePrompt();
             instance.scrollOffset = Double.MAX_VALUE;
         }
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
+
     @Override
-    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // 不绘制默认背景，避免模糊
+    }
+
     @Override
-    public boolean shouldCloseOnEsc() { return true; }
+    public boolean shouldCloseOnEsc() {
+        return true;
+    }
+
+    @Override
+    public void tick() {
+        updatePrompt();
+    }
 }

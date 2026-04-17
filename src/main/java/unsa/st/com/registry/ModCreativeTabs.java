@@ -4,6 +4,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import unsa.st.com.ShortcutTerminal;
@@ -18,7 +19,7 @@ public class ModCreativeTabs {
             "shortcut_terminal_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.shortcutterminal"))
-                    .icon(() -> new ItemStack(ModItems.TERMINAL_CORE.get()))
+                    .icon(() -> new ItemStack(Items.COMMAND_BLOCK))
                     .displayItems((params, output) -> {
                         output.accept(ModItems.TERMINAL_CORE.get());
                         output.accept(ModItems.TERMINAL_PANEL.get());
