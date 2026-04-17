@@ -18,7 +18,9 @@ import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.util.CommandExecutor;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.plugin.BinaryPluginManager;
+import unsa.st.com.pkg.PackageManager;
 
+import java.util.List;
 import java.util.UUID;
 
 public class ModCommands {
@@ -28,42 +30,55 @@ public class ModCommands {
         SharedSuggestionProvider.suggest(new String[]{"switchingmode", "changebirthpoint", "transmitto_online", "transmitto_offline"}, builder);
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        var builder = Commands.literal("ST")
-            .then(Commands.literal("Help").executes(ctx -> showHelp(ctx.getSource())))
-            .then(Commands.literal("ls").executes(ctx -> executeLs(ctx.getSource())))
-            .then(Commands.literal("mkdir").then(Commands.argument("name", StringArgumentType.string())
-                .executes(ctx -> executeMkdir(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-            .then(Commands.literal("touch").then(Commands.argument("name", StringArgumentType.string())
-                .executes(ctx -> executeTouch(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-            .then(Commands.literal("rm").then(Commands.argument("name", StringArgumentType.string())
-                .executes(ctx -> executeRm(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-            .then(Commands.literal("cat").then(Commands.argument("name", StringArgumentType.string())
-                .executes(ctx -> executeCat(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-            .then(Commands.literal("cd").then(Commands.argument("path", StringArgumentType.string())
-                .executes(ctx -> executeCd(ctx.getSource(), StringArgumentType.getString(ctx, "path")))))
-            .then(Commands.literal("pwd").executes(ctx -> executePwd(ctx.getSource())))
-            .then(Commands.literal("echo").then(Commands.argument("text", StringArgumentType.greedyString())
-                .executes(ctx -> executeEcho(ctx.getSource(), StringArgumentType.getString(ctx, "text")))))
-            .then(Commands.literal("clear").executes(ctx -> executeClear(ctx.getSource())))
-            .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
-            .then(Commands.literal("refresh").then(Commands.literal("bf")
-                .executes(ctx -> executeRefresh(ctx.getSource()))))
-            .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
-                .executes(ctx -> openTerminal(ctx.getSource())))))
-            .then(Commands.literal("User")
-                .then(Commands.argument("player", EntityArgument.player())
-                    .then(Commands.argument("action", StringArgumentType.word()).suggests(ACTIONS)
-                        .then(Commands.argument("params", StringArgumentType.greedyString())
-                            .executes(ctx -> executeUser(ctx.getSource(),
-                                EntityArgument.getPlayer(ctx, "player"),
-                                StringArgumentType.getString(ctx, "action"),
-                                StringArgumentType.getString(ctx, "params"))))
-                        .executes(ctx -> {
-                            ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
-                            return 0;
-                        }))));
-
-        dispatcher.register(builder);
+        dispatcher.register(
+            Commands.literal("ST")
+                .then(Commands.literal("Help").executes(ctx -> showHelp(ctx.getSource())))
+                .then(Commands.literal("ls").executes(ctx -> executeLs(ctx.getSource())))
+                .then(Commands.literal("mkdir").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeMkdir(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("touch").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeTouch(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("rm").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeRm(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("cat").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeCat(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("cd").then(Commands.argument("path", StringArgumentType.string())
+                    .executes(ctx -> executeCd(ctx.getSource(), StringArgumentType.getString(ctx, "path")))))
+                .then(Commands.literal("pwd").executes(ctx -> executePwd(ctx.getSource())))
+                .then(Commands.literal("echo").then(Commands.argument("text", StringArgumentType.greedyString())
+                    .executes(ctx -> executeEcho(ctx.getSource(), StringArgumentType.getString(ctx, "text")))))
+                .then(Commands.literal("clear").executes(ctx -> executeClear(ctx.getSource())))
+                .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
+                .then(Commands.literal("refresh").then(Commands.literal("bf")
+                    .executes(ctx -> executeRefresh(ctx.getSource()))))
+                .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
+                    .executes(ctx -> openTerminal(ctx.getSource())))))
+                .then(Commands.literal("User")
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.argument("action", StringArgumentType.word()).suggests(ACTIONS)
+                            .then(Commands.argument("params", StringArgumentType.greedyString())
+                                .executes(ctx -> executeUser(ctx.getSource(),
+                                    EntityArgument.getPlayer(ctx, "player"),
+                                    StringArgumentType.getString(ctx, "action"),
+                                    StringArgumentType.getString(ctx, "params"))))
+                            .executes(ctx -> {
+                                ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
+                                return 0;
+                            }))))
+                .then(Commands.literal("pkg")
+                    .then(Commands.literal("install")
+                        .then(Commands.argument("package", StringArgumentType.word())
+                            .executes(ctx -> executePkgInstall(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("remove")
+                        .then(Commands.argument("package", StringArgumentType.word())
+                            .executes(ctx -> executePkgRemove(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("list")
+                        .executes(ctx -> executePkgList(ctx.getSource())))
+                    .then(Commands.literal("available")
+                        .executes(ctx -> executePkgAvailable(ctx.getSource())))
+                    .then(Commands.literal("path")
+                        .executes(ctx -> executePkgPath(ctx.getSource()))))
+        );
     }
 
     private static int showHelp(CommandSourceStack source) {
@@ -228,6 +243,52 @@ public class ModCommands {
                 source.sendSuccess(() -> Component.literal("Offline teleport scheduled for " + target.getName().getString()), true);
                 break;
         }
+        return 1;
+    }
+
+    private static int executePkgInstall(CommandSourceStack source, String packageName) {
+        boolean success = PackageManager.installPackage(packageName);
+        if (success) {
+            source.sendSuccess(() -> Component.literal("Package installed: " + packageName), false);
+        } else {
+            source.sendFailure(Component.literal("Failed to install package: " + packageName));
+        }
+        return 1;
+    }
+
+    private static int executePkgRemove(CommandSourceStack source, String packageName) {
+        boolean success = PackageManager.uninstallPackage(packageName);
+        if (success) {
+            source.sendSuccess(() -> Component.literal("Package removed: " + packageName), false);
+        } else {
+            source.sendFailure(Component.literal("Failed to remove package: " + packageName));
+        }
+        return 1;
+    }
+
+    private static int executePkgList(CommandSourceStack source) {
+        List<String> installed = PackageManager.listInstalledPackages();
+        if (installed.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No packages installed."), false);
+        } else {
+            source.sendSuccess(() -> Component.literal("Installed packages:\n" + String.join("\n", installed)), false);
+        }
+        return 1;
+    }
+
+    private static int executePkgAvailable(CommandSourceStack source) {
+        List<String> available = PackageManager.listAvailablePackages();
+        if (available.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No packages available in Binary file."), false);
+        } else {
+            source.sendSuccess(() -> Component.literal("Available packages:\n" + String.join("\n", available)), false);
+        }
+        return 1;
+    }
+
+    private static int executePkgPath(CommandSourceStack source) {
+        List<String> path = PackageManager.getPathEntries();
+        source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
         return 1;
     }
 }

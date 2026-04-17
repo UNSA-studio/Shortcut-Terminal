@@ -17,6 +17,7 @@ import unsa.st.com.registry.ModCreativeTabs;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
+import unsa.st.com.pkg.PackageManager;
 
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
@@ -32,6 +33,7 @@ public class ShortcutTerminal {
         
         BinaryPluginManager.init();
         OfflineTeleportManager.init();
+        PackageManager.init();
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TerminalManager());

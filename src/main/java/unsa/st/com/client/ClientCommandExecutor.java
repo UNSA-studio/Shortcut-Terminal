@@ -1,6 +1,8 @@
 package unsa.st.com.client;
 
 import net.minecraft.client.Minecraft;
+import unsa.st.com.pkg.PackageManager;
+
 import java.util.*;
 
 public class ClientCommandExecutor {
@@ -37,6 +39,7 @@ public class ClientCommandExecutor {
             case "whoami": return playerName;
             case "clear": return "";
             case "refresh": return executeRefresh(args);
+            case "pkg": return executePkg(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
         }
     }
@@ -56,6 +59,11 @@ public class ClientCommandExecutor {
                §fwhoami §7- Display your username
                §fclear §7- Clear the terminal screen
                §frefresh bf §7- Refresh binary plugins
+               §fpkg install <pkg> §7- Install a package
+               §fpkg remove <pkg> §7- Remove a package
+               §fpkg list §7- List installed packages
+               §fpkg available §7- List available packages
+               §fpkg path §7- Show current PATH
                §frun synchrony -server §7- Sync from server
                §frun synchrony -local §7- Sync to server
                §a================================
@@ -110,7 +118,6 @@ public class ClientCommandExecutor {
     private String executeCd(String[] args) {
         String target = args.length == 0 ? "" : args[0];
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, target);
-        // 统一使用规范化后的路径进行存在性检查
         if (ClientVirtualFileSystem.directoryExists(playerUuid, newPath)) {
             this.currentPath = newPath;
             return "";
@@ -127,6 +134,33 @@ public class ClientCommandExecutor {
             return "Binary plugins refresh requested. (Will sync with server)";
         }
         return "Usage: refresh bf";
+    }
+    
+    private String executePkg(String[] args) {
+        if (args.length == 0) {
+            return "Usage: pkg <install|remove|list|available|path>";
+        }
+        switch (args[0].toLowerCase()) {
+            case "install":
+                if (args.length < 2) return "Usage: pkg install <package>";
+                boolean installed = PackageManager.installPackage(args[1]);
+                return installed ? "Package installed: " + args[1] : "Failed to install: " + args[1];
+            case "remove":
+                if (args.length < 2) return "Usage: pkg remove <package>";
+                boolean removed = PackageManager.uninstallPackage(args[1]);
+                return removed ? "Package removed: " + args[1] : "Failed to remove: " + args[1];
+            case "list":
+                List<String> list = PackageManager.listInstalledPackages();
+                return list.isEmpty() ? "No packages installed." : "Installed:\n" + String.join("\n", list);
+            case "available":
+                List<String> avail = PackageManager.listAvailablePackages();
+                return avail.isEmpty() ? "No packages available." : "Available:\n" + String.join("\n", avail);
+            case "path":
+                List<String> path = PackageManager.getPathEntries();
+                return "PATH:\n" + String.join("\n", path);
+            default:
+                return "Unknown pkg subcommand: " + args[0];
+        }
     }
     
     public String getCurrentPath() { return currentPath; }
