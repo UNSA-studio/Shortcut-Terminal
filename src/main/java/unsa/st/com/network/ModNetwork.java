@@ -8,6 +8,8 @@ import net.minecraft.server.level.ServerPlayer;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.filesystem.UserFileSystem;
 
+import java.util.Map;
+
 public class ModNetwork {
     private static final String PROTOCOL_VERSION = "1";
 
@@ -22,7 +24,6 @@ public class ModNetwork {
                 new DirectionalPayloadHandler<>(
                         (payload, context) -> context.enqueueWork(() -> {
                             ServerPlayer player = (ServerPlayer) context.player();
-                            // 服务端应用客户端同步的文件变更
                             applyFileSystemSync(player, payload);
                         }),
                         (payload, context) -> {}
@@ -36,8 +37,7 @@ public class ModNetwork {
                 new DirectionalPayloadHandler<>(
                         (payload, context) -> context.enqueueWork(() -> {
                             ServerPlayer player = (ServerPlayer) context.player();
-                            String result = unsa.st.com.util.CommandExecutor.executeFromGUI(player, payload.command());
-                            // 可以返回结果，但为了简化，暂不返回
+                            unsa.st.com.util.CommandExecutor.executeFromGUI(player, payload.command());
                         }),
                         (payload, context) -> {}
                 )
@@ -45,18 +45,22 @@ public class ModNetwork {
     }
     
     private static void applyFileSystemSync(ServerPlayer player, SyncFileSystemPacket packet) {
-        String uuid = player.getUUID().toString();
         UserFileSystem.createUserDirectory(player.getUUID());
         for (Map.Entry<String, String> entry : packet.files().entrySet()) {
             String path = entry.getKey();
             String content = entry.getValue();
             if (path.endsWith("/")) {
-                // 目录
-                UserFileSystem.createDirectory(player.getUUID(), "", path.substring(0, path.length() - 1));
+                // 目录：去掉末尾的斜杠
+                String dirName = path.substring(0, path.length() - 1);
+                if (!dirName.isEmpty()) {
+                    UserFileSystem.createDirectory(player.getUUID(), "", dirName);
+                }
             } else {
                 // 文件
                 UserFileSystem.createFile(player.getUUID(), "", path);
-                UserFileSystem.writeFile(player.getUUID(), "", path, content);
+                if (!content.isEmpty()) {
+                    UserFileSystem.writeFile(player.getUUID(), "", path, content);
+                }
             }
         }
     }
