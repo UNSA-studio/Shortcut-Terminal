@@ -1,8 +1,10 @@
 package unsa.st.com.event;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.fml.ModList;
@@ -19,10 +21,13 @@ public class PlayerJoinHandler {
             return;
         }
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家是否已经拥有手册（通过 NBT 标记）
+            // 检查玩家是否已经拥有手册（通过 CustomData 组件）
             boolean hasBook = player.getInventory().items.stream()
-                    .anyMatch(stack -> stack.hasTag() &&
-                            OUR_BOOK_ID.toString().equals(stack.getTag().getString("patchouli:book")));
+                    .anyMatch(stack -> {
+                        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+                        return customData != null &&
+                                OUR_BOOK_ID.toString().equals(customData.copyTag().getString("patchouli:book"));
+                    });
             if (!hasBook) {
                 ItemStack book = getPatchouliBookSafely(OUR_BOOK_ID);
                 if (!book.isEmpty()) {
