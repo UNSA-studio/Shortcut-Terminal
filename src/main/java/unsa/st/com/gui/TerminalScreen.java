@@ -10,6 +10,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 import unsa.st.com.client.ClientCommandExecutor;
 import unsa.st.com.client.ClientVirtualFileSystem;
+import unsa.st.com.client.TerminalSessionManager;
+import unsa.st.com.client.TerminalSessionManager.SessionData;
 import unsa.st.com.network.ExecuteCommandPacket;
 import unsa.st.com.network.SyncFileSystemPacket;
 
@@ -35,7 +37,10 @@ public class TerminalScreen extends Screen {
     private String currentPrompt = "~ $ ";
     private static TerminalScreen instance;
     
-    private final ClientCommandExecutor executor = new ClientCommandExecutor();
+    private ClientCommandExecutor executor;
+    private String playerName;
+    private List<SessionData> sessions;
+    private int currentSessionIndex = 0;
 
     public TerminalScreen() {
         super(Component.literal("Terminal"));
@@ -47,6 +52,13 @@ public class TerminalScreen extends Screen {
         super.init();
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
+
+        // 获取玩家名
+        this.playerName = Minecraft.getInstance().player.getName().getString();
+        // 加载会话
+        this.sessions = TerminalSessionManager.getSessions(playerName);
+        this.currentSessionIndex = 0;
+        loadSession(0);
 
         this.commandInput = new EditBox(
                 this.font, this.leftPos + PADDING, this.topPos + GUI_HEIGHT - this.font.lineHeight - PADDING,
@@ -61,10 +73,42 @@ public class TerminalScreen extends Screen {
         
         updatePrompt();
     }
+    
+    private void loadSession(int index) {
+        if (index < 0 || index >= sessions.size()) return;
+        // 保存当前会话
+        if (executor != null) {
+            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
+            TerminalSessionManager.saveSessions(playerName, sessions);
+        }
+        currentSessionIndex = index;
+        SessionData data = sessions.get(index);
+        this.executor = data.createExecutor();
+        this.outputLines = new ArrayList<>(data.outputLines);
+        this.commandHistory = new ArrayList<>(data.commandHistory);
+        this.historyIndex = commandHistory.size();
+        updatePrompt();
+    }
+    
+    private void saveCurrentSession() {
+        if (executor != null) {
+            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
+            TerminalSessionManager.saveSessions(playerName, sessions);
+        }
+    }
+    
+    private void newSession() {
+        SessionData newData = TerminalSessionManager.createSession(playerName);
+        sessions.add(newData);
+        TerminalSessionManager.saveSessions(playerName, sessions);
+        loadSession(sessions.size() - 1);
+    }
 
     private void updatePrompt() {
         String path = executor.getCurrentPath();
-        currentPrompt = path.equals("/") ? "~ $ " : "~" + path + " $ ";
+        // 显示为 ~/USER $ 或 ~/USER/path $，USER 替换为玩家名
+        String displayPath = path.equals("/") ? "" : path;
+        currentPrompt = "~/" + playerName + displayPath + " $ ";
     }
 
     @Override
@@ -89,7 +133,7 @@ public class TerminalScreen extends Screen {
             int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
             String line = outputLines.get(i);
             int color = TEXT_COLOR;
-            if (line.startsWith("~") || line.contains(" $ ")) {
+            if (line.startsWith("~/") && line.contains(" $ ")) {
                 color = 0xFF55FFFF;
             } else if (line.startsWith("Error:") || line.startsWith("bash:")) {
                 color = 0xFFFF5555;
@@ -112,6 +156,13 @@ public class TerminalScreen extends Screen {
         
         this.commandInput.setX(leftPos + PADDING + promptWidth);
         this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
+        
+        // 右下角显示会话序号
+        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + "]";
+        int infoWidth = this.font.width(sessionInfo);
+        guiGraphics.drawString(this.font, sessionInfo, 
+                leftPos + GUI_WIDTH - PADDING - infoWidth - SCROLLBAR_WIDTH, 
+                topPos + GUI_HEIGHT - this.font.lineHeight - PADDING, 0xFFAAAAAA);
         
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
@@ -164,14 +215,41 @@ public class TerminalScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // 快捷键处理
+        boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        if (ctrl) {
+            if (keyCode == GLFW.GLFW_KEY_X) {
+                newSession();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_Z) {
+                if (currentSessionIndex > 0) {
+                    loadSession(currentSessionIndex - 1);
+                }
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_C) {
+                if (currentSessionIndex < sessions.size() - 1) {
+                    loadSession(currentSessionIndex + 1);
+                }
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_L) {
+                outputLines.clear();
+                saveCurrentSession();
+                scrollOffset = 0;
+                return true;
+            }
+        }
+        
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             String command = this.commandInput.getValue();
             if (!command.isBlank()) {
                 outputLines.add(currentPrompt + command);
-                commandHistory.add(command);
+                executor.addCommandToHistory(command);
+                commandHistory = executor.getCommandHistory();
                 historyIndex = commandHistory.size();
                 
-                // 本地执行
                 String[] parts = command.trim().split("\\s+");
                 String cmd = parts[0];
                 String[] args = new String[parts.length - 1];
@@ -184,13 +262,13 @@ public class TerminalScreen extends Screen {
                     }
                 }
                 
-                // 如果是需要服务端权限的命令，发送给服务端
                 if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
                     PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
                 } else {
-                    // 其他命令：异步同步整个文件系统到服务端
                     syncFileSystemToServer();
                 }
+                
+                saveCurrentSession();
                 
                 this.commandInput.setValue("");
                 updatePrompt();
@@ -215,11 +293,6 @@ public class TerminalScreen extends Screen {
             }
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_L && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
-            outputLines.clear();
-            scrollOffset = 0;
-            return true;
-        }
         return this.commandInput.keyPressed(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -238,6 +311,7 @@ public class TerminalScreen extends Screen {
             for (String line : result.split("\n")) {
                 instance.outputLines.add(line);
             }
+            instance.saveCurrentSession();
             instance.scrollOffset = Double.MAX_VALUE;
         }
     }
@@ -247,5 +321,14 @@ public class TerminalScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
     @Override
-    public boolean shouldCloseOnEsc() { return true; }
+    public boolean shouldCloseOnEsc() { 
+        saveCurrentSession();
+        return true; 
+    }
+    
+    @Override
+    public void onClose() {
+        saveCurrentSession();
+        super.onClose();
+    }
 }

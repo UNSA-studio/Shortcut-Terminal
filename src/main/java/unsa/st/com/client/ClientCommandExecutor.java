@@ -7,10 +7,16 @@ import java.util.*;
 
 public class ClientCommandExecutor {
     private String currentPath = "/";
+    private final String playerName;
     private final String playerUuid;
+    private List<String> commandHistory = new ArrayList<>();
     
     public ClientCommandExecutor() {
-        // 获取客户端玩家UUID
+        this(Minecraft.getInstance().player.getName().getString());
+    }
+    
+    public ClientCommandExecutor(String playerName) {
+        this.playerName = playerName;
         if (Minecraft.getInstance().player != null) {
             this.playerUuid = Minecraft.getInstance().player.getUUID().toString();
         } else {
@@ -29,7 +35,7 @@ public class ClientCommandExecutor {
             case "echo": return executeEcho(args);
             case "cd": return executeCd(args);
             case "pwd": return executePwd();
-            case "whoami": return Minecraft.getInstance().player.getName().getString();
+            case "whoami": return playerName;
             case "clear": return "";
             case "refresh": return executeRefresh(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
@@ -116,8 +122,6 @@ public class ClientCommandExecutor {
     
     private String executeRefresh(String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("bf")) {
-            // 二进制插件刷新仍需要服务端执行，这里发送网络包
-            // 暂时简单处理
             return "Binary plugins refresh requested. (Will sync with server)";
         }
         return "Usage: refresh bf";
@@ -125,5 +129,9 @@ public class ClientCommandExecutor {
     
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
+    public String getPlayerName() { return playerName; }
     public String getPlayerUuid() { return playerUuid; }
+    public List<String> getCommandHistory() { return commandHistory; }
+    public void setCommandHistory(List<String> history) { this.commandHistory = new ArrayList<>(history); }
+    public void addCommandToHistory(String command) { this.commandHistory.add(command); }
 }
