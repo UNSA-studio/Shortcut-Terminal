@@ -1,0 +1,18 @@
+{
+    "name": "命令帮助",
+    "category": "shortcutterminal:commands",
+    "icon": "minecraft:book",
+    "read_by_default": true,
+    "sortnum": 0,
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "输入 $(c)/ST Help$(0) 可查看所有可用命令列表。$(br2)或者右键终端面板，在终端中输入 'help' 也可以获得帮助。"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "基本命令",
+            "text": "$(li)ls - 列出文件$(br)$(li)mkdir <名> - 创建目录$(br)$(li)touch <名> - 创建文件$(br)$(li)rm <名> - 删除文件$(br)$(li)cat <名> - 查看文件$(br)$(li)cd <路径> - 切换目录$(br)$(li)pwd - 显示当前路径$(br)$(li)whoami - 显示用户名$(br)$(li)clear - 清屏"
+        }
+    ]
+}

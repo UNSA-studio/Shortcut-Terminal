@@ -6,7 +6,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.fml.ModList;
-import vazkii.patchouli.api.PatchouliAPI;
+
+import java.lang.reflect.Method;
 
 public class PlayerJoinHandler {
     private static final String PATCHOULI_MOD_ID = "patchouli";
@@ -17,16 +18,36 @@ public class PlayerJoinHandler {
         if (!ModList.get().isLoaded(PATCHOULI_MOD_ID)) {
             return;
         }
-
         if (event.getEntity() instanceof ServerPlayer player) {
-            ItemStack book = PatchouliAPI.get().getBookStack(OUR_BOOK_ID);
-            
-            // 检查背包是否已有相同的书
-            if (!player.getInventory().contains(book)) {
-                if (!player.getInventory().add(book)) {
-                    player.drop(book, false);
+            // 检查玩家是否已经拥有手册（通过 NBT 标记）
+            boolean hasBook = player.getInventory().items.stream()
+                    .anyMatch(stack -> stack.hasTag() &&
+                            OUR_BOOK_ID.toString().equals(stack.getTag().getString("patchouli:book")));
+            if (!hasBook) {
+                ItemStack book = getPatchouliBookSafely(OUR_BOOK_ID);
+                if (!book.isEmpty()) {
+                    if (!player.getInventory().add(book)) {
+                        player.drop(book, false);
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * 通过反射调用 Patchouli API 获取书本
+     * 避免直接依赖 Patchouli，保证无前置时不会崩溃
+     */
+    private static ItemStack getPatchouliBookSafely(ResourceLocation bookId) {
+        try {
+            Class<?> apiClass = Class.forName("vazkii.patchouli.api.PatchouliAPI");
+            Method getMethod = apiClass.getMethod("get");
+            Object api = getMethod.invoke(null);
+            Method getBookStackMethod = api.getClass().getMethod("getBookStack", ResourceLocation.class);
+            Object result = getBookStackMethod.invoke(api, bookId);
+            return (result instanceof ItemStack stack) ? stack : ItemStack.EMPTY;
+        } catch (Throwable t) {
+            return ItemStack.EMPTY;
         }
     }
 }

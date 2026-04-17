@@ -1,0 +1,18 @@
+{
+    "name": "终端面板",
+    "category": "shortcutterminal:items",
+    "icon": "shortcutterminal:terminal_panel",
+    "read_by_default": true,
+    "sortnum": 1,
+    "pages": [
+        {
+            "type": "patchouli:spotlight",
+            "item": "shortcutterminal:terminal_panel",
+            "text": "右键终端面板可以打开一个终端界面。$(br)在这里你可以输入各种 Linux 风格命令，就像在真正的终端中一样。"
+        },
+        {
+            "type": "patchouli:crafting",
+            "recipe": "shortcutterminal:terminal_panel"
+        }
+    ]
+}
