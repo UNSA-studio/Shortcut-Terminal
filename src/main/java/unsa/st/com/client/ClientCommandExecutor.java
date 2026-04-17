@@ -1,8 +1,6 @@
 package unsa.st.com.client;
 
 import net.minecraft.client.Minecraft;
-import unsa.st.com.plugin.BinaryPluginManager;
-
 import java.util.*;
 
 public class ClientCommandExecutor {
@@ -10,6 +8,7 @@ public class ClientCommandExecutor {
     private final String playerName;
     private final String playerUuid;
     private List<String> commandHistory = new ArrayList<>();
+    private boolean pendingChanges = false;
     
     public ClientCommandExecutor() {
         this(Minecraft.getInstance().player.getName().getString());
@@ -28,11 +27,11 @@ public class ClientCommandExecutor {
         switch (command.toLowerCase(Locale.ROOT)) {
             case "help": return getHelp();
             case "ls": return executeLs();
-            case "mkdir": return executeMkdir(args);
-            case "touch": return executeTouch(args);
-            case "rm": return executeRm(args);
+            case "mkdir": pendingChanges = true; return executeMkdir(args);
+            case "touch": pendingChanges = true; return executeTouch(args);
+            case "rm": pendingChanges = true; return executeRm(args);
             case "cat": return executeCat(args);
-            case "echo": return executeEcho(args);
+            case "echo": pendingChanges = true; return executeEcho(args);
             case "cd": return executeCd(args);
             case "pwd": return executePwd();
             case "whoami": return playerName;
@@ -57,6 +56,8 @@ public class ClientCommandExecutor {
                §fwhoami §7- Display your username
                §fclear §7- Clear the terminal screen
                §frefresh bf §7- Refresh binary plugins
+               §frun synchrony -server §7- Sync from server
+               §frun synchrony -local §7- Sync to server
                §a================================
                """;
     }
@@ -109,7 +110,8 @@ public class ClientCommandExecutor {
     private String executeCd(String[] args) {
         String target = args.length == 0 ? "" : args[0];
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, target);
-        if (ClientVirtualFileSystem.directoryExists(playerUuid, currentPath, target)) {
+        // 统一使用规范化后的路径进行存在性检查
+        if (ClientVirtualFileSystem.directoryExists(playerUuid, newPath)) {
             this.currentPath = newPath;
             return "";
         }
@@ -134,4 +136,6 @@ public class ClientCommandExecutor {
     public List<String> getCommandHistory() { return commandHistory; }
     public void setCommandHistory(List<String> history) { this.commandHistory = new ArrayList<>(history); }
     public void addCommandToHistory(String command) { this.commandHistory.add(command); }
+    public boolean hasPendingChanges() { return pendingChanges; }
+    public void clearPendingChanges() { pendingChanges = false; }
 }

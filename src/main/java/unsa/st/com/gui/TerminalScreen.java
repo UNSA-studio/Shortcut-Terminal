@@ -42,7 +42,17 @@ public class TerminalScreen extends Screen {
     private List<SessionData> sessions;
     private int currentSessionIndex = 0;
     
-    private boolean ctrlXPressed = false;  // 防止重复触发
+    private boolean ctrlXPressed = false;
+    private boolean deletePressed = false;
+    
+    // 强占用状态（用于同步确认）
+    private boolean forcibleState = false;
+    private String forciblePrompt = "";
+    private SyncAction pendingSyncAction = null;
+    
+    private enum SyncAction {
+        TO_SERVER, TO_LOCAL
+    }
 
     public TerminalScreen() {
         super(Component.literal("Terminal"));
@@ -102,6 +112,23 @@ public class TerminalScreen extends Screen {
         TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(sessions.size() - 1);
     }
+    
+    private void deleteCurrentSession() {
+        if (sessions.size() <= 1) {
+            // 至少保留一个会话
+            return;
+        }
+        sessions.remove(currentSessionIndex);
+        // 重新索引
+        for (int i = 0; i < sessions.size(); i++) {
+            sessions.get(i).index = i;
+        }
+        if (currentSessionIndex >= sessions.size()) {
+            currentSessionIndex = sessions.size() - 1;
+        }
+        TerminalSessionManager.saveCurrentSessions(playerName, sessions);
+        loadSession(currentSessionIndex);
+    }
 
     private void updatePrompt() {
         String path = executor.getCurrentPath();
@@ -148,12 +175,18 @@ public class TerminalScreen extends Screen {
             guiGraphics.fill(scrollbarX, thumbY, scrollbarX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFAAAAAA);
         }
 
-        String promptDisplay = currentPrompt;
-        int promptWidth = this.font.width(promptDisplay);
-        guiGraphics.drawString(this.font, promptDisplay, leftPos + PADDING, this.commandInput.getY(), 0xFF55FF55);
-        
-        this.commandInput.setX(leftPos + PADDING + promptWidth);
-        this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
+        // 绘制提示符或强占用状态
+        if (forcibleState) {
+            guiGraphics.drawString(this.font, forciblePrompt, leftPos + PADDING, this.commandInput.getY(), 0xFFFFFF55);
+            this.commandInput.setVisible(false);
+        } else {
+            String promptDisplay = currentPrompt;
+            int promptWidth = this.font.width(promptDisplay);
+            guiGraphics.drawString(this.font, promptDisplay, leftPos + PADDING, this.commandInput.getY(), 0xFF55FF55);
+            this.commandInput.setX(leftPos + PADDING + promptWidth);
+            this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
+            this.commandInput.setVisible(true);
+        }
         
         String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + "]";
         int infoWidth = this.font.width(sessionInfo);
@@ -213,6 +246,23 @@ public class TerminalScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        
+        // 强占用状态下只处理 Y/N
+        if (forcibleState) {
+            if (keyCode == GLFW.GLFW_KEY_Y) {
+                performSync();
+                forcibleState = false;
+                pendingSyncAction = null;
+                return true;
+            } else if (keyCode == GLFW.GLFW_KEY_N) {
+                forcibleState = false;
+                pendingSyncAction = null;
+                outputLines.add("Sync cancelled.");
+                return true;
+            }
+            return true;  // 忽略其他按键
+        }
+        
         if (ctrl) {
             if (keyCode == GLFW.GLFW_KEY_X) {
                 if (!ctrlXPressed) {
@@ -240,42 +290,25 @@ public class TerminalScreen extends Screen {
                 return true;
             }
         } else {
-            // 释放 Ctrl 时重置标志
             if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
                 ctrlXPressed = false;
+                deletePressed = false;
             }
+        }
+        
+        // Delete 键删除当前会话
+        if (keyCode == GLFW.GLFW_KEY_DELETE) {
+            if (!deletePressed) {
+                deletePressed = true;
+                deleteCurrentSession();
+            }
+            return true;
         }
         
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             String command = this.commandInput.getValue();
             if (!command.isBlank()) {
-                outputLines.add(currentPrompt + command);
-                executor.addCommandToHistory(command);
-                commandHistory = executor.getCommandHistory();
-                historyIndex = commandHistory.size();
-                
-                String[] parts = command.trim().split("\\s+");
-                String cmd = parts[0];
-                String[] args = new String[parts.length - 1];
-                System.arraycopy(parts, 1, args, 0, args.length);
-                
-                String result = executor.execute(cmd, args);
-                if (result != null && !result.isEmpty()) {
-                    for (String line : result.split("\n")) {
-                        outputLines.add(line);
-                    }
-                }
-                
-                if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
-                    PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
-                } else {
-                    syncFileSystemToServer();
-                }
-                
-                saveCurrentSession();
-                this.commandInput.setValue("");
-                updatePrompt();
-                scrollOffset = Double.MAX_VALUE;
+                processCommand(command);
             }
             return true;
         }
@@ -300,8 +333,90 @@ public class TerminalScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
+            ctrlXPressed = false;
+            deletePressed = false;
+        }
+        if (keyCode == GLFW.GLFW_KEY_DELETE) {
+            deletePressed = false;
+        }
+        return super.keyReleased(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (forcibleState) return true;
         return this.commandInput.charTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
+    }
+
+    private void processCommand(String command) {
+        outputLines.add(currentPrompt + command);
+        executor.addCommandToHistory(command);
+        commandHistory = executor.getCommandHistory();
+        historyIndex = commandHistory.size();
+        
+        String[] parts = command.trim().split("\\s+");
+        String cmd = parts[0];
+        String[] args = new String[parts.length - 1];
+        System.arraycopy(parts, 1, args, 0, args.length);
+        
+        // 处理手动同步命令
+        if (cmd.equals("run") && args.length >= 1) {
+            if (args[0].equals("synchrony")) {
+                if (args.length >= 2) {
+                    if (args[1].equals("-server")) {
+                        pendingSyncAction = SyncAction.TO_LOCAL;
+                        forcibleState = true;
+                        forciblePrompt = "Are you sure you want to sync from server? [Y/N]";
+                        this.commandInput.setValue("");
+                        return;
+                    } else if (args[1].equals("-local")) {
+                        pendingSyncAction = SyncAction.TO_SERVER;
+                        forcibleState = true;
+                        forciblePrompt = "Are you sure you want to sync to server? [Y/N]";
+                        this.commandInput.setValue("");
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // 正常命令执行
+        String result = executor.execute(cmd, args);
+        if (result != null && !result.isEmpty()) {
+            for (String line : result.split("\n")) {
+                outputLines.add(line);
+            }
+        }
+        
+        if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
+            PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
+        } else {
+            // 只有文件系统发生变更时才同步（由 executor 内部标记）
+            if (executor.hasPendingChanges()) {
+                syncFileSystemToServer();
+                executor.clearPendingChanges();
+            }
+        }
+        
+        saveCurrentSession();
+        this.commandInput.setValue("");
+        updatePrompt();
+        scrollOffset = Double.MAX_VALUE;
+    }
+    
+    private void performSync() {
+        if (pendingSyncAction == SyncAction.TO_SERVER) {
+            syncFileSystemToServer();
+            outputLines.add("Local data synced to server.");
+        } else if (pendingSyncAction == SyncAction.TO_LOCAL) {
+            // 从服务器拉取数据（需要向服务端请求，此处简化）
+            outputLines.add("Sync from server not yet implemented.");
+        }
+        saveCurrentSession();
+        updatePrompt();
+        scrollOffset = Double.MAX_VALUE;
     }
 
     private void syncFileSystemToServer() {
