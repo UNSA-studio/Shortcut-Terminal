@@ -11,14 +11,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.terminal.TerminalManager;
 import unsa.st.com.terminal.TerminalSession;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.util.CommandExecutor;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.plugin.BinaryPluginManager;
-import unsa.st.com.pkg.PackageManager;
+import unsa.st.com.pkg.PkgManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +27,12 @@ public class ModCommands {
 
     private static final SuggestionProvider<CommandSourceStack> ACTIONS = (ctx, builder) ->
         SharedSuggestionProvider.suggest(new String[]{"switchingmode", "changebirthpoint", "transmitto_online", "transmitto_offline"}, builder);
+
+    private static final SuggestionProvider<CommandSourceStack> PKG_SUGGEST = (ctx, builder) ->
+        SharedSuggestionProvider.suggest(PkgManager.listAvailable(), builder);
+
+    private static final SuggestionProvider<CommandSourceStack> PKG_INSTALLED = (ctx, builder) ->
+        SharedSuggestionProvider.suggest(PkgManager.listInstalled(), builder);
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
@@ -66,27 +71,50 @@ public class ModCommands {
                                 return 0;
                             }))))
                 .then(Commands.literal("pkg")
+                    .then(Commands.literal("update").executes(ctx -> executePkgUpdate(ctx.getSource())))
                     .then(Commands.literal("install")
-                        .then(Commands.argument("package", StringArgumentType.word())
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
                             .executes(ctx -> executePkgInstall(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
                     .then(Commands.literal("remove")
-                        .then(Commands.argument("package", StringArgumentType.word())
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_INSTALLED)
                             .executes(ctx -> executePkgRemove(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
-                    .then(Commands.literal("list")
-                        .executes(ctx -> executePkgList(ctx.getSource())))
-                    .then(Commands.literal("available")
-                        .executes(ctx -> executePkgAvailable(ctx.getSource())))
-                    .then(Commands.literal("path")
-                        .executes(ctx -> executePkgPath(ctx.getSource()))))
+                    .then(Commands.literal("list").executes(ctx -> executePkgList(ctx.getSource())))
+                    .then(Commands.literal("search")
+                        .then(Commands.argument("keyword", StringArgumentType.word())
+                            .executes(ctx -> executePkgSearch(ctx.getSource(), StringArgumentType.getString(ctx, "keyword")))))
+                    .then(Commands.literal("info")
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
+                            .executes(ctx -> executePkgInfo(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("path").executes(ctx -> executePkgPath(ctx.getSource()))))
         );
     }
 
     private static int showHelp(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
-        TerminalSession session = TerminalManager.getSession(player);
-        String path = session != null ? session.getCurrentPath() : "";
-        String help = executor.execute(player, "help", new String[0], path);
+        String help = """
+                §a=== Shortcut Terminal Commands ===
+                §f/ST Help §7- Show this help
+                §f/ST ls §7- List files
+                §f/ST mkdir <name> §7- Create directory
+                §f/ST touch <name> §7- Create file
+                §f/ST rm <name> §7- Remove file
+                §f/ST cat <name> §7- View file
+                §f/ST cd <path> §7- Change directory
+                §f/ST pwd §7- Print working directory
+                §f/ST whoami §7- Show username
+                §f/ST clear §7- Clear screen
+                §f/ST refresh bf §7- Refresh binary plugins
+                §f/ST User <player> <action> §7- Admin commands
+                §f/ST pkg update §7- Update package index
+                §f/ST pkg install <pkg> §7- Install package
+                §f/ST pkg remove <pkg> §7- Remove package
+                §f/ST pkg list §7- List installed
+                §f/ST pkg search <kw> §7- Search packages
+                §f/ST pkg info <pkg> §7- Show package info
+                §f/ST pkg path §7- Show PATH
+                §a================================
+                """;
         source.sendSuccess(() -> Component.literal(help), false);
         return 1;
     }
@@ -246,28 +274,34 @@ public class ModCommands {
         return 1;
     }
 
+    private static int executePkgUpdate(CommandSourceStack source) {
+        String result = PkgManager.updateIndex();
+        source.sendSuccess(() -> Component.literal(result), false);
+        return 1;
+    }
+
     private static int executePkgInstall(CommandSourceStack source, String packageName) {
-        boolean success = PackageManager.installPackage(packageName);
-        if (success) {
-            source.sendSuccess(() -> Component.literal("Package installed: " + packageName), false);
+        String result = PkgManager.install(packageName);
+        if (result.startsWith("Package installed") || result.startsWith("Package not found") || result.startsWith("Package already")) {
+            source.sendSuccess(() -> Component.literal(result), false);
         } else {
-            source.sendFailure(Component.literal("Failed to install package: " + packageName));
+            source.sendFailure(Component.literal(result));
         }
         return 1;
     }
 
     private static int executePkgRemove(CommandSourceStack source, String packageName) {
-        boolean success = PackageManager.uninstallPackage(packageName);
-        if (success) {
-            source.sendSuccess(() -> Component.literal("Package removed: " + packageName), false);
+        String result = PkgManager.remove(packageName);
+        if (result.startsWith("Package removed") || result.startsWith("Package not installed")) {
+            source.sendSuccess(() -> Component.literal(result), false);
         } else {
-            source.sendFailure(Component.literal("Failed to remove package: " + packageName));
+            source.sendFailure(Component.literal(result));
         }
         return 1;
     }
 
     private static int executePkgList(CommandSourceStack source) {
-        List<String> installed = PackageManager.listInstalledPackages();
+        List<String> installed = PkgManager.listInstalled();
         if (installed.isEmpty()) {
             source.sendSuccess(() -> Component.literal("No packages installed."), false);
         } else {
@@ -276,18 +310,24 @@ public class ModCommands {
         return 1;
     }
 
-    private static int executePkgAvailable(CommandSourceStack source) {
-        List<String> available = PackageManager.listAvailablePackages();
-        if (available.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("No packages available in Binary file."), false);
+    private static int executePkgSearch(CommandSourceStack source, String keyword) {
+        List<String> results = PkgManager.search(keyword);
+        if (results.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No packages found matching: " + keyword), false);
         } else {
-            source.sendSuccess(() -> Component.literal("Available packages:\n" + String.join("\n", available)), false);
+            source.sendSuccess(() -> Component.literal("Found packages:\n" + String.join("\n", results)), false);
         }
         return 1;
     }
 
+    private static int executePkgInfo(CommandSourceStack source, String packageName) {
+        String info = PkgManager.showInfo(packageName);
+        source.sendSuccess(() -> Component.literal(info), false);
+        return 1;
+    }
+
     private static int executePkgPath(CommandSourceStack source) {
-        List<String> path = PackageManager.getPathEntries();
+        List<String> path = PkgManager.getPathEntries();
         source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
         return 1;
     }
