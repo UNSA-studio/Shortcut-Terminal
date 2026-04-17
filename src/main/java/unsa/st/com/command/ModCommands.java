@@ -32,7 +32,7 @@ public class ModCommands {
         SharedSuggestionProvider.suggest(PkgManager.listAvailable(), builder);
 
     private static final SuggestionProvider<CommandSourceStack> PKG_INSTALLED = (ctx, builder) ->
-        SharedSuggestionProvider.suggest(PkgManager.listInstalled(), builder);
+        SharedSuggestionProvider.suggest(PkgManager.listInstalled(false), builder); // 服务端调用，传 false
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
@@ -90,8 +90,6 @@ public class ModCommands {
     }
 
     private static int showHelp(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
         String help = """
                 §a=== Shortcut Terminal Commands ===
                 §f/ST Help §7- Show this help
@@ -281,7 +279,7 @@ public class ModCommands {
     }
 
     private static int executePkgInstall(CommandSourceStack source, String packageName) {
-        String result = PkgManager.install(packageName);
+        String result = PkgManager.install(packageName, false); // 服务端命令
         if (result.startsWith("Package installed") || result.startsWith("Package not found") || result.startsWith("Package already")) {
             source.sendSuccess(() -> Component.literal(result), false);
         } else {
@@ -291,7 +289,7 @@ public class ModCommands {
     }
 
     private static int executePkgRemove(CommandSourceStack source, String packageName) {
-        String result = PkgManager.remove(packageName);
+        String result = PkgManager.remove(packageName, false);
         if (result.startsWith("Package removed") || result.startsWith("Package not installed")) {
             source.sendSuccess(() -> Component.literal(result), false);
         } else {
@@ -301,7 +299,7 @@ public class ModCommands {
     }
 
     private static int executePkgList(CommandSourceStack source) {
-        List<String> installed = PkgManager.listInstalled();
+        List<String> installed = PkgManager.listInstalled(false);
         if (installed.isEmpty()) {
             source.sendSuccess(() -> Component.literal("No packages installed."), false);
         } else {
@@ -327,8 +325,12 @@ public class ModCommands {
     }
 
     private static int executePkgPath(CommandSourceStack source) {
-        List<String> path = PkgManager.getPathEntries();
-        source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
+        List<String> path = PkgManager.getPathEntries(false);
+        if (path.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("PATH is empty."), false);
+        } else {
+            source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
+        }
         return 1;
     }
 }

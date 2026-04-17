@@ -21,10 +21,9 @@ import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    // 镜像源：Linux 和 Windows 各一个（实际上 Windows 服务器一般也用 Linux 模拟，这里预设两个源方便扩展）
     private static final String[] REPO_URLS = {
-        "https://packages.termux.dev/apt/termux-main",           // Termux 官方 (ARM64)
-        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main" // 清华镜像 (ARM64)
+        "https://packages.termux.dev/apt/termux-main",
+        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main"
     };
     private static String activeRepo = REPO_URLS[0];
 
@@ -34,18 +33,15 @@ public class PkgManager {
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
 
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
-    private static Map<String, PackageInfo> localDb = new HashMap<>();
 
-    public static void init() {
-        // 初始化由主类调用，无需在此处理
-    }
+    public static void init() {}
 
     private static Path getGameDir(boolean isClient) {
         if (isClient) {
             return Minecraft.getInstance().gameDirectory.toPath();
         } else {
             MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-            return server.getServerDirectory().toPath();
+            return server.getServerDirectory(); // 已返回 Path，无需 toPath()
         }
     }
 
@@ -54,25 +50,25 @@ public class PkgManager {
     private static Path getDbPath(boolean isClient) { return getProgramPath(isClient).resolve(INSTALLED_DB); }
     private static Path getPathFile(boolean isClient) { return getGameDir(isClient).resolve(PATH_FILE); }
 
-    private static void loadLocalDatabase(boolean isClient) {
-        localDb.clear();
+    private static Map<String, PackageInfo> loadLocalDatabase(boolean isClient) {
         Path dbPath = getDbPath(isClient);
         if (Files.exists(dbPath)) {
             try {
                 String content = Files.readString(dbPath);
                 Map<String, PackageInfo> loaded = GSON.fromJson(content, new TypeToken<Map<String, PackageInfo>>(){}.getType());
-                if (loaded != null) localDb = loaded;
+                return loaded != null ? loaded : new HashMap<>();
             } catch (IOException e) {
                 ShortcutTerminal.LOGGER.error("Failed to load local package database", e);
             }
         }
+        return new HashMap<>();
     }
 
-    private static void saveLocalDatabase(boolean isClient) {
+    private static void saveLocalDatabase(boolean isClient, Map<String, PackageInfo> db) {
         try {
             Path dbPath = getDbPath(isClient);
             Files.createDirectories(dbPath.getParent());
-            Files.writeString(dbPath, GSON.toJson(localDb));
+            Files.writeString(dbPath, GSON.toJson(db));
         } catch (IOException e) {
             ShortcutTerminal.LOGGER.error("Failed to save local package database", e);
         }
@@ -100,8 +96,10 @@ public class PkgManager {
                 URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
                 InputStream is = conn.getInputStream();
-                if (conn.getHeaderField("Content-Encoding") != null && conn.getHeaderField("Content-Encoding").contains("gzip")) {
+                if ("gzip".equals(conn.getHeaderField("Content-Encoding"))) {
                     is = new GZIPInputStream(is);
                 }
                 parsePackagesStream(is);
@@ -112,7 +110,6 @@ public class PkgManager {
             }
         }
         if (remoteIndex.isEmpty()) {
-            // 保底内置包
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
@@ -147,7 +144,7 @@ public class PkgManager {
     }
 
     public static String install(String packageName, boolean isClient) {
-        loadLocalDatabase(isClient);
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
         if (!remoteIndex.containsKey(packageName)) return "Package not found: " + packageName;
         if (localDb.containsKey(packageName)) return "Package already installed: " + packageName;
         PackageInfo pkg = remoteIndex.get(packageName);
@@ -158,19 +155,20 @@ public class PkgManager {
             Path tmpFile = Files.createTempFile("pkg_", ".deb");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(30000);
             try (InputStream in = conn.getInputStream()) {
                 Files.copy(in, tmpFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
             Path binDir = getProgramPath(isClient).resolve("bin");
             Files.createDirectories(binDir);
-            // 简化：只复制二进制文件（实际应解压 deb 包，这里先保持简单）
             Path dest = binDir.resolve(packageName);
             Files.copy(tmpFile, dest, StandardCopyOption.REPLACE_EXISTING);
             dest.toFile().setExecutable(true);
 
             localDb.put(packageName, pkg);
-            saveLocalDatabase(isClient);
+            saveLocalDatabase(isClient, localDb);
             ensurePath(isClient);
             return "Package installed: " + packageName + " (" + pkg.version + ")";
         } catch (Exception e) {
@@ -179,31 +177,32 @@ public class PkgManager {
     }
 
     public static String remove(String packageName, boolean isClient) {
-        loadLocalDatabase(isClient);
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
         if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
         try {
             Path target = getProgramPath(isClient).resolve("bin").resolve(packageName);
             Files.deleteIfExists(target);
             localDb.remove(packageName);
-            saveLocalDatabase(isClient);
+            saveLocalDatabase(isClient, localDb);
             return "Package removed: " + packageName;
         } catch (IOException e) {
             return "Removal failed: " + e.getMessage();
         }
     }
 
-    public static String listInstalled(boolean isClient) {
-        loadLocalDatabase(isClient);
-        if (localDb.isEmpty()) return "No packages installed.";
-        return "Installed:\n" + String.join("\n", localDb.keySet());
+    public static List<String> listInstalled(boolean isClient) {
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
+        return new ArrayList<>(localDb.keySet());
     }
 
-    public static String search(String keyword) {
-        List<String> results = remoteIndex.keySet().stream()
+    public static List<String> listAvailable() {
+        return new ArrayList<>(remoteIndex.keySet());
+    }
+
+    public static List<String> search(String keyword) {
+        return remoteIndex.keySet().stream()
                 .filter(name -> name.contains(keyword) || remoteIndex.get(name).description.toLowerCase().contains(keyword.toLowerCase()))
                 .collect(Collectors.toList());
-        if (results.isEmpty()) return "No packages found.";
-        return "Found:\n" + String.join("\n", results);
     }
 
     public static String showInfo(String packageName) {
@@ -213,17 +212,13 @@ public class PkgManager {
                 pkg.packageName, pkg.version, pkg.architecture, pkg.description);
     }
 
-    public static String getPathEntries(boolean isClient) {
+    public static List<String> getPathEntries(boolean isClient) {
         try {
             Path pathFile = getPathFile(isClient);
             if (Files.exists(pathFile)) {
-                return String.join("\n", Files.readAllLines(pathFile));
+                return Files.readAllLines(pathFile);
             }
         } catch (IOException ignored) {}
-        return "PATH not found";
-    }
-
-    public static List<String> listAvailable() {
-        return new ArrayList<>(remoteIndex.keySet());
+        return new ArrayList<>();
     }
 }
