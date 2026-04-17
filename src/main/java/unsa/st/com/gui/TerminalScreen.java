@@ -41,6 +41,8 @@ public class TerminalScreen extends Screen {
     private String playerName;
     private List<SessionData> sessions;
     private int currentSessionIndex = 0;
+    
+    private boolean ctrlXPressed = false;  // 防止重复触发
 
     public TerminalScreen() {
         super(Component.literal("Terminal"));
@@ -213,7 +215,10 @@ public class TerminalScreen extends Screen {
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         if (ctrl) {
             if (keyCode == GLFW.GLFW_KEY_X) {
-                newSession();
+                if (!ctrlXPressed) {
+                    ctrlXPressed = true;
+                    newSession();
+                }
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_Z) {
@@ -233,6 +238,11 @@ public class TerminalScreen extends Screen {
                 saveCurrentSession();
                 scrollOffset = 0;
                 return true;
+            }
+        } else {
+            // 释放 Ctrl 时重置标志
+            if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
+                ctrlXPressed = false;
             }
         }
         
