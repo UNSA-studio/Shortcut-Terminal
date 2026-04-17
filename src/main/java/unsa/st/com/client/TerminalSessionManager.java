@@ -24,7 +24,15 @@ public class TerminalSessionManager {
      * 获取玩家名对应的会话列表
      */
     public static List<SessionData> getSessions(String playerName) {
-        return playerSessions.computeIfAbsent(playerName, k -> loadSessions(playerName));
+        return playerSessions.computeIfAbsent(playerName, k -> {
+            List<SessionData> loaded = loadSessionsFromFile(playerName);
+            if (loaded.isEmpty()) {
+                SessionData defaultSession = new SessionData(playerName);
+                defaultSession.index = 0;
+                loaded.add(defaultSession);
+            }
+            return loaded;
+        });
     }
     
     /**
@@ -35,48 +43,30 @@ public class TerminalSessionManager {
         SessionData session = new SessionData(playerName);
         session.index = sessions.size();
         sessions.add(session);
-        saveSessions(playerName, sessions);
+        saveSessionsToFile(playerName, sessions);
         return session;
     }
     
     /**
      * 保存指定玩家的所有会话
      */
-    public static void saveSessions(String playerName, List<SessionData> sessions) {
+    public static void saveCurrentSessions(String playerName, List<SessionData> sessions) {
         playerSessions.put(playerName, sessions);
-        Path file = getSessionsFile(playerName);
-        try {
-            Files.createDirectories(file.getParent());
-            try (Writer writer = Files.newBufferedWriter(file)) {
-                GSON.toJson(sessions, writer);
-            }
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to save terminal sessions", e);
-        }
+        saveSessionsToFile(playerName, sessions);
     }
     
     /**
-     * 从文件加载会话
+     * 从文件加载会话（不触发递归保存）
      */
-    private static List<SessionData> loadSessions(String playerName) {
+    private static List<SessionData> loadSessionsFromFile(String playerName) {
         Path file = getSessionsFile(playerName);
         if (!Files.exists(file)) {
-            // 创建默认会话
-            List<SessionData> list = new ArrayList<>();
-            SessionData defaultSession = new SessionData(playerName);
-            defaultSession.index = 0;
-            list.add(defaultSession);
-            saveSessions(playerName, list);
-            return list;
+            return new ArrayList<>();
         }
         try (Reader reader = Files.newBufferedReader(file)) {
             List<SessionData> loaded = GSON.fromJson(reader, new TypeToken<List<SessionData>>(){}.getType());
-            if (loaded == null || loaded.isEmpty()) {
-                SessionData defaultSession = new SessionData(playerName);
-                defaultSession.index = 0;
+            if (loaded == null) {
                 loaded = new ArrayList<>();
-                loaded.add(defaultSession);
-                saveSessions(playerName, loaded);
             }
             // 重新索引
             for (int i = 0; i < loaded.size(); i++) {
@@ -85,11 +75,22 @@ public class TerminalSessionManager {
             return loaded;
         } catch (IOException e) {
             ShortcutTerminal.LOGGER.error("Failed to load terminal sessions", e);
-            List<SessionData> list = new ArrayList<>();
-            SessionData defaultSession = new SessionData(playerName);
-            defaultSession.index = 0;
-            list.add(defaultSession);
-            return list;
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * 写入文件（纯文件操作，不修改内存Map）
+     */
+    private static void saveSessionsToFile(String playerName, List<SessionData> sessions) {
+        Path file = getSessionsFile(playerName);
+        try {
+            Files.createDirectories(file.getParent());
+            try (Writer writer = Files.newBufferedWriter(file)) {
+                GSON.toJson(sessions, writer);
+            }
+        } catch (IOException e) {
+            ShortcutTerminal.LOGGER.error("Failed to save terminal sessions", e);
         }
     }
     

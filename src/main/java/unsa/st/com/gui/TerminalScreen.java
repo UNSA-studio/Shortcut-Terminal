@@ -53,9 +53,7 @@ public class TerminalScreen extends Screen {
         this.leftPos = (this.width - GUI_WIDTH) / 2;
         this.topPos = (this.height - GUI_HEIGHT) / 2;
 
-        // 获取玩家名
         this.playerName = Minecraft.getInstance().player.getName().getString();
-        // 加载会话
         this.sessions = TerminalSessionManager.getSessions(playerName);
         this.currentSessionIndex = 0;
         loadSession(0);
@@ -76,10 +74,9 @@ public class TerminalScreen extends Screen {
     
     private void loadSession(int index) {
         if (index < 0 || index >= sessions.size()) return;
-        // 保存当前会话
         if (executor != null) {
             sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
-            TerminalSessionManager.saveSessions(playerName, sessions);
+            TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         }
         currentSessionIndex = index;
         SessionData data = sessions.get(index);
@@ -93,20 +90,19 @@ public class TerminalScreen extends Screen {
     private void saveCurrentSession() {
         if (executor != null) {
             sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
-            TerminalSessionManager.saveSessions(playerName, sessions);
+            TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         }
     }
     
     private void newSession() {
         SessionData newData = TerminalSessionManager.createSession(playerName);
         sessions.add(newData);
-        TerminalSessionManager.saveSessions(playerName, sessions);
+        TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(sessions.size() - 1);
     }
 
     private void updatePrompt() {
         String path = executor.getCurrentPath();
-        // 显示为 ~/USER $ 或 ~/USER/path $，USER 替换为玩家名
         String displayPath = path.equals("/") ? "" : path;
         currentPrompt = "~/" + playerName + displayPath + " $ ";
     }
@@ -157,7 +153,6 @@ public class TerminalScreen extends Screen {
         this.commandInput.setX(leftPos + PADDING + promptWidth);
         this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
         
-        // 右下角显示会话序号
         String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + "]";
         int infoWidth = this.font.width(sessionInfo);
         guiGraphics.drawString(this.font, sessionInfo, 
@@ -215,7 +210,6 @@ public class TerminalScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // 快捷键处理
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         if (ctrl) {
             if (keyCode == GLFW.GLFW_KEY_X) {
@@ -269,7 +263,6 @@ public class TerminalScreen extends Screen {
                 }
                 
                 saveCurrentSession();
-                
                 this.commandInput.setValue("");
                 updatePrompt();
                 scrollOffset = Double.MAX_VALUE;
