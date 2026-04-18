@@ -26,6 +26,7 @@ public class TerminalScreen extends Screen {
     private static final int GUI_HEIGHT = 200;
     private static final int PADDING = 6;
     private static final int SCROLLBAR_WIDTH = 6;
+    private static final double SCROLL_SPEED = 40.0; // 提高滚动速度
 
     private int leftPos, topPos;
     private EditBox commandInput;
@@ -45,14 +46,11 @@ public class TerminalScreen extends Screen {
     private boolean ctrlXPressed = false;
     private boolean deletePressed = false;
     
-    // 强占用状态（用于同步确认）
     private boolean forcibleState = false;
     private String forciblePrompt = "";
     private SyncAction pendingSyncAction = null;
     
-    private enum SyncAction {
-        TO_SERVER, TO_LOCAL
-    }
+    private enum SyncAction { TO_SERVER, TO_LOCAL }
 
     public TerminalScreen() {
         super(Component.literal("Terminal"));
@@ -114,18 +112,10 @@ public class TerminalScreen extends Screen {
     }
     
     private void deleteCurrentSession() {
-        if (sessions.size() <= 1) {
-            // 至少保留一个会话
-            return;
-        }
+        if (sessions.size() <= 1) return;
         sessions.remove(currentSessionIndex);
-        // 重新索引
-        for (int i = 0; i < sessions.size(); i++) {
-            sessions.get(i).index = i;
-        }
-        if (currentSessionIndex >= sessions.size()) {
-            currentSessionIndex = sessions.size() - 1;
-        }
+        for (int i = 0; i < sessions.size(); i++) sessions.get(i).index = i;
+        if (currentSessionIndex >= sessions.size()) currentSessionIndex = sessions.size() - 1;
         TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(currentSessionIndex);
     }
@@ -149,13 +139,17 @@ public class TerminalScreen extends Screen {
         
         int totalContentHeight = outputLines.size() * lineHeight;
         int maxScroll = Math.max(0, totalContentHeight - outputHeight);
+        // 严格裁剪滚动偏移，防止穿模
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
         
         int startLine = (int) (scrollOffset / lineHeight);
         int endLine = Math.min(outputLines.size(), startLine + maxVisibleLines + 1);
         
+        // 修正Y坐标计算，避免超出绘制区域
         for (int i = startLine; i < endLine; i++) {
             int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
+            if (y < outputStartY) y = outputStartY;
+            if (y + lineHeight > outputStartY + outputHeight) continue;
             String line = outputLines.get(i);
             int color = TEXT_COLOR;
             if (line.startsWith("~/") && line.contains(" $ ")) {
@@ -175,7 +169,6 @@ public class TerminalScreen extends Screen {
             guiGraphics.fill(scrollbarX, thumbY, scrollbarX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFAAAAAA);
         }
 
-        // 绘制提示符或强占用状态
         if (forcibleState) {
             guiGraphics.drawString(this.font, forciblePrompt, leftPos + PADDING, this.commandInput.getY(), 0xFFFFFF55);
             this.commandInput.setVisible(false);
@@ -204,7 +197,7 @@ public class TerminalScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (isMouseOver(mouseX, mouseY)) {
-            scrollOffset -= scrollY * 20;
+            scrollOffset -= scrollY * SCROLL_SPEED;
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -247,7 +240,6 @@ public class TerminalScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         
-        // 强占用状态下只处理 Y/N
         if (forcibleState) {
             if (keyCode == GLFW.GLFW_KEY_Y) {
                 performSync();
@@ -260,48 +252,34 @@ public class TerminalScreen extends Screen {
                 outputLines.add("Sync cancelled.");
                 return true;
             }
-            return true;  // 忽略其他按键
+            return true;
         }
         
         if (ctrl) {
             if (keyCode == GLFW.GLFW_KEY_X) {
-                if (!ctrlXPressed) {
-                    ctrlXPressed = true;
-                    newSession();
-                }
+                if (!ctrlXPressed) { ctrlXPressed = true; newSession(); }
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_Z) {
-                if (currentSessionIndex > 0) {
-                    loadSession(currentSessionIndex - 1);
-                }
+                if (currentSessionIndex > 0) loadSession(currentSessionIndex - 1);
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_C) {
-                if (currentSessionIndex < sessions.size() - 1) {
-                    loadSession(currentSessionIndex + 1);
-                }
+                if (currentSessionIndex < sessions.size() - 1) loadSession(currentSessionIndex + 1);
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_L) {
-                outputLines.clear();
-                saveCurrentSession();
-                scrollOffset = 0;
+                outputLines.clear(); saveCurrentSession(); scrollOffset = 0;
                 return true;
             }
         } else {
             if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
-                ctrlXPressed = false;
-                deletePressed = false;
+                ctrlXPressed = false; deletePressed = false;
             }
         }
         
-        // Delete 键删除当前会话
         if (keyCode == GLFW.GLFW_KEY_DELETE) {
-            if (!deletePressed) {
-                deletePressed = true;
-                deleteCurrentSession();
-            }
+            if (!deletePressed) { deletePressed = true; deleteCurrentSession(); }
             return true;
         }
         
@@ -335,12 +313,9 @@ public class TerminalScreen extends Screen {
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
-            ctrlXPressed = false;
-            deletePressed = false;
+            ctrlXPressed = false; deletePressed = false;
         }
-        if (keyCode == GLFW.GLFW_KEY_DELETE) {
-            deletePressed = false;
-        }
+        if (keyCode == GLFW.GLFW_KEY_DELETE) deletePressed = false;
         return super.keyReleased(keyCode, scanCode, modifiers);
     }
 
@@ -361,39 +336,21 @@ public class TerminalScreen extends Screen {
         String[] args = new String[parts.length - 1];
         System.arraycopy(parts, 1, args, 0, args.length);
         
-        // 处理手动同步命令
-        if (cmd.equals("run") && args.length >= 1) {
-            if (args[0].equals("synchrony")) {
-                if (args.length >= 2) {
-                    if (args[1].equals("-server")) {
-                        pendingSyncAction = SyncAction.TO_LOCAL;
-                        forcibleState = true;
-                        forciblePrompt = "Are you sure you want to sync from server? [Y/N]";
-                        this.commandInput.setValue("");
-                        return;
-                    } else if (args[1].equals("-local")) {
-                        pendingSyncAction = SyncAction.TO_SERVER;
-                        forcibleState = true;
-                        forciblePrompt = "Are you sure you want to sync to server? [Y/N]";
-                        this.commandInput.setValue("");
-                        return;
-                    }
-                }
+        if (cmd.equals("run") && args.length >= 1 && args[0].equals("synchrony")) {
+            if (args.length >= 2) {
+                if (args[1].equals("-server")) { pendingSyncAction = SyncAction.TO_LOCAL; forcibleState = true; forciblePrompt = "Are you sure you want to sync from server? [Y/N]"; this.commandInput.setValue(""); return; }
+                else if (args[1].equals("-local")) { pendingSyncAction = SyncAction.TO_SERVER; forcibleState = true; forciblePrompt = "Are you sure you want to sync to server? [Y/N]"; this.commandInput.setValue(""); return; }
             }
         }
         
-        // 正常命令执行
         String result = executor.execute(cmd, args);
         if (result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) {
-                outputLines.add(line);
-            }
+            for (String line : result.split("\n")) outputLines.add(line);
         }
         
         if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
             PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
         } else {
-            // 只有文件系统发生变更时才同步（由 executor 内部标记）
             if (executor.hasPendingChanges()) {
                 syncFileSystemToServer();
                 executor.clearPendingChanges();
@@ -411,7 +368,6 @@ public class TerminalScreen extends Screen {
             syncFileSystemToServer();
             outputLines.add("Local data synced to server.");
         } else if (pendingSyncAction == SyncAction.TO_LOCAL) {
-            // 从服务器拉取数据（需要向服务端请求，此处简化）
             outputLines.add("Sync from server not yet implemented.");
         }
         saveCurrentSession();
@@ -426,27 +382,14 @@ public class TerminalScreen extends Screen {
 
     public static void receiveCommandResult(String result) {
         if (instance != null && result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) {
-                instance.outputLines.add(line);
-            }
+            for (String line : result.split("\n")) instance.outputLines.add(line);
             instance.saveCurrentSession();
             instance.scrollOffset = Double.MAX_VALUE;
         }
     }
 
-    @Override
-    public boolean isPauseScreen() { return false; }
-    @Override
-    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
-    @Override
-    public boolean shouldCloseOnEsc() { 
-        saveCurrentSession();
-        return true; 
-    }
-    
-    @Override
-    public void onClose() {
-        saveCurrentSession();
-        super.onClose();
-    }
+    @Override public boolean isPauseScreen() { return false; }
+    @Override public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
+    @Override public boolean shouldCloseOnEsc() { saveCurrentSession(); return true; }
+    @Override public void onClose() { saveCurrentSession(); super.onClose(); }
 }
