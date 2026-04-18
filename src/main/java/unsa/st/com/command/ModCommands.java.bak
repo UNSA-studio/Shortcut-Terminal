@@ -25,9 +25,6 @@ import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.chunk.ChunkLoadManager;
 import unsa.st.com.chunk.ChunkRequestManager;
-import unsa.st.com.fakeplayer.FakePlayerManager;
-import unsa.st.com.fakeplayer.FakePlayerEntity;
-import unsa.st.com.fakeplayer.FakePlayerController;
 
 import java.util.List;
 import java.util.UUID;
@@ -112,24 +109,6 @@ public class ModCommands {
                     .then(Commands.literal("macro")
                         .then(Commands.argument("args", StringArgumentType.greedyString())
                             .executes(ctx -> executeMacro(ctx.getSource(), StringArgumentType.getString(ctx, "args"))))))
-                .then(Commands.literal("fakeplayer")
-                    .then(Commands.literal("create")
-                        .then(Commands.argument("name", StringArgumentType.word())
-                            .executes(ctx -> executeFakePlayerCreate(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                    .then(Commands.literal("remove")
-                        .then(Commands.argument("name", StringArgumentType.word())
-                            .executes(ctx -> executeFakePlayerRemove(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                    .then(Commands.literal("list")
-                        .executes(ctx -> executeFakePlayerList(ctx.getSource())))
-                    .then(Commands.literal("walk")
-                        .then(Commands.argument("name", StringArgumentType.word())
-                            .executes(ctx -> executeFakePlayerWalk(ctx.getSource(), StringArgumentType.getString(ctx, "name"), true))))
-                    .then(Commands.literal("stopwalk")
-                        .then(Commands.argument("name", StringArgumentType.word())
-                            .executes(ctx -> executeFakePlayerWalk(ctx.getSource(), StringArgumentType.getString(ctx, "name"), false))))
-                    .then(Commands.literal("jump")
-                        .then(Commands.argument("name", StringArgumentType.word())
-                            .executes(ctx -> executeFakePlayerJump(ctx.getSource(), StringArgumentType.getString(ctx, "name"))))))
                 .then(Commands.literal("stop")
                     .then(Commands.literal("macro")
                         .executes(ctx -> executeStopMacro(ctx.getSource()))))
@@ -500,68 +479,6 @@ public class ModCommands {
         if (player == null) return 0;
         String result = executor.execute(player, "stop", new String[]{"macro"}, "");
         source.sendSuccess(() -> Component.literal(result), false);
-        return 1;
-    }
-
-    private static int executeFakePlayerCreate(CommandSourceStack source, String name) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
-        if (FakePlayerManager.exists(name)) {
-            source.sendFailure(Component.literal("Fake player already exists: " + name));
-            return 0;
-        }
-        FakePlayerEntity fp = FakePlayerManager.createFakePlayer(name, source.getLevel(), player.blockPosition());
-        source.sendSuccess(() -> Component.literal("Fake player created: " + name), true);
-        return 1;
-    }
-
-    private static int executeFakePlayerRemove(CommandSourceStack source, String name) {
-        if (FakePlayerManager.removeFakePlayer(name)) {
-            source.sendSuccess(() -> Component.literal("Fake player removed: " + name), true);
-        } else {
-            source.sendFailure(Component.literal("Fake player not found: " + name));
-        }
-        return 1;
-    }
-
-    private static int executeFakePlayerList(CommandSourceStack source) {
-        Collection<FakePlayerEntity> fakes = FakePlayerManager.getAllFakePlayers();
-        if (fakes.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("No fake players."), false);
-        } else {
-            StringBuilder sb = new StringBuilder("Fake players:
-");
-            for (FakePlayerEntity fp : fakes) sb.append(fp.getGameProfile().getName()).append(" at ").append(fp.blockPosition()).append("
-");
-            source.sendSuccess(() -> Component.literal(sb.toString()), false);
-        }
-        return 1;
-    }
-
-    private static int executeFakePlayerWalk(CommandSourceStack source, String name, boolean start) {
-        FakePlayerEntity fp = FakePlayerManager.getFakePlayer(name);
-        if (fp == null) {
-            source.sendFailure(Component.literal("Fake player not found: " + name));
-            return 0;
-        }
-        if (start) {
-            FakePlayerController.startAutoWalk(fp, 0.15);
-            source.sendSuccess(() -> Component.literal(name + " is now walking."), true);
-        } else {
-            FakePlayerController.stopAutoWalk();
-            source.sendSuccess(() -> Component.literal(name + " stopped walking."), true);
-        }
-        return 1;
-    }
-
-    private static int executeFakePlayerJump(CommandSourceStack source, String name) {
-        FakePlayerEntity fp = FakePlayerManager.getFakePlayer(name);
-        if (fp == null) {
-            source.sendFailure(Component.literal("Fake player not found: " + name));
-            return 0;
-        }
-        FakePlayerController.jump(fp);
-        source.sendSuccess(() -> Component.literal(name + " jumped."), true);
         return 1;
     }
 }
