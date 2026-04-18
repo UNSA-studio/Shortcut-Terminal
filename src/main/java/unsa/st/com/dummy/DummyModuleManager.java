@@ -30,17 +30,13 @@ public class DummyModuleManager {
             LocalPlayer player = mc.player;
             if (player == null) return;
             if (currentOperate.isEmpty()) return;
-            // 释放所有之前按下的键
             releaseAll();
-            // 获取当前要按的字符
             if (stepIndex >= currentOperate.length()) stepIndex = 0;
             char c = currentOperate.charAt(stepIndex);
             stepIndex++;
-            // 模拟按下
-            pressKey(mc, c);
-            // 短暂保持后释放（模拟按键点击）
+            pressKey(c);
             try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-            releaseKey(mc, c);
+            releaseKey(c);
         }, 0, intervalMs, TimeUnit.MILLISECONDS);
         Minecraft.getInstance().player.sendSystemMessage(Component.literal("Dummy module started. Name: " + name + ", operate: " + operate));
     }
@@ -57,28 +53,27 @@ public class DummyModuleManager {
         releaseAll();
     }
 
-    private static void pressKey(Minecraft mc, char c) {
-        long window = mc.getWindow().getWindow();
-        int key = charToGlfw(c);
-        if (key != GLFW.GLFW_KEY_UNKNOWN) {
-            // 通过 GLFW 直接发送按键事件
-            GLFW.glfwPostEmptyEvent();
-            // 使用 Minecraft 的键盘处理器
+    private static void pressKey(char c) {
+        int keyCode = charToGlfw(c);
+        if (keyCode != GLFW.GLFW_KEY_UNKNOWN) {
+            InputConstants.Key key = InputConstants.getKey(keyCode, 0);
             KeyMapping.set(key, true);
         }
     }
 
-    private static void releaseKey(Minecraft mc, char c) {
-        int key = charToGlfw(c);
-        if (key != GLFW.GLFW_KEY_UNKNOWN) {
+    private static void releaseKey(char c) {
+        int keyCode = charToGlfw(c);
+        if (keyCode != GLFW.GLFW_KEY_UNKNOWN) {
+            InputConstants.Key key = InputConstants.getKey(keyCode, 0);
             KeyMapping.set(key, false);
         }
     }
 
     private static void releaseAll() {
         for (char c : new char[]{'w','a','s','d',' '}) {
-            int key = charToGlfw(c);
-            if (key != GLFW.GLFW_KEY_UNKNOWN) {
+            int keyCode = charToGlfw(c);
+            if (keyCode != GLFW.GLFW_KEY_UNKNOWN) {
+                InputConstants.Key key = InputConstants.getKey(keyCode, 0);
                 KeyMapping.set(key, false);
             }
         }
