@@ -74,7 +74,7 @@ public class CoreCommandExecutor {
         }
     }
 
-    private String getHelp() { return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg"; }
+    private String getHelp() { return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, dummymodule"; }
 
     private String executeLs() {
         List<String> files = isClient ? ClientVirtualFileSystem.listDirectory(playerUuid.toString(), currentPath) : UserFileSystem.listDirectory(playerUuid, currentPath);
@@ -131,7 +131,6 @@ public class CoreCommandExecutor {
     private String executePwd() {
         return isClient ? currentPath : "/" + playerUuid.toString() + (currentPath.equals("/") ? "" : currentPath);
     }
-
     private String executeCp(String[] args) {
         if (args.length < 2) return "Usage: cp <src> <dst>";
         boolean rec = args.length > 2 && args[0].equals("-r");
@@ -288,6 +287,24 @@ public class CoreCommandExecutor {
             default: return "Unknown pkg subcommand";
         }
     }
+    private String executeDummyModule(String[] args) {
+        if (!isClient) return "dummymodule can only be used in terminal panel.";
+        String name = "dummy";
+        String operate = "";
+        long interval = 3000;
+        for (String arg : args) {
+            if (arg.startsWith("-name:")) name = arg.substring(6);
+            else if (arg.startsWith("operate:")) operate = arg.substring(8);
+            else if (arg.startsWith("interval:")) {
+                String t = arg.substring(9);
+                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1)) * 1000;
+                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2));
+                else interval = Long.parseLong(t) * 1000;
+            }
+        }
+        unsa.st.com.dummy.DummyModuleManager.startDummy(name, true, "", operate, interval);
+        return "Dummy module started.";
+    }
     private static String humanReadable(long b) {
         if (b < 1024) return b + " B";
         int e = (int) (Math.log(b) / Math.log(1024));
@@ -297,26 +314,3 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 }
-
-    private String executeDummyModule(String[] args) {
-        if (!isClient) return "dummymodule can only be used in terminal panel.";
-        String name = "dummy";
-        boolean interactive = true;
-        String statusId = "";
-        String operate = "";
-        long interval = 3000;
-        for (String arg : args) {
-            if (arg.startsWith("-name:")) name = arg.substring(6);
-            else if (arg.startsWith("interactive:")) interactive = arg.substring(12).equalsIgnoreCase("yes");
-            else if (arg.startsWith("status:")) statusId = arg.substring(7);
-            else if (arg.startsWith("operate:")) operate = arg.substring(8);
-            else if (arg.startsWith("interval:")) {
-                String t = arg.substring(9);
-                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1)) * 1000;
-                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2));
-                else interval = Long.parseLong(t) * 1000;
-            }
-        }
-        unsa.st.com.dummy.DummyModuleManager.startDummy(name, interactive, statusId, operate, interval);
-        return "Dummy module started.";
-    }
