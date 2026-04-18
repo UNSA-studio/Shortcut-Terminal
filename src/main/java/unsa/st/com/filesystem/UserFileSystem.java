@@ -7,131 +7,89 @@ import unsa.st.com.ShortcutTerminal;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class UserFileSystem {
     private static final String BASE_FOLDER = "Terminal File";
-    private static Path basePath = null;
+    private static Path basePath;
 
     private static Path getBasePath() {
         if (basePath == null) {
-            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-            if (server != null) {
-                basePath = server.getServerDirectory().resolve(BASE_FOLDER);
-            } else {
-                basePath = Paths.get(BASE_FOLDER);
-            }
-            try {
-                Files.createDirectories(basePath);
-            } catch (IOException e) {
-                ShortcutTerminal.LOGGER.error("Failed to create Terminal File directory", e);
-            }
+            MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+            basePath = (s != null ? s.getServerDirectory() : Paths.get(BASE_FOLDER)).resolve(BASE_FOLDER);
+            try { Files.createDirectories(basePath); } catch (IOException e) {}
         }
         return basePath;
     }
-
-    public static Path getUserPath(UUID uuid) {
-        return getBasePath().resolve(uuid.toString());
+    public static Path getUserPath(UUID u) { return getBasePath().resolve(u.toString()); }
+    public static void createUserDirectory(UUID u) { try { Files.createDirectories(getUserPath(u)); } catch (IOException e) {} }
+    public static boolean isPathValid(UUID u, String rel) { return getUserPath(u).resolve(rel).normalize().startsWith(getUserPath(u)); }
+    public static String normalizePath(String cur, String tgt) {
+        if (tgt.isEmpty() || tgt.equals(".")) return cur;
+        if (tgt.equals("..")) { int i = cur.lastIndexOf('/'); return i > 0 ? cur.substring(0, i) : ""; }
+        return cur.isEmpty() ? tgt : cur + "/" + tgt;
     }
-
-    public static void createUserDirectory(UUID uuid) {
+    public static List<String> listDirectory(UUID u, String rel) {
+        Path p = getUserPath(u).resolve(rel);
+        if (!Files.isDirectory(p)) return null;
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
+            List<String> l = new ArrayList<>();
+            for (Path e : ds) l.add(e.getFileName() + (Files.isDirectory(e) ? "/" : ""));
+            return l;
+        } catch (IOException e) { return null; }
+    }
+    public static boolean createDirectory(UUID u, String rel, String name) {
+        if (!isPathValid(u, rel)) return false;
+        try { Files.createDirectory(getUserPath(u).resolve(rel).resolve(name)); return true; } catch (IOException e) { return false; }
+    }
+    public static boolean createFile(UUID u, String rel, String name) {
+        if (!isPathValid(u, rel)) return false;
+        try { Files.createFile(getUserPath(u).resolve(rel).resolve(name)); return true; } catch (IOException e) { return false; }
+    }
+    public static boolean delete(UUID u, String rel, String name, boolean rec) {
+        if (!isPathValid(u, rel)) return false;
+        Path t = getUserPath(u).resolve(rel).resolve(name);
         try {
-            Files.createDirectories(getUserPath(uuid));
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to create user directory for " + uuid, e);
-        }
-    }
-
-    public static boolean isPathValid(UUID uuid, String relativePath) {
-        Path userPath = getUserPath(uuid);
-        Path targetPath = userPath.resolve(relativePath).normalize();
-        return targetPath.startsWith(userPath);
-    }
-
-    public static String normalizePath(String currentPath, String targetPath) {
-        if (targetPath.isEmpty() || targetPath.equals(".")) return currentPath;
-        if (targetPath.equals("..")) {
-            int lastSlash = currentPath.lastIndexOf('/');
-            return lastSlash > 0 ? currentPath.substring(0, lastSlash) : "";
-        }
-        return currentPath.isEmpty() ? targetPath : currentPath + "/" + targetPath;
-    }
-
-    public static List<String> listDirectory(UUID uuid, String relativePath) {
-        Path dirPath = getUserPath(uuid).resolve(relativePath);
-        if (!Files.exists(dirPath) || !Files.isDirectory(dirPath)) return null;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dirPath)) {
-            List<String> items = new ArrayList<>();
-            for (Path entry : stream) {
-                String name = entry.getFileName().toString();
-                items.add(Files.isDirectory(entry) ? name + "/" : name);
-            }
-            return items;
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    public static boolean createDirectory(UUID uuid, String relativePath, String name) {
-        if (!isPathValid(uuid, relativePath)) return false;
-        Path dirPath = getUserPath(uuid).resolve(relativePath).resolve(name);
-        try {
-            Files.createDirectory(dirPath);
+            if (rec && Files.isDirectory(t)) Files.walk(t).sorted(Comparator.reverseOrder()).forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
+            else Files.delete(t);
             return true;
-        } catch (IOException e) {
-            return false;
-        }
+        } catch (IOException e) { return false; }
     }
-
-    public static boolean createFile(UUID uuid, String relativePath, String name) {
-        if (!isPathValid(uuid, relativePath)) return false;
-        Path filePath = getUserPath(uuid).resolve(relativePath).resolve(name);
+    public static String readFile(UUID u, String rel, String name) {
+        if (!isPathValid(u, rel)) return null;
+        Path f = getUserPath(u).resolve(rel).resolve(name);
+        if (!Files.isRegularFile(f)) return null;
+        try { return Files.readString(f); } catch (IOException e) { return null; }
+    }
+    public static void writeFile(UUID u, String rel, String name, String content) {
+        if (!isPathValid(u, rel)) return;
+        try { Files.writeString(getUserPath(u).resolve(rel).resolve(name), content); } catch (IOException e) {}
+    }
+    public static void writeFileFromStream(UUID u, String rel, String name, InputStream in) throws IOException {
+        if (!isPathValid(u, rel)) return;
+        Files.copy(in, getUserPath(u).resolve(rel).resolve(name), StandardCopyOption.REPLACE_EXISTING);
+    }
+    public static boolean setExecutable(UUID u, String rel, String name, boolean exec) {
+        if (!isPathValid(u, rel)) return false;
+        return getUserPath(u).resolve(rel).resolve(name).toFile().setExecutable(exec);
+    }
+    public static boolean directoryExists(UUID u, String cur, String tgt) {
+        if (tgt.isEmpty() || tgt.equals(".")) return true;
+        Path p = getUserPath(u).resolve(normalizePath(cur, tgt));
+        return Files.isDirectory(p);
+    }
+    public static boolean copy(UUID u, String cur, String src, String dst, boolean rec) {
+        if (!isPathValid(u, cur)) return false;
+        Path s = getUserPath(u).resolve(cur).resolve(src), d = getUserPath(u).resolve(cur).resolve(dst);
         try {
-            Files.createFile(filePath);
+            if (rec && Files.isDirectory(s)) Files.walk(s).forEach(p -> {
+                try { Path t = d.resolve(s.relativize(p)); if (Files.isDirectory(p)) Files.createDirectories(t); else Files.copy(p, t, StandardCopyOption.REPLACE_EXISTING); } catch (IOException ignored) {}
+            });
+            else Files.copy(s, d, StandardCopyOption.REPLACE_EXISTING);
             return true;
-        } catch (IOException e) {
-            return false;
-        }
+        } catch (IOException e) { return false; }
     }
-
-    public static boolean delete(UUID uuid, String relativePath, String name) {
-        if (!isPathValid(uuid, relativePath)) return false;
-        Path targetPath = getUserPath(uuid).resolve(relativePath).resolve(name);
-        try {
-            Files.delete(targetPath);
-            return true;
-        } catch (DirectoryNotEmptyException e) {
-            return false;
-        } catch (IOException e) {
-            return false;
-        }
+    public static boolean move(UUID u, String cur, String src, String dst) {
+        return copy(u, cur, src, dst, true) && delete(u, cur, src, true);
     }
-
-    public static String readFile(UUID uuid, String relativePath, String name) {
-        if (!isPathValid(uuid, relativePath)) return null;
-        Path filePath = getUserPath(uuid).resolve(relativePath).resolve(name);
-        if (!Files.exists(filePath) || Files.isDirectory(filePath)) return null;
-        try {
-            return Files.readString(filePath);
-        } catch (IOException e) {
-            return null;
-        }
-    }
-    
-    public static void writeFile(UUID uuid, String relativePath, String name, String content) {
-        if (!isPathValid(uuid, relativePath)) return;
-        Path filePath = getUserPath(uuid).resolve(relativePath).resolve(name);
-        try {
-            Files.writeString(filePath, content);
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to write file", e);
-        }
-    }
-
-    public static boolean directoryExists(UUID uuid, String currentPath, String targetPath) {
-        if (targetPath.isEmpty() || targetPath.equals(".")) return true;
-        String fullPath = normalizePath(currentPath, targetPath);
-        Path dirPath = getUserPath(uuid).resolve(fullPath);
-        return Files.exists(dirPath) && Files.isDirectory(dirPath);
-    }
+    public static Path resolvePath(UUID u, String cur, String tgt) { return getUserPath(u).resolve(normalizePath(cur, tgt)); }
 }
