@@ -107,73 +107,12 @@ public class ModCommands {
                                             IntegerArgumentType.getInteger(ctx, "z")
                                         ), false)))))))
         );
-        // 注册独立的 /allow 和 /cancel 指令
         dispatcher.register(Commands.literal("allow")
             .then(Commands.argument("requestId", StringArgumentType.word())
                 .executes(ctx -> executeAllow(ctx.getSource(), StringArgumentType.getString(ctx, "requestId")))));
         dispatcher.register(Commands.literal("cancel")
             .then(Commands.argument("requestId", StringArgumentType.word())
                 .executes(ctx -> executeCancel(ctx.getSource(), StringArgumentType.getString(ctx, "requestId")))));
-    }
-
-    // ... 原有命令实现保持不变 (showHelp, executeLs, ... 等) ...
-    // 为节省篇幅，此处省略原有命令的实现，请确保你的原文件内容完整
-    private static final SuggestionProvider<CommandSourceStack> PKG_INSTALLED = (ctx, builder) ->
-        SharedSuggestionProvider.suggest(PkgManager.listInstalled(false), builder); // 服务端调用，传 false
-
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-            Commands.literal("ST")
-                .then(Commands.literal("Help").executes(ctx -> showHelp(ctx.getSource())))
-                .then(Commands.literal("ls").executes(ctx -> executeLs(ctx.getSource())))
-                .then(Commands.literal("mkdir").then(Commands.argument("name", StringArgumentType.string())
-                    .executes(ctx -> executeMkdir(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(Commands.literal("touch").then(Commands.argument("name", StringArgumentType.string())
-                    .executes(ctx -> executeTouch(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(Commands.literal("rm").then(Commands.argument("name", StringArgumentType.string())
-                    .executes(ctx -> executeRm(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(Commands.literal("cat").then(Commands.argument("name", StringArgumentType.string())
-                    .executes(ctx -> executeCat(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(Commands.literal("cd").then(Commands.argument("path", StringArgumentType.string())
-                    .executes(ctx -> executeCd(ctx.getSource(), StringArgumentType.getString(ctx, "path")))))
-                .then(Commands.literal("pwd").executes(ctx -> executePwd(ctx.getSource())))
-                .then(Commands.literal("echo").then(Commands.argument("text", StringArgumentType.greedyString())
-                    .executes(ctx -> executeEcho(ctx.getSource(), StringArgumentType.getString(ctx, "text")))))
-                .then(Commands.literal("clear").executes(ctx -> executeClear(ctx.getSource())))
-                .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
-                .then(Commands.literal("refresh").then(Commands.literal("bf")
-                    .executes(ctx -> executeRefresh(ctx.getSource()))))
-                .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
-                    .executes(ctx -> openTerminal(ctx.getSource())))))
-                .then(Commands.literal("User")
-                    .then(Commands.argument("player", EntityArgument.player())
-                        .then(Commands.argument("action", StringArgumentType.word()).suggests(ACTIONS)
-                            .then(Commands.argument("params", StringArgumentType.greedyString())
-                                .executes(ctx -> executeUser(ctx.getSource(),
-                                    EntityArgument.getPlayer(ctx, "player"),
-                                    StringArgumentType.getString(ctx, "action"),
-                                    StringArgumentType.getString(ctx, "params"))))
-                            .executes(ctx -> {
-                                ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
-                                return 0;
-                            }))))
-                .then(Commands.literal("pkg")
-                    .then(Commands.literal("update").executes(ctx -> executePkgUpdate(ctx.getSource())))
-                    .then(Commands.literal("install")
-                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
-                            .executes(ctx -> executePkgInstall(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
-                    .then(Commands.literal("remove")
-                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_INSTALLED)
-                            .executes(ctx -> executePkgRemove(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
-                    .then(Commands.literal("list").executes(ctx -> executePkgList(ctx.getSource())))
-                    .then(Commands.literal("search")
-                        .then(Commands.argument("keyword", StringArgumentType.word())
-                            .executes(ctx -> executePkgSearch(ctx.getSource(), StringArgumentType.getString(ctx, "keyword")))))
-                    .then(Commands.literal("info")
-                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
-                            .executes(ctx -> executePkgInfo(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
-                    .then(Commands.literal("path").executes(ctx -> executePkgPath(ctx.getSource()))))
-        );
     }
 
     private static int showHelp(CommandSourceStack source) {
@@ -198,6 +137,7 @@ public class ModCommands {
                 §f/ST pkg search <kw> §7- Search packages
                 §f/ST pkg info <pkg> §7- Show package info
                 §f/ST pkg path §7- Show PATH
+                §f/ST run strongloading §7- Request/force chunk load
                 §a================================
                 """;
         source.sendSuccess(() -> Component.literal(help), false);
@@ -366,7 +306,7 @@ public class ModCommands {
     }
 
     private static int executePkgInstall(CommandSourceStack source, String packageName) {
-        String result = PkgManager.install(packageName, false); // 服务端命令
+        String result = PkgManager.install(packageName, false);
         if (result.startsWith("Package installed") || result.startsWith("Package not found") || result.startsWith("Package already")) {
             source.sendSuccess(() -> Component.literal(result), false);
         } else {
@@ -421,7 +361,6 @@ public class ModCommands {
         return 1;
     }
 
-    // ========== Strong Loading 子命令 ==========
     private static int executeStrongLoading(CommandSourceStack source, BlockPos targetPos, boolean useCurrent) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
