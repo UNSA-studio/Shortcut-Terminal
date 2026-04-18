@@ -77,9 +77,6 @@ public class ModCommands {
                                 ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
                                 return 0;
                             }))))
-                .then(Commands.literal("stop")
-                    .then(Commands.literal("macro")
-                        .executes(ctx -> executeStopMacro(ctx.getSource()))))
                 .then(Commands.literal("pkg")
                     .then(Commands.literal("update").executes(ctx -> executePkgUpdate(ctx.getSource())))
                     .then(Commands.literal("install")
@@ -97,9 +94,6 @@ public class ModCommands {
                             .executes(ctx -> executePkgInfo(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
                     .then(Commands.literal("path").executes(ctx -> executePkgPath(ctx.getSource()))))
                 .then(Commands.literal("run")
-                        .then(Commands.literal("macro")
-                            .then(Commands.argument("args", StringArgumentType.greedyString())
-                                .executes(ctx -> executeMacro(ctx.getSource(), StringArgumentType.getString(ctx, "args")))))
                     .then(Commands.literal("strongloading")
                         .then(Commands.literal("now")
                             .executes(ctx -> executeStrongLoading(ctx.getSource(), null, true)))
@@ -111,7 +105,13 @@ public class ModCommands {
                                             IntegerArgumentType.getInteger(ctx, "x"),
                                             IntegerArgumentType.getInteger(ctx, "y"),
                                             IntegerArgumentType.getInteger(ctx, "z")
-                                        ), false)))))))
+                                        ), false))))))
+                    .then(Commands.literal("macro")
+                        .then(Commands.argument("args", StringArgumentType.greedyString())
+                            .executes(ctx -> executeMacro(ctx.getSource(), StringArgumentType.getString(ctx, "args"))))))
+                .then(Commands.literal("stop")
+                    .then(Commands.literal("macro")
+                        .executes(ctx -> executeStopMacro(ctx.getSource()))))
         );
         dispatcher.register(Commands.literal("allow")
             .then(Commands.argument("requestId", StringArgumentType.word())
@@ -144,6 +144,8 @@ public class ModCommands {
                 §f/ST pkg info <pkg> §7- Show package info
                 §f/ST pkg path §7- Show PATH
                 §f/ST run strongloading §7- Request/force chunk load
+                §f/ST run macro §7- Start player macro
+                §f/ST stop macro §7- Stop player macro
                 §a================================
                 """;
         source.sendSuccess(() -> Component.literal(help), false);
@@ -462,7 +464,6 @@ public class ModCommands {
         }
         return 1;
     }
-}
 
     private static int executeMacro(CommandSourceStack source, String args) {
         ServerPlayer player = source.getPlayer();
@@ -480,3 +481,4 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+}
