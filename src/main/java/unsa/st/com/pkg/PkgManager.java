@@ -114,7 +114,6 @@ public class PkgManager {
             }
         }
         if (remoteIndex.isEmpty()) {
-            // 保底内置
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
@@ -171,20 +170,16 @@ public class PkgManager {
                 Files.copy(in, tmpFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 解压 .deb 包
             Path extractDir = Files.createTempDirectory("pkg_extract");
             extractDeb(tmpFile, extractDir);
 
-            // 复制文件到 Program
             Path dataDir = extractDir.resolve("data");
             if (Files.exists(dataDir)) {
                 copyDirectory(dataDir, getProgramPath(isClient));
             } else {
-                // 有些 deb 直接是根目录
                 copyDirectory(extractDir, getProgramPath(isClient));
             }
 
-            // 设置可执行权限
             Path binDir = getProgramPath(isClient).resolve("bin");
             if (Files.exists(binDir)) {
                 Files.walk(binDir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
@@ -203,10 +198,29 @@ public class PkgManager {
     private static String handleSimulationPackage() {
         String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("win")) {
-            return "A new administrator-mode PowerShell will pull up and install Linux, after which you need to reboot and custom install the version of Linux you need in the new PowerShell.\n"
-                    + "To install WSL manually, open PowerShell as Administrator and run: wsl --install";
+            // 尝试启动管理员 PowerShell 安装 WSL
+            String message = "A new PowerShell administrator process will now be invoked, which will start the installation of the virtual environment. After installation, you need to select the Linux you need to complete your configuration. The default installation is WSL 2. After WSL is installed, you will need to reboot your system to select the Linux you want to install.";
+            try {
+                // 构建命令：启动一个以管理员身份运行的 PowerShell，并执行 wsl --install
+                String cmd = "powershell Start-Process powershell -Verb runAs -ArgumentList 'wsl --install'";
+                Runtime.getRuntime().exec(cmd);
+                return message + "\n\nPowerShell has been launched. Please follow the on-screen instructions. If a UAC prompt appears, click Yes.";
+            } catch (IOException e) {
+                ShortcutTerminal.LOGGER.error("Failed to launch PowerShell", e);
+                return message + "\n\nFailed to launch PowerShell automatically. Please open PowerShell as Administrator manually and run: wsl --install";
+            }
+        } else if (osName.contains("linux")) {
+            // 检查是否是Android
+            String javaVendor = System.getProperty("java.vendor", "").toLowerCase();
+            String javaVmName = System.getProperty("java.vm.name", "").toLowerCase();
+            if (javaVendor.contains("android") || javaVmName.contains("dalvik") || javaVmName.contains("art")) {
+                return "Sorry, Android is not supported, because Android is a Linux, only easy to limit, I can not guarantee that PKG is 100% effective, this may cause exceptions.";
+            }
+            return "Why do you want to install this when your system is Linux?";
+        } else if (osName.contains("mac")) {
+            return "MacOS is not yet supported because it is not compatible.";
         } else {
-            return "You are a Linux system, why do you want to install it?";
+            return "Your operating system is not recognized. Simulation package is only available on Windows, Linux, and macOS.";
         }
     }
 
@@ -219,7 +233,6 @@ public class PkgManager {
                     Path outFile = destDir.resolve(name);
                     Files.createDirectories(destDir);
                     Files.copy(arIn, outFile, StandardCopyOption.REPLACE_EXISTING);
-                    // 解压 data 文件
                     if (name.endsWith(".gz")) {
                         try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new GzipCompressorInputStream(Files.newInputStream(outFile)))) {
                             extractTar(tarIn, destDir.resolve("data"));
@@ -229,8 +242,6 @@ public class PkgManager {
                             extractTar(tarIn, destDir.resolve("data"));
                         }
                     }
-                } else if (name.equals("control.tar.gz") || name.equals("control.tar.xz")) {
-                    // 控制文件，可忽略
                 }
             }
         }
@@ -267,7 +278,6 @@ public class PkgManager {
     public static String remove(String packageName, boolean isClient) {
         Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
         if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
-        // 简化：仅从数据库移除，不删除文件（实际应记录文件列表）
         localDb.remove(packageName);
         saveLocalDatabase(isClient, localDb);
         return "Package removed: " + packageName;
