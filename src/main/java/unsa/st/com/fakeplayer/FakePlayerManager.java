@@ -1,9 +1,9 @@
 package unsa.st.com.fakeplayer;
 
 import com.mojang.authlib.GameProfile;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
@@ -20,9 +20,7 @@ public class FakePlayerManager {
         
         FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
         fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-        fakePlayer.setOldPosAndRot();
         
-        // 加入世界
         level.addNewPlayer(fakePlayer);
         fakePlayers.put(uuid, fakePlayer);
         return fakePlayer;
