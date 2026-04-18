@@ -195,15 +195,21 @@ public class CoreCommandExecutor {
             case "remove":
                 if (args.length < 2) return "Usage: pkg remove <package>";
                 return PkgManager.remove(args[1], isClient);
-            case "list": return PkgManager.listInstalled(isClient);
+            case "list":
+                List<String> installed = PkgManager.listInstalled(isClient);
+                return installed.isEmpty() ? "No packages installed." : "Installed:\n" + String.join("\n", installed);
             case "search":
                 if (args.length < 2) return "Usage: pkg search <keyword>";
-                return PkgManager.search(args[1]);
+                List<String> results = PkgManager.search(args[1]);
+                return results.isEmpty() ? "No packages found." : "Found:\n" + String.join("\n", results);
             case "info":
                 if (args.length < 2) return "Usage: pkg info <package>";
                 return PkgManager.showInfo(args[1]);
-            case "path": return PkgManager.getPathEntries(isClient);
-            default: return "Unknown pkg subcommand: " + args[0];
+            case "path":
+                List<String> path = PkgManager.getPathEntries(isClient);
+                return path.isEmpty() ? "PATH is empty." : "PATH:\n" + String.join("\n", path);
+            default:
+                return "Unknown pkg subcommand: " + args[0];
         }
     }
 
