@@ -77,6 +77,9 @@ public class ModCommands {
                                 ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
                                 return 0;
                             }))))
+                .then(Commands.literal("stop")
+                    .then(Commands.literal("macro")
+                        .executes(ctx -> executeStopMacro(ctx.getSource()))))
                 .then(Commands.literal("pkg")
                     .then(Commands.literal("update").executes(ctx -> executePkgUpdate(ctx.getSource())))
                     .then(Commands.literal("install")
@@ -94,6 +97,9 @@ public class ModCommands {
                             .executes(ctx -> executePkgInfo(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
                     .then(Commands.literal("path").executes(ctx -> executePkgPath(ctx.getSource()))))
                 .then(Commands.literal("run")
+                        .then(Commands.literal("macro")
+                            .then(Commands.argument("args", StringArgumentType.greedyString())
+                                .executes(ctx -> executeMacro(ctx.getSource(), StringArgumentType.getString(ctx, "args")))))
                     .then(Commands.literal("strongloading")
                         .then(Commands.literal("now")
                             .executes(ctx -> executeStrongLoading(ctx.getSource(), null, true)))
@@ -457,3 +463,20 @@ public class ModCommands {
         return 1;
     }
 }
+
+    private static int executeMacro(CommandSourceStack source, String args) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        String[] parts = args.split("\\s+");
+        String result = executor.execute(player, "macro", parts, "");
+        source.sendSuccess(() -> Component.literal(result), false);
+        return 1;
+    }
+
+    private static int executeStopMacro(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        String result = executor.execute(player, "stop", new String[]{"macro"}, "");
+        source.sendSuccess(() -> Component.literal(result), false);
+        return 1;
+    }
