@@ -1,6 +1,7 @@
 package unsa.st.com.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
@@ -8,8 +9,12 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import unsa.st.com.terminal.TerminalManager;
 import unsa.st.com.terminal.TerminalSession;
@@ -18,6 +23,8 @@ import unsa.st.com.util.CommandExecutor;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.pkg.PkgManager;
+import unsa.st.com.chunk.ChunkLoadManager;
+import unsa.st.com.chunk.ChunkRequestManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +38,86 @@ public class ModCommands {
     private static final SuggestionProvider<CommandSourceStack> PKG_SUGGEST = (ctx, builder) ->
         SharedSuggestionProvider.suggest(PkgManager.listAvailable(), builder);
 
+    private static final SuggestionProvider<CommandSourceStack> PKG_INSTALLED = (ctx, builder) ->
+        SharedSuggestionProvider.suggest(PkgManager.listInstalled(false), builder);
+
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(
+            Commands.literal("ST")
+                .then(Commands.literal("Help").executes(ctx -> showHelp(ctx.getSource())))
+                .then(Commands.literal("ls").executes(ctx -> executeLs(ctx.getSource())))
+                .then(Commands.literal("mkdir").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeMkdir(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("touch").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeTouch(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("rm").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeRm(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("cat").then(Commands.argument("name", StringArgumentType.string())
+                    .executes(ctx -> executeCat(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("cd").then(Commands.argument("path", StringArgumentType.string())
+                    .executes(ctx -> executeCd(ctx.getSource(), StringArgumentType.getString(ctx, "path")))))
+                .then(Commands.literal("pwd").executes(ctx -> executePwd(ctx.getSource())))
+                .then(Commands.literal("echo").then(Commands.argument("text", StringArgumentType.greedyString())
+                    .executes(ctx -> executeEcho(ctx.getSource(), StringArgumentType.getString(ctx, "text")))))
+                .then(Commands.literal("clear").executes(ctx -> executeClear(ctx.getSource())))
+                .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
+                .then(Commands.literal("refresh").then(Commands.literal("bf")
+                    .executes(ctx -> executeRefresh(ctx.getSource()))))
+                .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
+                    .executes(ctx -> openTerminal(ctx.getSource())))))
+                .then(Commands.literal("User")
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.argument("action", StringArgumentType.word()).suggests(ACTIONS)
+                            .then(Commands.argument("params", StringArgumentType.greedyString())
+                                .executes(ctx -> executeUser(ctx.getSource(),
+                                    EntityArgument.getPlayer(ctx, "player"),
+                                    StringArgumentType.getString(ctx, "action"),
+                                    StringArgumentType.getString(ctx, "params"))))
+                            .executes(ctx -> {
+                                ctx.getSource().sendFailure(Component.translatable("st.command.user.usage"));
+                                return 0;
+                            }))))
+                .then(Commands.literal("pkg")
+                    .then(Commands.literal("update").executes(ctx -> executePkgUpdate(ctx.getSource())))
+                    .then(Commands.literal("install")
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
+                            .executes(ctx -> executePkgInstall(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("remove")
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_INSTALLED)
+                            .executes(ctx -> executePkgRemove(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("list").executes(ctx -> executePkgList(ctx.getSource())))
+                    .then(Commands.literal("search")
+                        .then(Commands.argument("keyword", StringArgumentType.word())
+                            .executes(ctx -> executePkgSearch(ctx.getSource(), StringArgumentType.getString(ctx, "keyword")))))
+                    .then(Commands.literal("info")
+                        .then(Commands.argument("package", StringArgumentType.word()).suggests(PKG_SUGGEST)
+                            .executes(ctx -> executePkgInfo(ctx.getSource(), StringArgumentType.getString(ctx, "package")))))
+                    .then(Commands.literal("path").executes(ctx -> executePkgPath(ctx.getSource()))))
+                .then(Commands.literal("run")
+                    .then(Commands.literal("strongloading")
+                        .then(Commands.literal("now")
+                            .executes(ctx -> executeStrongLoading(ctx.getSource(), null, true)))
+                        .then(Commands.argument("x", IntegerArgumentType.integer())
+                            .then(Commands.argument("y", IntegerArgumentType.integer())
+                                .then(Commands.argument("z", IntegerArgumentType.integer())
+                                    .executes(ctx -> executeStrongLoading(ctx.getSource(),
+                                        new BlockPos(
+                                            IntegerArgumentType.getInteger(ctx, "x"),
+                                            IntegerArgumentType.getInteger(ctx, "y"),
+                                            IntegerArgumentType.getInteger(ctx, "z")
+                                        ), false)))))))
+        );
+        // 注册独立的 /allow 和 /cancel 指令
+        dispatcher.register(Commands.literal("allow")
+            .then(Commands.argument("requestId", StringArgumentType.word())
+                .executes(ctx -> executeAllow(ctx.getSource(), StringArgumentType.getString(ctx, "requestId")))));
+        dispatcher.register(Commands.literal("cancel")
+            .then(Commands.argument("requestId", StringArgumentType.word())
+                .executes(ctx -> executeCancel(ctx.getSource(), StringArgumentType.getString(ctx, "requestId")))));
+    }
+
+    // ... 原有命令实现保持不变 (showHelp, executeLs, ... 等) ...
+    // 为节省篇幅，此处省略原有命令的实现，请确保你的原文件内容完整
     private static final SuggestionProvider<CommandSourceStack> PKG_INSTALLED = (ctx, builder) ->
         SharedSuggestionProvider.suggest(PkgManager.listInstalled(false), builder); // 服务端调用，传 false
 
@@ -330,6 +417,103 @@ public class ModCommands {
             source.sendSuccess(() -> Component.literal("PATH is empty."), false);
         } else {
             source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
+        }
+        return 1;
+    }
+
+    // ========== Strong Loading 子命令 ==========
+    private static int executeStrongLoading(CommandSourceStack source, BlockPos targetPos, boolean useCurrent) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        ServerLevel level = source.getLevel();
+        ChunkPos chunkPos;
+        if (useCurrent) {
+            chunkPos = new ChunkPos(player.blockPosition());
+        } else {
+            chunkPos = new ChunkPos(targetPos);
+        }
+        if (source.hasPermission(2)) {
+            ChunkLoadManager.forceLoadChunk(level, chunkPos);
+            source.sendSuccess(() -> Component.literal("Chunk " + chunkPos + " is now force loaded."), true);
+            return 1;
+        }
+        ChunkRequestManager.PendingChunkRequest request = new ChunkRequestManager.PendingChunkRequest(
+            player.getUUID(), player.getName().getString(), chunkPos, level.dimension()
+        );
+        ChunkRequestManager.addRequest(request);
+        source.sendSuccess(() -> Component.translatable("st.chunk.request.sent"), false);
+        Component message = Component.translatable("st.chunk.request.broadcast", 
+            player.getName().getString(), chunkPos.x, chunkPos.z);
+        for (ServerPlayer admin : level.getServer().getPlayerList().getPlayers()) {
+            if (admin.hasPermissions(2)) {
+                admin.sendSystemMessage(message);
+                admin.sendSystemMessage(
+                    Component.literal("[Allow] ").withStyle(ChatFormatting.GREEN)
+                        .append(Component.literal("[/allow " + request.getId() + "]")
+                            .withStyle(style -> style.withClickEvent(
+                                new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/allow " + request.getId())
+                            )))
+                        .append(Component.literal(" [Cancel] ").withStyle(ChatFormatting.RED))
+                        .append(Component.literal("[/cancel " + request.getId() + "]")
+                            .withStyle(style -> style.withClickEvent(
+                                new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cancel " + request.getId())
+                            )))
+                );
+            }
+        }
+        return 1;
+    }
+
+    private static int executeAllow(CommandSourceStack source, String requestId) {
+        if (!source.hasPermission(2)) {
+            source.sendFailure(Component.literal("Permission denied"));
+            return 0;
+        }
+        try {
+            UUID id = UUID.fromString(requestId);
+            ChunkRequestManager.PendingChunkRequest req = ChunkRequestManager.getRequest(id);
+            if (req == null) {
+                source.sendFailure(Component.literal("Request not found"));
+                return 0;
+            }
+            ServerLevel level = source.getServer().getLevel(req.getDimension());
+            if (level == null) {
+                source.sendFailure(Component.literal("Dimension not found"));
+                return 0;
+            }
+            ChunkLoadManager.forceLoadChunk(level, req.getChunkPos());
+            ChunkRequestManager.removeRequest(id);
+            source.sendSuccess(() -> Component.literal("Chunk force loaded: " + req.getChunkPos()), true);
+            ServerPlayer requester = source.getServer().getPlayerList().getPlayer(req.getPlayerUuid());
+            if (requester != null) {
+                requester.sendSystemMessage(Component.literal("Your strong loading request was approved!"));
+            }
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal("Invalid request ID"));
+        }
+        return 1;
+    }
+
+    private static int executeCancel(CommandSourceStack source, String requestId) {
+        if (!source.hasPermission(2)) {
+            source.sendFailure(Component.literal("Permission denied"));
+            return 0;
+        }
+        try {
+            UUID id = UUID.fromString(requestId);
+            ChunkRequestManager.PendingChunkRequest req = ChunkRequestManager.getRequest(id);
+            if (req == null) {
+                source.sendFailure(Component.literal("Request not found"));
+                return 0;
+            }
+            ChunkRequestManager.removeRequest(id);
+            source.sendSuccess(() -> Component.literal("Request cancelled."), true);
+            ServerPlayer requester = source.getServer().getPlayerList().getPlayer(req.getPlayerUuid());
+            if (requester != null) {
+                requester.sendSystemMessage(Component.literal("Your strong loading request was denied."));
+            }
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal("Invalid request ID"));
         }
         return 1;
     }

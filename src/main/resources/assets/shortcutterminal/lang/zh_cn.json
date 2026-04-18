@@ -49,3 +49,7 @@
     "st.terminal.enter": "进入终端模式。输入 'exit' 退出。",
     "st.terminal.exit": "已退出终端模式。"
 }
+{
+    "st.chunk.request.sent": "请求已发送给管理员或服主",
+    "st.chunk.request.broadcast": "玩家 %s 请求一个新的强加载区块 (区块坐标: %d, %d)"
+}

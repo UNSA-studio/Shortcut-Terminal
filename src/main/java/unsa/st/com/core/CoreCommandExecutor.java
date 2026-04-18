@@ -69,6 +69,7 @@ public class CoreCommandExecutor {
             case "sh": return executeSh(args);
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
+            case "dummymodule": return executeDummyModule(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
         }
     }
@@ -296,3 +297,26 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 }
+
+    private String executeDummyModule(String[] args) {
+        if (!isClient) return "dummymodule can only be used in terminal panel.";
+        String name = "dummy";
+        boolean interactive = true;
+        String statusId = "";
+        String operate = "";
+        long interval = 3000;
+        for (String arg : args) {
+            if (arg.startsWith("-name:")) name = arg.substring(6);
+            else if (arg.startsWith("interactive:")) interactive = arg.substring(12).equalsIgnoreCase("yes");
+            else if (arg.startsWith("status:")) statusId = arg.substring(7);
+            else if (arg.startsWith("operate:")) operate = arg.substring(8);
+            else if (arg.startsWith("interval:")) {
+                String t = arg.substring(9);
+                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1)) * 1000;
+                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2));
+                else interval = Long.parseLong(t) * 1000;
+            }
+        }
+        unsa.st.com.dummy.DummyModuleManager.startDummy(name, interactive, statusId, operate, interval);
+        return "Dummy module started.";
+    }

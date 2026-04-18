@@ -7,3 +7,7 @@
     "st.terminal_panel.desc": "A compact and intricate terminal panel. The command prompt is blinking, waiting for input.",
     "st.guide_book.desc": "A guide book containing all terminal commands."
 }
+{
+    "st.chunk.request.sent": "The request has been sent to the administrator or server",
+    "st.chunk.request.broadcast": "Player: %s Request a new strong load block (Chunk: %d, %d)"
+}
