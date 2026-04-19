@@ -2,12 +2,9 @@ package unsa.st.com.fakeplayer;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.common.util.FakePlayer;
-
-import java.util.UUID;
 
 public class FakePlayerEntity extends FakePlayer {
     private final ServerLevel level;
@@ -19,12 +16,7 @@ public class FakePlayerEntity extends FakePlayer {
         this.getAttribute(Attributes.MAX_HEALTH).setBaseValue(20.0D);
         this.setHealth(20.0F);
         this.gameMode.changeGameModeForPlayer(GameType.SURVIVAL);
-        // 确保实体被正确标记
-        this.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(
-            level.getServer(),
-            new net.minecraft.network.Connection(net.minecraft.network.PacketFlow.CLIENTBOUND),
-            this
-        );
+        // 不设置 connection，保持为 null
     }
 
     @Override
