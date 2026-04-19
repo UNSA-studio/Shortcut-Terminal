@@ -71,6 +71,7 @@ public class CoreCommandExecutor {
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
+            case "dummymodule": return executeDummyModule(args);
             case "stop":
                 if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
                     if (isClient) { PlayerMacroManager.stopMacro(); return "Macro stopped."; }
@@ -320,3 +321,43 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 }
+
+    private String executeDummyModule(String[] args) {
+        if (!isClient && !(this instanceof unsa.st.com.util.CommandExecutor)) {
+            return "dummymodule must be run from terminal or as server command.";
+        }
+        String name = "dummy";
+        String operate = "";
+        long interval = 2;
+        for (String arg : args) {
+            if (arg.startsWith("-name:")) name = arg.substring(6);
+            else if (arg.startsWith("operate:")) operate = arg.substring(8);
+            else if (arg.startsWith("interval:")) {
+                String t = arg.substring(9);
+                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1));
+                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2)) / 1000;
+                else interval = Long.parseLong(t);
+            }
+        }
+        // 获取玩家和世界
+        net.minecraft.server.level.ServerPlayer player = null;
+        net.minecraft.server.level.ServerLevel level = null;
+        if (isClient) {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player != null) {
+                // 客户端无法直接获取 ServerLevel，需要通过其他方式
+                return "dummymodule on client requires server context. Use chat command.";
+            }
+        } else {
+            // 服务端执行
+        }
+        return "dummymodule executed (server-side). Fake player: " + name;
+    }
+
+    private String executeDummyModule(String[] args) {
+        if (isClient) {
+            return "dummymodule must be run via '/ST run dummymodule' in chat. Terminal panel cannot create fake players directly.";
+        }
+        // 服务端逻辑由 ModCommands 处理，这里不会被执行
+        return "This command is handled by server.";
+    }

@@ -26,6 +26,7 @@ import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.chunk.ChunkLoadManager;
 import unsa.st.com.chunk.ChunkRequestManager;
 import unsa.st.com.fakeplayer.FakePlayerManager;
+import unsa.st.com.fakeplayer.FakePlayerController;
 import unsa.st.com.fakeplayer.FakePlayerEntity;
 import unsa.st.com.fakeplayer.FakePlayerController;
 
