@@ -27,6 +27,8 @@ import unsa.st.com.chunk.ChunkLoadManager;
 import unsa.st.com.chunk.ChunkRequestManager;
 import unsa.st.com.fakeplayer.FakePlayerManager;
 import unsa.st.com.fakeplayer.FakePlayerController;
+import net.minecraft.server.level.ServerLevel;
+import unsa.st.com.fakeplayer.FakePlayerController;
 import unsa.st.com.fakeplayer.FakePlayerEntity;
 import unsa.st.com.fakeplayer.FakePlayerController;
 
@@ -481,37 +483,4 @@ public class ModCommands {
     }
 
     // ========== 映射 run dummymodule ==========
-    private static int executeDummyModule(CommandSourceStack source, String args) {
-        // 解析参数: -name:test operate:w-d interval:2s
-        String name = "dummy";
-        String operate = "";
-        long interval = 2;
-        String[] parts = args.split("\\s+");
-        for (String p : parts) {
-            if (p.startsWith("-name:")) name = p.substring(6);
-            else if (p.startsWith("operate:")) operate = p.substring(8);
-            else if (p.startsWith("interval:")) {
-                String t = p.substring(9);
-                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1));
-                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2)) / 1000;
-                else interval = Long.parseLong(t);
-            }
-        }
-        ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
-        // 创建假人
-        if (!FakePlayerManager.exists(name)) {
-            FakePlayerManager.createFakePlayer(name, source.getLevel(), player.blockPosition());
-        }
-        FakePlayerEntity fp = FakePlayerManager.getFakePlayer(name);
-        if (fp == null) {
-            source.sendFailure(Component.literal("Failed to create fake player"));
-            return 0;
-        }
-        // 启动行走
-        FakePlayerController.startAutoWalk(fp, 0.15);
-        final String finalName = name;
-        source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
-        return 1;
-    }
 }
