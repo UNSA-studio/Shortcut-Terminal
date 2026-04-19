@@ -71,7 +71,7 @@ public class CoreCommandExecutor {
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
-            case "dummymodule": return "Please use "/ST run dummymodule" in chat. Terminal cannot create fake players directly.";
+            case "dummymodule": return "Please use '/ST run dummymodule' in chat. Terminal cannot create fake players directly.";
             case "stop":
                 if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
                     if (isClient) { PlayerMacroManager.stopMacro(); return "Macro stopped."; }
