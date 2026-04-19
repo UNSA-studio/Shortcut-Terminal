@@ -452,7 +452,8 @@ public class ModCommands {
             return 0;
         }
         FakePlayerEntity fp = FakePlayerManager.createFakePlayer(name, source.getLevel(), player.blockPosition());
-        source.sendSuccess(() -> Component.literal("Fake player created: " + name), true);
+        final String createdName = name;
+        source.sendSuccess(() -> Component.literal("Fake player created: " + createdName), true);
         return 1;
     }
 
@@ -534,10 +535,12 @@ public class ModCommands {
                     source.sendFailure(Component.literal("Failed to create fake player (internal error)."));
                     return 0;
                 }
-                source.sendSuccess(() -> Component.literal("Fake player created: " + name), false);
+                final String createdName = name;
+                source.sendSuccess(() -> Component.literal("Fake player created: " + createdName), false);
             } else {
                 fp = FakePlayerManager.getFakePlayer(name);
-                source.sendSuccess(() -> Component.literal("Using existing fake player: " + name), false);
+                final String existingName = name;
+                source.sendSuccess(() -> Component.literal("Using existing fake player: " + existingName), false);
             }
             
             if (fp != null) {
