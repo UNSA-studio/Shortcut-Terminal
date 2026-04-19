@@ -507,9 +507,6 @@ public class ModCommands {
         return 1;
     }
 
-
-}
-
     private static int executeDummyModule(CommandSourceStack source, String args) {
         try {
             String name = "dummy";
@@ -534,10 +531,11 @@ public class ModCommands {
             source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
             return 1;
         } catch (Exception e) {
-            java.io.StringWriter sw = new java.io.StringWriter();
-            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
             source.sendFailure(Component.literal("Exception: " + e.getClass().getSimpleName() + "\n" + sw.toString()));
             return 0;
         }
     }
+}
