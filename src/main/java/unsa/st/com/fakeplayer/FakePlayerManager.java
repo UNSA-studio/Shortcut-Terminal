@@ -22,7 +22,9 @@ public class FakePlayerManager {
         fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
         
         // 关键：先加入玩家列表，再加入世界
-        server.getPlayerList().getPlayers().add(fakePlayer);
+        if (server.getPlayerList() != null) {
+            server.getPlayerList().getPlayers().add(fakePlayer);
+        }
         level.addNewPlayer(fakePlayer);
         
         fakePlayers.put(uuid, fakePlayer);
