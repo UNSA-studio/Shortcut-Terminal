@@ -509,3 +509,35 @@ public class ModCommands {
 
 
 }
+
+    private static int executeDummyModule(CommandSourceStack source, String args) {
+        try {
+            String name = "dummy";
+            String[] parts = args.split("\\s+");
+            for (String p : parts) {
+                if (p.startsWith("-name:")) name = p.substring(6);
+            }
+            ServerPlayer player = source.getPlayer();
+            if (player == null) {
+                source.sendFailure(Component.literal("This command must be run by a player."));
+                return 0;
+            }
+            ServerLevel level = source.getLevel();
+            
+            final String finalName = name;
+            FakePlayerEntity fp = FakePlayerManager.createFakePlayer(finalName, level, player.blockPosition());
+            if (fp == null) {
+                source.sendFailure(Component.literal("Failed to create fake player (returned null)."));
+                return 0;
+            }
+            FakePlayerController.startAutoWalk(fp, 0.15);
+            source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
+            return 1;
+        } catch (Exception e) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            source.sendFailure(Component.literal("Exception: " + e.getClass().getSimpleName() + "\n" + sw.toString()));
+            return 0;
+        }
+    }
