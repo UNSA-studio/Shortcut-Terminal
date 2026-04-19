@@ -11,15 +11,7 @@ authors = "UNSA-STUDIO"
 description = '''
 Shortcut Terminal - Linux commands in Minecraft!
 
-Features:
-- /ST Help - List all available commands
-- /ST ls, mkdir, touch, rm, cat - Basic file operations
-- /ST cd - Change directory (restricted to user folder)
-- /ST User - Admin command to manage players
-- /ST open terminal page - Enter terminal mode
-- /ST refresh bf - Refresh binary plugins
-
-§c⚠ 本模组需要安装 §n帕秋莉手册 (Patchouli)§r §c作为前置！否则将无法启动。
+§c⚠ 需要安装 §nMCglTF§r 和 §n帕秋莉手册 (Patchouli)§r 作为前置！
 '''
 
 [[dependencies.shortcutterminal]]
@@ -40,5 +32,12 @@ Features:
     modId = "patchouli"
     type = "required"
     versionRange = "[1.21.1-93,)"
+    ordering = "AFTER"
+    side = "BOTH"
+
+[[dependencies.shortcutterminal]]
+    modId = "mcgltf"
+    type = "required"
+    versionRange = "[1.21.1-1.0.0,)"
     ordering = "AFTER"
     side = "BOTH"
