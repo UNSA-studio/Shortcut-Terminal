@@ -14,21 +14,21 @@ public class FakePlayerManager {
     private static final Map<UUID, FakePlayerEntity> fakePlayers = new ConcurrentHashMap<>();
 
     public static FakePlayerEntity createFakePlayer(String name, ServerLevel level, BlockPos pos) {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        UUID uuid = UUID.nameUUIDFromBytes(("fake_" + name).getBytes());
-        GameProfile profile = new GameProfile(uuid, name);
-        
-        FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
-        fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-        
-        // 关键：先加入玩家列表，再加入世界
-        if (server.getPlayerList() != null) {
-            server.getPlayerList().getPlayers().add(fakePlayer);
+        try {
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            UUID uuid = UUID.nameUUIDFromBytes(("fake_" + name).getBytes());
+            GameProfile profile = new GameProfile(uuid, name);
+            
+            FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
+            fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+            
+            level.addNewPlayer(fakePlayer);
+            fakePlayers.put(uuid, fakePlayer);
+            return fakePlayer;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        level.addNewPlayer(fakePlayer);
-        
-        fakePlayers.put(uuid, fakePlayer);
-        return fakePlayer;
     }
 
     public static boolean removeFakePlayer(String name) {
@@ -36,7 +36,6 @@ public class FakePlayerManager {
             if (entry.getValue().getGameProfile().getName().equals(name)) {
                 FakePlayerEntity fp = entry.getValue();
                 fp.remove(Player.RemovalReason.DISCARDED);
-                fp.getServer().getPlayerList().getPlayers().remove(fp);
                 fakePlayers.remove(entry.getKey());
                 return true;
             }
