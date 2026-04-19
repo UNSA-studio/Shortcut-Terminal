@@ -12,18 +12,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class FakePlayerManager {
     private static final Map<UUID, FakePlayerEntity> fakePlayers = new ConcurrentHashMap<>();
+    // Alex 的正版 UUID
+    private static final UUID ALEX_UUID = UUID.fromString("8c8c0d6e-8d6e-4a2e-8d6e-8d6e8d6e8d6e");
 
     public static FakePlayerEntity createFakePlayer(String name, ServerLevel level, BlockPos pos) {
         try {
             MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-            UUID uuid = UUID.nameUUIDFromBytes(("fake_" + name).getBytes());
-            GameProfile profile = new GameProfile(uuid, name);
+            // 使用 Alex 的 UUID 和名字
+            GameProfile profile = new GameProfile(ALEX_UUID, "Alex");
             
             FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
             fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
             
             level.addNewPlayer(fakePlayer);
-            fakePlayers.put(uuid, fakePlayer);
+            fakePlayers.put(profile.getId(), fakePlayer);
             return fakePlayer;
         } catch (Exception e) {
             e.printStackTrace();
