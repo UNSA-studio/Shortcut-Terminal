@@ -1,6 +1,4 @@
 {
-    "parent": "item/generated",
-    "textures": {
-        "layer0": "shortcutterminal:item/terminal_panel"
-    }
+    "loader": "mcgltf:gltf",
+    "model": "shortcutterminal:models/item/terminal.gltf"
 }
