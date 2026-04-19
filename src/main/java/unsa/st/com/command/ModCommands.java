@@ -452,8 +452,8 @@ public class ModCommands {
             return 0;
         }
         FakePlayerEntity fp = FakePlayerManager.createFakePlayer(name, source.getLevel(), player.blockPosition());
-        final String createdName = name;
-        source.sendSuccess(() -> Component.literal("Fake player created: " + createdName), true);
+        final String finalName = name;
+        source.sendSuccess(() -> Component.literal("Fake player created: " + finalName), true);
         return 1;
     }
 
@@ -505,6 +505,53 @@ public class ModCommands {
         return 1;
     }
 
-
-
+    private static int executeDummyModule(CommandSourceStack source, String args) {
+        try {
+            String name = "dummy";
+            long interval = 2;
+            String[] parts = args.split("\\s+");
+            for (String p : parts) {
+                if (p.startsWith("-name:")) name = p.substring(6);
+                else if (p.startsWith("interval:")) {
+                    String t = p.substring(9);
+                    if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1));
+                    else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2)) / 1000;
+                    else interval = Long.parseLong(t);
+                }
+            }
+            ServerPlayer player = source.getPlayer();
+            if (player == null) {
+                source.sendFailure(Component.literal("This command must be run by a player."));
+                return 0;
+            }
+            ServerLevel level = source.getLevel();
+            
+            final String finalName = name;
+            FakePlayerEntity fp;
+            if (!FakePlayerManager.exists(finalName)) {
+                fp = FakePlayerManager.createFakePlayer(finalName, level, player.blockPosition());
+                if (fp == null) {
+                    source.sendFailure(Component.literal("Failed to create fake player (internal error)."));
+                    return 0;
+                }
+                source.sendSuccess(() -> Component.literal("Fake player created: " + finalName), false);
+            } else {
+                fp = FakePlayerManager.getFakePlayer(finalName);
+                source.sendSuccess(() -> Component.literal("Using existing fake player: " + finalName), false);
+            }
+            
+            if (fp != null) {
+                FakePlayerController.startAutoWalk(fp, 0.15);
+                source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
+            } else {
+                source.sendFailure(Component.literal("Fake player not found after creation."));
+                return 0;
+            }
+            return 1;
+        } catch (Exception e) {
+            source.sendFailure(Component.literal("Unexpected error: " + e.getMessage()));
+            e.printStackTrace();
+            return 0;
+        }
+    }
 }
