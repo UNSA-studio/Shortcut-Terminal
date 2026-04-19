@@ -26,14 +26,10 @@ import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.chunk.ChunkLoadManager;
 import unsa.st.com.chunk.ChunkRequestManager;
 import unsa.st.com.fakeplayer.FakePlayerManager;
-import unsa.st.com.fakeplayer.FakePlayerController;
-import net.minecraft.server.level.ServerLevel;
-import unsa.st.com.fakeplayer.FakePlayerController;
 import unsa.st.com.fakeplayer.FakePlayerEntity;
 import unsa.st.com.fakeplayer.FakePlayerController;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 public class ModCommands {
     private static final CommandExecutor executor = new CommandExecutor();
@@ -175,7 +171,6 @@ public class ModCommands {
         return 1;
     }
 
-    // ========== 原有基础指令 (ls, mkdir, cd 等) 保持不变 ==========
     private static int executeLs(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -185,6 +180,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeMkdir(CommandSourceStack source, String name) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -194,6 +190,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeTouch(CommandSourceStack source, String name) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -203,6 +200,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeRm(CommandSourceStack source, String name) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -212,6 +210,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeCat(CommandSourceStack source, String name) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -221,6 +220,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeCd(CommandSourceStack source, String path) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -234,6 +234,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executePwd(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -243,26 +244,31 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeEcho(CommandSourceStack source, String text) {
         source.sendSuccess(() -> Component.literal(text), false);
         return 1;
     }
+
     private static int executeClear(CommandSourceStack source) {
         for (int i = 0; i < 20; i++) source.sendSystemMessage(Component.literal(""));
         return 1;
     }
+
     private static int executeWhoami(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
         source.sendSuccess(() -> Component.literal(player.getName().getString()), false);
         return 1;
     }
+
     private static int executeRefresh(CommandSourceStack source) {
         BinaryPluginManager.refreshPlugins();
         int count = BinaryPluginManager.getPluginCount();
         source.sendSuccess(() -> Component.literal("Binary plugins refreshed. Found " + count + " plugins."), false);
         return 1;
     }
+
     private static int openTerminal(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -271,6 +277,7 @@ public class ModCommands {
         player.sendSystemMessage(Component.literal("Entered terminal mode. Type 'exit' to leave."));
         return 1;
     }
+
     private static int executeUser(CommandSourceStack source, ServerPlayer target, String action, String params) {
         if (!source.hasPermission(2)) { source.sendFailure(Component.literal("Permission denied")); return 0; }
         String[] args = params.split(" ");
@@ -313,11 +320,13 @@ public class ModCommands {
         }
         return 1;
     }
+
     private static int executePkgUpdate(CommandSourceStack source) {
         String result = PkgManager.updateIndex();
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executePkgInstall(CommandSourceStack source, String packageName) {
         String result = PkgManager.install(packageName, false);
         if (result.startsWith("Package installed") || result.startsWith("Package not found") || result.startsWith("Package already"))
@@ -325,6 +334,7 @@ public class ModCommands {
         else source.sendFailure(Component.literal(result));
         return 1;
     }
+
     private static int executePkgRemove(CommandSourceStack source, String packageName) {
         String result = PkgManager.remove(packageName, false);
         if (result.startsWith("Package removed") || result.startsWith("Package not installed"))
@@ -332,29 +342,34 @@ public class ModCommands {
         else source.sendFailure(Component.literal(result));
         return 1;
     }
+
     private static int executePkgList(CommandSourceStack source) {
         List<String> installed = PkgManager.listInstalled(false);
         if (installed.isEmpty()) source.sendSuccess(() -> Component.literal("No packages installed."), false);
         else source.sendSuccess(() -> Component.literal("Installed packages:\n" + String.join("\n", installed)), false);
         return 1;
     }
+
     private static int executePkgSearch(CommandSourceStack source, String keyword) {
         List<String> results = PkgManager.search(keyword);
         if (results.isEmpty()) source.sendSuccess(() -> Component.literal("No packages found matching: " + keyword), false);
         else source.sendSuccess(() -> Component.literal("Found packages:\n" + String.join("\n", results)), false);
         return 1;
     }
+
     private static int executePkgInfo(CommandSourceStack source, String packageName) {
         String info = PkgManager.showInfo(packageName);
         source.sendSuccess(() -> Component.literal(info), false);
         return 1;
     }
+
     private static int executePkgPath(CommandSourceStack source) {
         List<String> path = PkgManager.getPathEntries(false);
         if (path.isEmpty()) source.sendSuccess(() -> Component.literal("PATH is empty."), false);
         else source.sendSuccess(() -> Component.literal("Current PATH:\n" + String.join("\n", path)), false);
         return 1;
     }
+
     private static int executeStrongLoading(CommandSourceStack source, BlockPos targetPos, boolean useCurrent) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -380,6 +395,7 @@ public class ModCommands {
             }
         return 1;
     }
+
     private static int executeAllow(CommandSourceStack source, String requestId) {
         if (!source.hasPermission(2)) { source.sendFailure(Component.literal("Permission denied")); return 0; }
         try {
@@ -396,6 +412,7 @@ public class ModCommands {
         } catch (IllegalArgumentException e) { source.sendFailure(Component.literal("Invalid request ID")); }
         return 1;
     }
+
     private static int executeCancel(CommandSourceStack source, String requestId) {
         if (!source.hasPermission(2)) { source.sendFailure(Component.literal("Permission denied")); return 0; }
         try {
@@ -409,6 +426,7 @@ public class ModCommands {
         } catch (IllegalArgumentException e) { source.sendFailure(Component.literal("Invalid request ID")); }
         return 1;
     }
+
     private static int executeMacro(CommandSourceStack source, String args) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -417,6 +435,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
+
     private static int executeStopMacro(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -425,7 +444,6 @@ public class ModCommands {
         return 1;
     }
 
-    // ========== 新增假人相关指令 ==========
     private static int executeFakePlayerCreate(CommandSourceStack source, String name) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -437,6 +455,7 @@ public class ModCommands {
         source.sendSuccess(() -> Component.literal("Fake player created: " + name), true);
         return 1;
     }
+
     private static int executeFakePlayerRemove(CommandSourceStack source, String name) {
         if (FakePlayerManager.removeFakePlayer(name))
             source.sendSuccess(() -> Component.literal("Fake player removed: " + name), true);
@@ -444,6 +463,7 @@ public class ModCommands {
             source.sendFailure(Component.literal("Fake player not found: " + name));
         return 1;
     }
+
     private static int executeFakePlayerList(CommandSourceStack source) {
         Collection<FakePlayerEntity> fakes = FakePlayerManager.getAllFakePlayers();
         if (fakes.isEmpty()) {
@@ -456,6 +476,7 @@ public class ModCommands {
         }
         return 1;
     }
+
     private static int executeFakePlayerWalk(CommandSourceStack source, String name, boolean start) {
         FakePlayerEntity fp = FakePlayerManager.getFakePlayer(name);
         if (fp == null) {
@@ -471,6 +492,7 @@ public class ModCommands {
         }
         return 1;
     }
+
     private static int executeFakePlayerJump(CommandSourceStack source, String name) {
         FakePlayerEntity fp = FakePlayerManager.getFakePlayer(name);
         if (fp == null) {
@@ -482,5 +504,55 @@ public class ModCommands {
         return 1;
     }
 
-    // ========== 映射 run dummymodule ==========
+    private static int executeDummyModule(CommandSourceStack source, String args) {
+        try {
+            String name = "dummy";
+            String operate = "";
+            long interval = 2;
+            String[] parts = args.split("\\s+");
+            for (String p : parts) {
+                if (p.startsWith("-name:")) name = p.substring(6);
+                else if (p.startsWith("operate:")) operate = p.substring(8);
+                else if (p.startsWith("interval:")) {
+                    String t = p.substring(9);
+                    if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1));
+                    else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2)) / 1000;
+                    else interval = Long.parseLong(t);
+                }
+            }
+            ServerPlayer player = source.getPlayer();
+            if (player == null) {
+                source.sendFailure(Component.literal("This command must be run by a player."));
+                return 0;
+            }
+            ServerLevel level = source.getLevel();
+            
+            FakePlayerEntity fp;
+            if (!FakePlayerManager.exists(name)) {
+                fp = FakePlayerManager.createFakePlayer(name, level, player.blockPosition());
+                if (fp == null) {
+                    source.sendFailure(Component.literal("Failed to create fake player (internal error)."));
+                    return 0;
+                }
+                source.sendSuccess(() -> Component.literal("Fake player created: " + name), false);
+            } else {
+                fp = FakePlayerManager.getFakePlayer(name);
+                source.sendSuccess(() -> Component.literal("Using existing fake player: " + name), false);
+            }
+            
+            if (fp != null) {
+                FakePlayerController.startAutoWalk(fp, 0.15);
+                final String finalName = name;
+                source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
+            } else {
+                source.sendFailure(Component.literal("Fake player not found after creation."));
+                return 0;
+            }
+            return 1;
+        } catch (Exception e) {
+            source.sendFailure(Component.literal("Unexpected error: " + e.getMessage()));
+            e.printStackTrace();
+            return 0;
+        }
+    }
 }
