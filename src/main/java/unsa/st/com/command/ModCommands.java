@@ -509,7 +509,8 @@ public class ModCommands {
         }
         // 启动行走
         FakePlayerController.startAutoWalk(fp, 0.15);
-        source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + name), false);
+        final String finalName = name;
+        source.sendSuccess(() -> Component.literal("Dummy module started. Fake player: " + finalName), false);
         return 1;
     }
 }
