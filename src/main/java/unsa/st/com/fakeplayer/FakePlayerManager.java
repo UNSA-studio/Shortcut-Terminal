@@ -4,7 +4,6 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
@@ -21,9 +20,8 @@ public class FakePlayerManager {
         
         FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
         fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-        fakePlayer.setOldPosAndRot();
         
-        // 重要：先加入玩家列表，再加入到世界
+        // 关键：先加入玩家列表，再加入世界
         server.getPlayerList().getPlayers().add(fakePlayer);
         level.addNewPlayer(fakePlayer);
         
@@ -35,9 +33,7 @@ public class FakePlayerManager {
         for (Map.Entry<UUID, FakePlayerEntity> entry : fakePlayers.entrySet()) {
             if (entry.getValue().getGameProfile().getName().equals(name)) {
                 FakePlayerEntity fp = entry.getValue();
-                fp.setActive(false);
                 fp.remove(Player.RemovalReason.DISCARDED);
-                // 从玩家列表移除
                 fp.getServer().getPlayerList().getPlayers().remove(fp);
                 fakePlayers.remove(entry.getKey());
                 return true;
