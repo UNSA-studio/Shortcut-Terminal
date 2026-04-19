@@ -26,7 +26,7 @@ public class FakePlayerController {
     public static void startAutoWalk(FakePlayerEntity fp, double speed) {
         stopAutoWalk();
         moveTask = scheduler.scheduleAtFixedRate(() -> {
-            if (!fp.isAlive() || !fp.isActive()) {
+            if (!fp.isAlive()) {
                 stopAutoWalk();
                 return;
             }
