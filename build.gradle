@@ -23,7 +23,7 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-    implementation fg.deobf("com.modularmods:mcgltf:1.21.1-1.0.0")
+    implementation "com.modularmods.mcgltf:MCglTF:1.21.1-1.0.0"
 }
 
 neoForge {
