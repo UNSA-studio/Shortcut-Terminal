@@ -27,12 +27,13 @@ import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    // 镜像源：Debian ARM64 仓库（清华镜像站）
+    // 多镜像源：Termux 官方、清华 Termux 镜像、中科大 Termux 镜像
     private static final String[] REPO_URLS = {
-        "https://mirrors.tuna.tsinghua.edu.cn/debian",
-        "https://packages.termux.dev/apt/termux-main"
+        "https://packages.termux.dev/apt/termux-main",
+        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main",
+        "https://mirrors.ustc.edu.cn/termux/apt/termux-main"
     };
-    private static String activeRepo = REPO_URLS[0];
+    private static String activeRepo = null;
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
 
     private static final String PROGRAM_DIR = "Program";
@@ -97,14 +98,20 @@ public class PkgManager {
 
     public static String updateIndex() {
         remoteIndex.clear();
+        activeRepo = null;
         for (String repo : REPO_URLS) {
             try {
-                // 正确的 Debian 仓库路径：dists/stable/main/binary-arm64/Packages
                 URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
+                ShortcutTerminal.LOGGER.info("Trying to fetch package index from: {}", url);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(15000);
+                int responseCode = conn.getResponseCode();
+                if (responseCode != 200) {
+                    ShortcutTerminal.LOGGER.warn("Failed to fetch from {}: HTTP {}", repo, responseCode);
+                    continue;
+                }
                 InputStream is = conn.getInputStream();
                 if ("gzip".equals(conn.getHeaderField("Content-Encoding"))) {
                     is = new GZIPInputStream(is);
@@ -117,6 +124,7 @@ public class PkgManager {
             }
         }
         if (remoteIndex.isEmpty()) {
+            // 保底内置
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
@@ -165,7 +173,7 @@ public class PkgManager {
         PackageInfo pkg = remoteIndex.get(packageName);
 
         try {
-            String repo = activeRepo;
+            String repo = activeRepo != null ? activeRepo : REPO_URLS[0];
             URL url = new URL(repo + "/" + pkg.filename);
             Path tmpFile = Files.createTempFile("pkg_", ".deb");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
