@@ -67,8 +67,6 @@ public class ModCommands {
                 .then(Commands.literal("whoami").executes(ctx -> executeWhoami(ctx.getSource())))
                 .then(Commands.literal("refresh").then(Commands.literal("bf")
                     .executes(ctx -> executeRefresh(ctx.getSource()))))
-                .then(Commands.literal("open").then(Commands.literal("terminal").then(Commands.literal("page")
-                    .executes(ctx -> openTerminal(ctx.getSource())))))
                 .then(Commands.literal("User")
                     .then(Commands.argument("player", EntityArgument.player())
                         .then(Commands.argument("action", StringArgumentType.word()).suggests(ACTIONS)
@@ -271,14 +269,6 @@ public class ModCommands {
         return 1;
     }
 
-    private static int openTerminal(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
-        TerminalManager.enterTerminalMode(player);
-        UserFileSystem.createUserDirectory(player.getUUID());
-        player.sendSystemMessage(Component.literal("Entered terminal mode. Type 'exit' to leave."));
-        return 1;
-    }
 
     private static int executeUser(CommandSourceStack source, ServerPlayer target, String action, String params) {
         if (!source.hasPermission(2)) { source.sendFailure(Component.literal("Permission denied")); return 0; }

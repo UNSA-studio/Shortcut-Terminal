@@ -19,6 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,9 +27,10 @@ import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    // 镜像源：优先使用清华 Debian 镜像（ARM64）
     private static final String[] REPO_URLS = {
-        "https://packages.termux.dev/apt/termux-main",
-        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main"
+        "https://mirrors.tuna.tsinghua.edu.cn/debian",
+        "https://packages.termux.dev/apt/termux-main"
     };
     private static String activeRepo = REPO_URLS[0];
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
@@ -97,6 +99,7 @@ public class PkgManager {
         remoteIndex.clear();
         for (String repo : REPO_URLS) {
             try {
+                // 尝试从 Debian 仓库的 Packages 文件获取索引
                 URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
@@ -114,6 +117,7 @@ public class PkgManager {
             }
         }
         if (remoteIndex.isEmpty()) {
+            // 保底内置
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
@@ -134,7 +138,9 @@ public class PkgManager {
             if (line.trim().isEmpty()) {
                 if (block.length() > 0) {
                     PackageInfo info = PackageInfo.parse(block.toString());
-                    remoteIndex.put(info.packageName, info);
+                    if (info.packageName != null) {
+                        remoteIndex.put(info.packageName, info);
+                    }
                     block.setLength(0);
                 }
             } else {
@@ -143,12 +149,13 @@ public class PkgManager {
         }
         if (block.length() > 0) {
             PackageInfo info = PackageInfo.parse(block.toString());
-            remoteIndex.put(info.packageName, info);
+            if (info.packageName != null) {
+                remoteIndex.put(info.packageName, info);
+            }
         }
     }
 
     public static String install(String packageName, boolean isClient) {
-        // 特殊包：simulationpackage - 引导安装 WSL
         if (packageName.equalsIgnoreCase("simulationpackage")) {
             return handleSimulationPackage();
         }
@@ -198,30 +205,24 @@ public class PkgManager {
     private static String handleSimulationPackage() {
         String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("win")) {
-            // 尝试启动管理员 PowerShell 安装 WSL
-            String message = "A new PowerShell administrator process will now be invoked, which will start the installation of the virtual environment. After installation, you need to select the Linux you need to complete your configuration. The default installation is WSL 2. After WSL is installed, you will need to reboot your system to select the Linux you want to install.";
+            String message = "A new PowerShell administrator process will now be invoked...";
             try {
-                // 构建命令：启动一个以管理员身份运行的 PowerShell，并执行 wsl --install
                 String cmd = "powershell Start-Process powershell -Verb runAs -ArgumentList 'wsl --install'";
                 Runtime.getRuntime().exec(cmd);
-                return message + "\n\nPowerShell has been launched. Please follow the on-screen instructions. If a UAC prompt appears, click Yes.";
+                return message + "\n\nPowerShell launched. Follow on-screen instructions.";
             } catch (IOException e) {
-                ShortcutTerminal.LOGGER.error("Failed to launch PowerShell", e);
-                return message + "\n\nFailed to launch PowerShell automatically. Please open PowerShell as Administrator manually and run: wsl --install";
+                return message + "\n\nFailed to launch PowerShell. Run manually: wsl --install";
             }
         } else if (osName.contains("linux")) {
-            // 检查是否是Android
             String javaVendor = System.getProperty("java.vendor", "").toLowerCase();
-            String javaVmName = System.getProperty("java.vm.name", "").toLowerCase();
-            if (javaVendor.contains("android") || javaVmName.contains("dalvik") || javaVmName.contains("art")) {
-                return "Sorry, Android is not supported, because Android is a Linux, only easy to limit, I can not guarantee that PKG is 100% effective, this may cause exceptions.";
+            if (javaVendor.contains("android")) {
+                return "Android detected. PKG may not be fully effective.";
             }
-            return "Why do you want to install this when your system is Linux?";
+            return "You are already on Linux. No need to install simulation package.";
         } else if (osName.contains("mac")) {
-            return "MacOS is not yet supported because it is not compatible.";
-        } else {
-            return "Your operating system is not recognized. Simulation package is only available on Windows, Linux, and macOS.";
+            return "macOS is not yet supported.";
         }
+        return "Your operating system is not recognized.";
     }
 
     private static void extractDeb(Path debFile, Path destDir) throws IOException {
