@@ -11,7 +11,7 @@ authors = "UNSA-STUDIO"
 description = '''
 Shortcut Terminal - Linux commands in Minecraft!
 
-§c⚠ 需要安装 §nMCglTF§r 和 §n帕秋莉手册 (Patchouli)§r 作为前置！
+§c⚠ 需要安装 §n帕秋莉手册 (Patchouli)§r 作为前置！
 '''
 
 [[dependencies.shortcutterminal]]
@@ -32,9 +32,5 @@ Shortcut Terminal - Linux commands in Minecraft!
     modId = "patchouli"
     type = "required"
     versionRange = "[1.21.1-93,)"
-    ordering = "AFTER"
-    side = "BOTH"
-
-[[dependencies.shortcutterminal]]
     ordering = "AFTER"
     side = "BOTH"
