@@ -27,19 +27,30 @@ import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    // 多镜像源：Termux 官方、清华 Termux 镜像、中科大 Termux 镜像
-    private static final String[] REPO_URLS = {
-        "https://packages.termux.dev/apt/termux-main",
-        "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main",
-        "https://mirrors.ustc.edu.cn/termux/apt/termux-main"
-    };
+    // 当前使用的仓库地址，将在检测架构后动态确定
     private static String activeRepo = null;
+    // 当前使用的 Packages 文件名
+    private static String packagesFileName = null;
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
 
     private static final String PROGRAM_DIR = "Program";
     private static final String BINARY_DIR = "Binary file";
     private static final String PATH_FILE = "PATH.txt";
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
+
+    // 架构检测与仓库选择
+    static {
+        String osArch = System.getProperty("os.arch").toLowerCase();
+        String debianVersion = "Debian13.4";
+        String baseUrl = "https://mirrors.tuna.tsinghua.edu.cn/debian/dists/" + debianVersion + "/main/binary-";
+        
+        // 检测 CPU 架构
+        boolean isArm = osArch.contains("arm") || osArch.contains("aarch64");
+        String arch = isArm ? "arm64" : "amd64";
+        activeRepo = baseUrl + arch;
+        packagesFileName = "Packages.xz";
+        ShortcutTerminal.LOGGER.info("Detected architecture: " + osArch + ", using repo: " + activeRepo);
+    }
 
     public static void init() {}
 
@@ -98,43 +109,56 @@ public class PkgManager {
 
     public static String updateIndex() {
         remoteIndex.clear();
-        activeRepo = null;
-        for (String repo : REPO_URLS) {
-            try {
-                URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
-                ShortcutTerminal.LOGGER.info("Trying to fetch package index from: {}", url);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        try {
+            // 尝试下载 .xz 文件
+            String xzUrl = activeRepo + "/" + packagesFileName;
+            ShortcutTerminal.LOGGER.info("Trying to fetch package index from: {}", xzUrl);
+            HttpURLConnection conn = (HttpURLConnection) new URL(xzUrl).openConnection();
+            conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(15000);
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                // .xz 失败，尝试 .gz
+                String gzUrl = activeRepo + "/Packages.gz";
+                ShortcutTerminal.LOGGER.warn("Failed to fetch .xz (HTTP {}), trying .gz from: {}", responseCode, gzUrl);
+                conn = (HttpURLConnection) new URL(gzUrl).openConnection();
                 conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
                 conn.setConnectTimeout(8000);
                 conn.setReadTimeout(15000);
-                int responseCode = conn.getResponseCode();
+                responseCode = conn.getResponseCode();
                 if (responseCode != 200) {
-                    ShortcutTerminal.LOGGER.warn("Failed to fetch from {}: HTTP {}", repo, responseCode);
-                    continue;
+                    ShortcutTerminal.LOGGER.error("Failed to fetch both .xz and .gz from: {}", activeRepo);
+                    return fallbackIndex();
                 }
+                // 处理 .gz
                 InputStream is = conn.getInputStream();
                 if ("gzip".equals(conn.getHeaderField("Content-Encoding"))) {
                     is = new GZIPInputStream(is);
                 }
-                parsePackagesStream(is);
-                activeRepo = repo;
-                break;
-            } catch (Exception e) {
-                ShortcutTerminal.LOGGER.warn("Failed to fetch from {}: {}", repo, e.getMessage());
+                parsePackagesStream(new GZIPInputStream(is));
+            } else {
+                // 处理 .xz
+                parsePackagesStream(new XZCompressorInputStream(conn.getInputStream()));
             }
+            return "Package index updated from " + activeRepo + ". " + remoteIndex.size() + " packages available.";
+        } catch (Exception e) {
+            ShortcutTerminal.LOGGER.error("Failed to update package index", e);
+            return fallbackIndex();
         }
-        if (remoteIndex.isEmpty()) {
-            // 保底内置
-            PackageInfo busybox = new PackageInfo();
-            busybox.packageName = "busybox";
-            busybox.version = "1.36.1";
-            busybox.architecture = "arm64";
-            busybox.filename = "pool/main/b/busybox/busybox_1.36.1_arm64.deb";
-            busybox.description = "Tiny versions of many common UNIX utilities";
-            remoteIndex.put("busybox", busybox);
-            return "Remote fetch failed, using built-in fallback. 1 package available.";
-        }
-        return "Package index updated from " + activeRepo + ". " + remoteIndex.size() + " packages available.";
+    }
+
+    private static String fallbackIndex() {
+        // 保底内置
+        PackageInfo busybox = new PackageInfo();
+        busybox.packageName = "busybox";
+        busybox.version = "1.36.1";
+        busybox.architecture = "arm64";
+        busybox.filename = "pool/main/b/busybox/busybox_1.36.1_arm64.deb";
+        busybox.description = "Tiny versions of many common UNIX utilities";
+        remoteIndex.put("busybox", busybox);
+        return "Remote fetch failed, using built-in fallback. 1 package available.";
     }
 
     private static void parsePackagesStream(InputStream is) throws IOException {
@@ -173,8 +197,7 @@ public class PkgManager {
         PackageInfo pkg = remoteIndex.get(packageName);
 
         try {
-            String repo = activeRepo != null ? activeRepo : REPO_URLS[0];
-            URL url = new URL(repo + "/" + pkg.filename);
+            URL url = new URL(activeRepo + "/" + pkg.filename);
             Path tmpFile = Files.createTempFile("pkg_", ".deb");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
