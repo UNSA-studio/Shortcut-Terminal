@@ -22,8 +22,11 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-    jarJar("org.tukaani:xz:1.9") {
-        versionRange "[1.9,)"
+    jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
+        version {
+            strictly '[1.9,)'
+            prefer '1.9'
+        }
     }
 }
 
