@@ -27,7 +27,7 @@ import java.util.zip.GZIPInputStream;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    // 镜像源：优先使用清华 Debian 镜像（ARM64）
+    // 镜像源：Debian ARM64 仓库（清华镜像站）
     private static final String[] REPO_URLS = {
         "https://mirrors.tuna.tsinghua.edu.cn/debian",
         "https://packages.termux.dev/apt/termux-main"
@@ -99,7 +99,7 @@ public class PkgManager {
         remoteIndex.clear();
         for (String repo : REPO_URLS) {
             try {
-                // 尝试从 Debian 仓库的 Packages 文件获取索引
+                // 正确的 Debian 仓库路径：dists/stable/main/binary-arm64/Packages
                 URL url = new URL(repo + "/dists/stable/main/binary-arm64/Packages");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
@@ -117,7 +117,6 @@ public class PkgManager {
             }
         }
         if (remoteIndex.isEmpty()) {
-            // 保底内置
             PackageInfo busybox = new PackageInfo();
             busybox.packageName = "busybox";
             busybox.version = "1.36.1";
