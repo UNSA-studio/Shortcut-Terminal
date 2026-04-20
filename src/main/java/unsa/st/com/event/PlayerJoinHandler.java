@@ -10,7 +10,6 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.fml.ModList;
 
 import java.lang.reflect.Method;
-import java.util.UUID;
 
 public class PlayerJoinHandler {
     private static final String PATCHOULI_MOD_ID = "patchouli";
@@ -23,12 +22,10 @@ public class PlayerJoinHandler {
             return;
         }
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家是否已经领取过书籍（通过 PersistentData）
             if (hasReceivedBook(player)) {
                 return;
             }
             
-            // 检查背包是否已有我们的手册（双重保险）
             boolean hasBook = player.getInventory().items.stream()
                     .anyMatch(stack -> {
                         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
@@ -44,7 +41,6 @@ public class PlayerJoinHandler {
                     }
                 }
             }
-            // 标记已领取
             markBookReceived(player);
         }
     }
