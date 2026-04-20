@@ -22,16 +22,15 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
+    implementation 'org.tukaani:xz:1.9'
 }
 
 neoForge {
     version = '21.1.219'
-
     runs {
         client { client() }
         server { server() }
     }
-
     mods {
         shortcutterminal {
             sourceSet(sourceSets.main)
