@@ -10,10 +10,12 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.fml.ModList;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 public class PlayerJoinHandler {
     private static final String PATCHOULI_MOD_ID = "patchouli";
     private static final ResourceLocation OUR_BOOK_ID = ResourceLocation.fromNamespaceAndPath("shortcutterminal", "st_guide");
+    private static final String BOOK_GIVEN_TAG = "shortcutterminal_book_given";
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -21,13 +23,19 @@ public class PlayerJoinHandler {
             return;
         }
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 检查玩家是否已经拥有手册（通过 CustomData 组件）
+            // 检查玩家是否已经领取过书籍（通过 PersistentData）
+            if (hasReceivedBook(player)) {
+                return;
+            }
+            
+            // 检查背包是否已有我们的手册（双重保险）
             boolean hasBook = player.getInventory().items.stream()
                     .anyMatch(stack -> {
                         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
                         return customData != null &&
                                 OUR_BOOK_ID.toString().equals(customData.copyTag().getString("patchouli:book"));
                     });
+            
             if (!hasBook) {
                 ItemStack book = getPatchouliBookSafely(OUR_BOOK_ID);
                 if (!book.isEmpty()) {
@@ -36,13 +44,19 @@ public class PlayerJoinHandler {
                     }
                 }
             }
+            // 标记已领取
+            markBookReceived(player);
         }
     }
 
-    /**
-     * 通过反射调用 Patchouli API 获取书本
-     * 避免直接依赖 Patchouli，保证无前置时不会崩溃
-     */
+    private boolean hasReceivedBook(ServerPlayer player) {
+        return player.getPersistentData().contains(BOOK_GIVEN_TAG);
+    }
+
+    private void markBookReceived(ServerPlayer player) {
+        player.getPersistentData().putBoolean(BOOK_GIVEN_TAG, true);
+    }
+
     private static ItemStack getPatchouliBookSafely(ResourceLocation bookId) {
         try {
             Class<?> apiClass = Class.forName("vazkii.patchouli.api.PatchouliAPI");

@@ -83,10 +83,19 @@ public class PkgManager {
         try {
             Path pathFile = getPathFile(isClient);
             Path programBin = getProgramPath(isClient).resolve("bin");
+            Path programSbin = getProgramPath(isClient).resolve("sbin");
+            Path programUsrBin = getProgramPath(isClient).resolve("usr/bin");
+            Path programUsrSbin = getProgramPath(isClient).resolve("usr/sbin");
             Path binaryPath = getBinaryPath(isClient);
+            
             Set<String> paths = new LinkedHashSet<>();
-            if (Files.exists(pathFile)) paths.addAll(Files.readAllLines(pathFile));
+            if (Files.exists(pathFile)) {
+                paths.addAll(Files.readAllLines(pathFile));
+            }
             paths.add(programBin.toAbsolutePath().toString());
+            paths.add(programSbin.toAbsolutePath().toString());
+            paths.add(programUsrBin.toAbsolutePath().toString());
+            paths.add(programUsrSbin.toAbsolutePath().toString());
             paths.add(binaryPath.toAbsolutePath().toString());
             Files.write(pathFile, paths);
         } catch (IOException e) {
@@ -198,6 +207,18 @@ public class PkgManager {
             if (Files.exists(binDir)) {
                 Files.walk(binDir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
             }
+            Path sbinDir = getProgramPath(isClient).resolve("sbin");
+            if (Files.exists(sbinDir)) {
+                Files.walk(sbinDir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
+            }
+            Path usrBinDir = getProgramPath(isClient).resolve("usr/bin");
+            if (Files.exists(usrBinDir)) {
+                Files.walk(usrBinDir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
+            }
+            Path usrSbinDir = getProgramPath(isClient).resolve("usr/sbin");
+            if (Files.exists(usrSbinDir)) {
+                Files.walk(usrSbinDir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
+            }
 
             localDb.put(packageName, pkg);
             saveLocalDatabase(isClient, localDb);
@@ -244,7 +265,6 @@ public class PkgManager {
                         extractTar(tarIn, destDir.resolve("data"));
                     }
                 } else if (name.equals("data.tar.xz")) {
-                    // 尝试 XZ 解压，如果失败则记录错误并跳过
                     try {
                         Path outFile = destDir.resolve(name);
                         Files.copy(arIn, outFile, StandardCopyOption.REPLACE_EXISTING);
