@@ -22,15 +22,20 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-    implementation 'org.tukaani:xz:1.9'
+    // 使用 jarJar 打包 XZ 库，确保运行时可用
+    jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
+        jarJar.ranged(it, '[1.9,)')
+    }
 }
 
 neoForge {
     version = '21.1.219'
+
     runs {
         client { client() }
         server { server() }
     }
+
     mods {
         shortcutterminal {
             sourceSet(sourceSets.main)

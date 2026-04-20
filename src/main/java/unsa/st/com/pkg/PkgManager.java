@@ -237,18 +237,22 @@ public class PkgManager {
             ArArchiveEntry entry;
             while ((entry = arIn.getNextArEntry()) != null) {
                 String name = entry.getName();
-                if (name.equals("data.tar.gz") || name.equals("data.tar.xz")) {
+                if (name.equals("data.tar.gz")) {
                     Path outFile = destDir.resolve(name);
-                    Files.createDirectories(destDir);
                     Files.copy(arIn, outFile, StandardCopyOption.REPLACE_EXISTING);
-                    if (name.endsWith(".gz")) {
-                        try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new GzipCompressorInputStream(Files.newInputStream(outFile)))) {
-                            extractTar(tarIn, destDir.resolve("data"));
-                        }
-                    } else if (name.endsWith(".xz")) {
+                    try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new GzipCompressorInputStream(Files.newInputStream(outFile)))) {
+                        extractTar(tarIn, destDir.resolve("data"));
+                    }
+                } else if (name.equals("data.tar.xz")) {
+                    // 尝试 XZ 解压，如果失败则记录错误并跳过
+                    try {
+                        Path outFile = destDir.resolve(name);
+                        Files.copy(arIn, outFile, StandardCopyOption.REPLACE_EXISTING);
                         try (TarArchiveInputStream tarIn = new TarArchiveInputStream(new XZCompressorInputStream(Files.newInputStream(outFile)))) {
                             extractTar(tarIn, destDir.resolve("data"));
                         }
+                    } catch (NoClassDefFoundError | Exception e) {
+                        ShortcutTerminal.LOGGER.warn("XZ decompression failed, skipping data.tar.xz: {}", e.getMessage());
                     }
                 }
             }
