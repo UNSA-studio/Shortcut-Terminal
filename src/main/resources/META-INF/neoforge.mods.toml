@@ -36,8 +36,5 @@ Shortcut Terminal - Linux commands in Minecraft!
     side = "BOTH"
 
 [[dependencies.shortcutterminal]]
-    modId = "mcgltf"
-    type = "required"
-    versionRange = "[1.21.1-1.0.0,)"
     ordering = "AFTER"
     side = "BOTH"
