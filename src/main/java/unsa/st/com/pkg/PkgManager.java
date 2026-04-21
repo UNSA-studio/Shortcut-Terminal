@@ -308,6 +308,7 @@ public class PkgManager {
         Files.walk(dir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
     }
 
+    // 修复点：不再捕获特定 XZ 异常，统一使用 Exception，避免 NoClassDefFoundError
     private static void extractDeb(Path debFile, Path destDir) throws IOException {
         try (ArArchiveInputStream arIn = new ArArchiveInputStream(new BufferedInputStream(Files.newInputStream(debFile)))) {
             ArArchiveEntry entry;
@@ -331,6 +332,7 @@ public class PkgManager {
                             }
                         }
                     } catch (Exception e) {
+                        // 捕获所有异常并重新抛出为 IOException，不依赖特定 XZ 异常类
                         throw new IOException("Failed to extract " + name + ": " + e.getMessage(), e);
                     }
                 }
@@ -382,7 +384,8 @@ public class PkgManager {
         if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
         localDb.remove(packageName);
         saveLocalDatabase(isClient, localDb);
-        return "Package removed: " + packageName + " (files remain on disk)";
+        ensurePath(isClient);
+        return "Package removed: " + packageName;
     }
 
     public static List<String> listInstalled(boolean isClient) {
@@ -419,7 +422,7 @@ public class PkgManager {
         return "pkg update [force] - refresh package index\n" +
                "pkg search <keyword> - search packages\n" +
                "pkg install <pkg> - install a package\n" +
-               "pkg remove <pkg> - mark as removed\n" +
+               "pkg remove <pkg> - remove a package\n" +
                "pkg list - list installed\n" +
                "pkg show <pkg> - show package details";
     }
