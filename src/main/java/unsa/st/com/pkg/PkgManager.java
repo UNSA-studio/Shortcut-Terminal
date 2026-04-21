@@ -100,17 +100,27 @@ public class PkgManager {
             Path programUsrSbin = getProgramPath(isClient).resolve("usr/sbin");
             Path binaryPath = getBinaryPath(isClient);
 
-            Set<String> paths = new LinkedHashSet<>();
-            if (Files.exists(pathFile)) {
-                paths.addAll(Files.readAllLines(pathFile));
-            }
-            paths.add(programBin.toAbsolutePath().toString());
-            paths.add(programSbin.toAbsolutePath().toString());
-            paths.add(programUsrBin.toAbsolutePath().toString());
-            paths.add(programUsrSbin.toAbsolutePath().toString());
-            paths.add(binaryPath.toAbsolutePath().toString());
+            Map<String, Path> commands = new LinkedHashMap<>();
 
-            Files.write(pathFile, paths);
+            for (Path dir : new Path[]{programBin, programSbin, programUsrBin, programUsrSbin, binaryPath}) {
+                if (Files.exists(dir)) {
+                    Files.walk(dir, 1)
+                        .filter(Files::isRegularFile)
+                        .filter(Files::isExecutable)
+                        .forEach(file -> {
+                            String cmd = file.getFileName().toString();
+                            commands.put(cmd, file.toAbsolutePath());
+                        });
+                }
+            }
+
+            List<String> lines = new ArrayList<>();
+            for (Map.Entry<String, Path> entry : commands.entrySet()) {
+                lines.add(entry.getKey() + " - " + entry.getValue().toString());
+            }
+            Files.write(pathFile, lines);
+
+            ShortcutTerminal.LOGGER.info("PATH updated with {} commands.", commands.size());
         } catch (IOException e) {
             ShortcutTerminal.LOGGER.error("Failed to update PATH", e);
         }
@@ -267,12 +277,12 @@ public class PkgManager {
             extractDeb(tmpDeb, extractDir);
 
             Path dataDir = extractDir.resolve("data");
-            Path targetDir = getProgramPath(isClient);
-            if (Files.exists(dataDir)) {
-                copyDirectory(dataDir, targetDir);
-            } else {
-                copyDirectory(extractDir, targetDir);
+            if (!Files.exists(dataDir)) {
+                dataDir = extractDir;
             }
+
+            Path targetDir = getProgramPath(isClient);
+            copyDirectory(dataDir, targetDir);
 
             setExecutableRecursive(targetDir.resolve("bin"));
             setExecutableRecursive(targetDir.resolve("sbin"));
@@ -348,6 +358,7 @@ public class PkgManager {
                 if (Files.isDirectory(src)) {
                     Files.createDirectories(dest);
                 } else {
+                    Files.createDirectories(dest.getParent());
                     Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
                 }
             } catch (IOException e) {
