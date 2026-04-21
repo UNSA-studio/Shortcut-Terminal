@@ -53,7 +53,7 @@ public class PkgManager {
     private static Path getProgramPath(boolean isClient) { return getGameDir(isClient).resolve(PROGRAM_DIR); }
     private static Path getBinaryPath(boolean isClient) { return getGameDir(isClient).resolve(BINARY_DIR); }
     private static Path getDbPath(boolean isClient) { return getProgramPath(isClient).resolve(INSTALLED_DB); }
-    private static Path getPathFile(boolean isClient) { return getGameDir(isClient).resolve(PATH_FILE); }
+    public static Path getPathFile(boolean isClient) { return getGameDir(isClient).resolve(PATH_FILE); }
 
     private static Map<String, PackageInfo> loadLocalDatabase(boolean isClient) {
         Path dbPath = getDbPath(isClient);
