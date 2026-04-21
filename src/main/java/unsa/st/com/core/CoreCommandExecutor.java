@@ -23,7 +23,9 @@ public class CoreCommandExecutor {
     private UUID playerUuid;
     private String playerName;
 
-    public CoreCommandExecutor(boolean isClient) { this.isClient = isClient; }
+    public CoreCommandExecutor(boolean isClient) {
+        this.isClient = isClient;
+    }
 
     public void setPlayer(ServerPlayer player) {
         this.playerUuid = player.getUUID();
@@ -36,6 +38,20 @@ public class CoreCommandExecutor {
     }
 
     public String execute(String command, String[] args) {
+        // 1. 尝试内置命令
+        String builtInResult = executeBuiltInCommand(command, args);
+        if (builtInResult != null && !builtInResult.startsWith("Error: Unknown command.")) {
+            return builtInResult;
+        }
+
+        // 2. 尝试 PATH 外部命令
+        Path ext = findExecutableInPath(command);
+        if (ext != null) return executeExternalProgram(ext, args);
+
+        return "Error: Unknown command. Type 'help' for available commands.";
+    }
+
+    private String executeBuiltInCommand(String command, String[] args) {
         switch (command.toLowerCase(Locale.ROOT)) {
             case "help": return getHelp();
             case "ls": return executeLs();
@@ -72,252 +88,465 @@ public class CoreCommandExecutor {
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
             case "dummymodule": return "Please use '/ST run dummymodule' in chat. Terminal cannot create fake players directly.";
-            case "stop":
-                if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
-                    if (isClient) { PlayerMacroManager.stopMacro(); return "Macro stopped."; }
-                    else return "stop macro can only be used in terminal panel.";
-                }
-                return "Usage: stop macro";
+            case "stop": return executeStop(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
         }
     }
 
-    private String getHelp() { return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, stop macro"; }
+    private Path findExecutableInPath(String command) {
+        Path pathFile = PkgManager.getPathFile(isClient);
+        if (!Files.exists(pathFile)) return null;
+        try {
+            List<String> paths = Files.readAllLines(pathFile);
+            for (String dirStr : paths) {
+                Path dir = Paths.get(dirStr);
+                Path candidate = dir.resolve(command);
+                if (Files.isExecutable(candidate)) return candidate;
+                Path candidateExe = dir.resolve(command + ".exe");
+                if (Files.isExecutable(candidateExe)) return candidateExe;
+            }
+        } catch (IOException e) {
+            unsa.st.com.ShortcutTerminal.LOGGER.error("PATH read error", e);
+        }
+        return null;
+    }
+
+    private String executeExternalProgram(Path programPath, String[] args) {
+        StringBuilder output = new StringBuilder();
+        try {
+            List<String> cmdList = new ArrayList<>();
+            cmdList.add(programPath.toAbsolutePath().toString());
+            cmdList.addAll(Arrays.asList(args));
+            ProcessBuilder pb = new ProcessBuilder(cmdList);
+            pb.directory(programPath.getParent().toFile());
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) output.append(line).append("\n");
+            }
+            int exit = p.waitFor();
+            if (exit != 0) output.append("\nProcess exited with code ").append(exit);
+        } catch (Exception e) {
+            return "Error: Execution failed - " + e.getMessage();
+        }
+        return output.toString().trim();
+    }
+
+    private String executeStop(String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
+            if (isClient) {
+                PlayerMacroManager.stopMacro();
+                return "Macro stopped.";
+            } else return "stop macro can only be used in terminal panel.";
+        }
+        return "Usage: stop macro";
+    }
+
+    private String getHelp() {
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, stop macro";
+    }
 
     private String executeLs() {
-        List<String> files = isClient ? ClientVirtualFileSystem.listDirectory(playerUuid.toString(), currentPath) : UserFileSystem.listDirectory(playerUuid, currentPath);
-        return files == null ? "Error" : files.isEmpty() ? "(empty)" : String.join("  ", files);
+        List<String> files = isClient ?
+                ClientVirtualFileSystem.listDirectory(currentPath) :
+                UserFileSystem.listDirectory(playerUuid, currentPath);
+        if (files == null) return "Error: Directory not found.";
+        return String.join("  ", files);
     }
+
     private String executeMkdir(String[] args) {
-        if (args.length == 0) return "Error: missing operand";
-        boolean ok = isClient ? ClientVirtualFileSystem.createDirectory(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.createDirectory(playerUuid, currentPath, args[0]);
-        return ok ? "" : "Error";
+        if (args.length == 0) return "Usage: mkdir <directory>";
+        boolean ok = isClient ?
+                ClientVirtualFileSystem.createDirectory(currentPath, args[0]) :
+                UserFileSystem.createDirectory(playerUuid, currentPath, args[0]);
+        return ok ? "Directory created." : "Error: Failed to create directory.";
     }
+
     private String executeTouch(String[] args) {
-        if (args.length == 0) return "Error: missing operand";
-        boolean ok = isClient ? ClientVirtualFileSystem.createFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.createFile(playerUuid, currentPath, args[0]);
-        if (ok && args[0].endsWith(".sh")) {
-            if (isClient) ClientVirtualFileSystem.setExecutable(playerUuid.toString(), currentPath, args[0], true);
-            else UserFileSystem.setExecutable(playerUuid, currentPath, args[0], true);
-        }
-        return ok ? "" : "Error";
+        if (args.length == 0) return "Usage: touch <file>";
+        boolean ok = isClient ?
+                ClientVirtualFileSystem.createFile(currentPath, args[0]) :
+                UserFileSystem.createFile(playerUuid, currentPath, args[0]);
+        return ok ? "File created." : "Error: Failed to create file.";
     }
+
     private String executeRm(String[] args) {
-        if (args.length == 0) return "Error: missing operand";
-        boolean rec = args.length > 1 && args[0].equals("-r");
-        String tgt = rec ? args[1] : args[0];
-        boolean ok = isClient ? ClientVirtualFileSystem.delete(playerUuid.toString(), currentPath, tgt, rec) : UserFileSystem.delete(playerUuid, currentPath, tgt, rec);
-        return ok ? "" : "Error";
-    }
-    private String executeCat(String[] args) {
-        if (args.length == 0) return "Error: missing operand";
-        String content = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        return content != null ? content : "Error: File not found";
-    }
-    private String executeEcho(String[] args) {
-        String full = String.join(" ", args);
-        int gt = full.indexOf('>');
-        if (gt == -1) return full;
-        String text = full.substring(0, gt).trim(), file = full.substring(gt + 1).trim();
-        if (file.isEmpty()) return "Error: missing file name";
-        if (isClient) {
-            ClientVirtualFileSystem.writeFile(playerUuid.toString(), currentPath, file, text);
-            if (file.endsWith(".sh")) ClientVirtualFileSystem.setExecutable(playerUuid.toString(), currentPath, file, true);
+        if (args.length == 0) return "Usage: rm [-r] <name>";
+        boolean recursive = false;
+        String target;
+        if (args[0].equals("-r")) {
+            if (args.length < 2) return "Usage: rm [-r] <name>";
+            recursive = true;
+            target = args[1];
         } else {
-            UserFileSystem.writeFile(playerUuid, currentPath, file, text);
-            if (file.endsWith(".sh")) UserFileSystem.setExecutable(playerUuid, currentPath, file, true);
+            target = args[0];
         }
-        return "";
+        boolean ok = isClient ?
+                ClientVirtualFileSystem.delete(currentPath, target, recursive) :
+                UserFileSystem.delete(playerUuid, currentPath, target, recursive);
+        return ok ? "Deleted." : "Error: Failed to delete.";
     }
+
+    private String executeCat(String[] args) {
+        if (args.length == 0) return "Usage: cat <file>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        return content != null ? content : "Error: File not found.";
+    }
+
+    private String executeEcho(String[] args) {
+        return String.join(" ", args);
+    }
+
     private String executeCd(String[] args) {
-        String target = args.length == 0 ? "" : args[0];
-        String newPath = isClient ? ClientVirtualFileSystem.normalizePath(currentPath, target) : UserFileSystem.normalizePath(currentPath, target);
-        boolean exists = isClient ? ClientVirtualFileSystem.directoryExists(playerUuid.toString(), newPath) : UserFileSystem.directoryExists(playerUuid, currentPath, target);
-        if (exists) { currentPath = newPath; cdSuccessful = true; return ""; }
-        return "bash: cd: " + target + ": No such file or directory";
-    }
-    private String executePwd() {
-        return isClient ? currentPath : "/" + playerUuid.toString() + (currentPath.equals("/") ? "" : currentPath);
-    }
-    private String executeCp(String[] args) {
-        if (args.length < 2) return "Usage: cp <src> <dst>";
-        boolean rec = args.length > 2 && args[0].equals("-r");
-        String src = rec ? args[1] : args[0], dst = rec ? args[2] : args[1];
-        boolean ok = isClient ? ClientVirtualFileSystem.copy(playerUuid.toString(), currentPath, src, dst, rec) : UserFileSystem.copy(playerUuid, currentPath, src, dst, rec);
-        return ok ? "" : "Error: Copy failed";
-    }
-    private String executeMv(String[] args) {
-        if (args.length < 2) return "Usage: mv <src> <dst>";
-        boolean ok = isClient ? ClientVirtualFileSystem.move(playerUuid.toString(), currentPath, args[0], args[1]) : UserFileSystem.move(playerUuid, currentPath, args[0], args[1]);
-        return ok ? "" : "Error: Move failed";
-    }
-    private String executeHead(String[] args) {
-        if (args.length < 1) return "Usage: head <file> [n]";
-        int n = 10; if (args.length > 1) try { n = Integer.parseInt(args[1]); } catch(Exception e){}
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (c == null) return "Error";
-        String[] lines = c.split("\n");
-        return String.join("\n", Arrays.copyOfRange(lines, 0, Math.min(n, lines.length)));
-    }
-    private String executeTail(String[] args) {
-        if (args.length < 1) return "Usage: tail <file> [n]";
-        int n = 10; if (args.length > 1) try { n = Integer.parseInt(args[1]); } catch(Exception e){}
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (c == null) return "Error";
-        String[] lines = c.split("\n");
-        int s = Math.max(0, lines.length - n);
-        return String.join("\n", Arrays.copyOfRange(lines, s, lines.length));
-    }
-    private String executeWc(String[] args) {
-        if (args.length < 1) return "Usage: wc <file>";
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (c == null) return "Error";
-        int l = c.split("\n").length, w = c.split("\\s+").length, ch = c.length();
-        return String.format("%d %d %d %s", l, w, ch, args[0]);
-    }
-    private String executeGrep(String[] args) {
-        if (args.length < 2) return "Usage: grep <pattern> <file>";
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[1]) : UserFileSystem.readFile(playerUuid, currentPath, args[1]);
-        if (c == null) return "Error";
-        StringBuilder sb = new StringBuilder();
-        for (String line : c.split("\n")) if (line.contains(args[0])) sb.append(line).append("\n");
-        return sb.toString().trim();
-    }
-    private String executeSort(String[] args) {
-        if (args.length < 1) return "Usage: sort <file>";
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (c == null) return "Error";
-        List<String> lines = new ArrayList<>(Arrays.asList(c.split("\n")));
-        Collections.sort(lines);
-        return String.join("\n", lines);
-    }
-    private String executeUniq(String[] args) {
-        if (args.length < 1) return "Usage: uniq <file>";
-        String c = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (c == null) return "Error";
-        List<String> out = new ArrayList<>();
-        String prev = null;
-        for (String line : c.split("\n")) { if (!line.equals(prev)) out.add(line); prev = line; }
-        return String.join("\n", out);
-    }
-    private String executeUname(String[] args) {
-        return args.length > 0 && args[0].equals("-a") ? System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch") : System.getProperty("os.name");
-    }
-    private String executeDf(String[] args) {
-        Path root = isClient ? Minecraft.getInstance().gameDirectory.toPath() : Paths.get(".").toAbsolutePath().getRoot();
-        try {
-            FileStore store = Files.getFileStore(root);
-            long total = store.getTotalSpace(), free = store.getUsableSpace();
-            if (args.length > 0 && args[0].equals("-h")) return String.format("%s %s %s %d%%", humanReadable(total), humanReadable(total-free), humanReadable(free), (total-free)*100/total);
-            else return String.format("%s %d %d %d%%", "root", total/1024, free/1024, (total-free)*100/total);
-        } catch (IOException e) { return "Error"; }
-    }
-    private String executeFree(String[] args) {
-        Runtime r = Runtime.getRuntime();
-        long total = r.totalMemory(), free = r.freeMemory(), used = total - free;
-        if (args.length > 0 && args[0].equals("-h")) return String.format("Mem: %s %s %s", humanReadable(total), humanReadable(used), humanReadable(free));
-        else return String.format("Mem: %d %d %d", total/1024, used/1024, free/1024);
-    }
-    private String executePs(String[] args) { return "PID TTY TIME CMD\n1 ? 00:00:00 java\n2 ? 00:00:00 minecraft"; }
-    private String executeDu(String[] args) { return "du: not fully implemented"; }
-    private String executePing(String[] args) {
-        if (args.length < 1) return "Usage: ping <host>";
-        try {
-            InetAddress addr = InetAddress.getByName(args[0]);
-            long start = System.currentTimeMillis();
-            boolean reach = addr.isReachable(3000);
-            long time = System.currentTimeMillis() - start;
-            return reach ? String.format("64 bytes from %s: time=%d ms", addr.getHostAddress(), time) : "timeout";
-        } catch (IOException e) { return "unknown host"; }
-    }
-    private String executeCurl(String[] args) {
-        if (args.length < 1) return "Usage: curl <url>";
-        try {
-            URL url = new URL(args[0]);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("User-Agent", "ShortcutTerminal");
-            BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder sb = new StringBuilder(); String l;
-            while ((l = r.readLine()) != null) sb.append(l).append("\n");
-            r.close();
-            return sb.toString();
-        } catch (IOException e) { return "Error: " + e.getMessage(); }
-    }
-    private String executeWget(String[] args) {
-        if (args.length < 1) return "Usage: wget <url>";
-        String url = args[0], name = url.substring(url.lastIndexOf('/') + 1);
-        try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setRequestProperty("User-Agent", "ShortcutTerminal");
-            InputStream in = conn.getInputStream();
-            if (isClient) ClientVirtualFileSystem.writeFileFromStream(playerUuid.toString(), currentPath, name, in);
-            else UserFileSystem.writeFileFromStream(playerUuid, currentPath, name, in);
-            return "Downloaded: " + name;
-        } catch (IOException e) { return "Error: " + e.getMessage(); }
-    }
-    private String executeWhich(String[] args) {
-        return args.length < 1 ? "Usage: which <cmd>" : "/bin/" + args[0];
-    }
-    private String executeChmod(String[] args) {
-        if (args.length < 2 || !args[0].equals("+x")) return "Usage: chmod +x <file>";
-        boolean ok = isClient ? ClientVirtualFileSystem.setExecutable(playerUuid.toString(), currentPath, args[1], true) : UserFileSystem.setExecutable(playerUuid, currentPath, args[1], true);
-        return ok ? "" : "Error";
-    }
-    private String executeSh(String[] args) {
-        if (args.length < 1) return "Usage: sh <script>";
-        String script = isClient ? ClientVirtualFileSystem.readFile(playerUuid.toString(), currentPath, args[0]) : UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (script == null) return "Error: not found";
-        StringBuilder out = new StringBuilder();
-        for (String line : script.split("\n")) {
-            line = line.trim(); if (line.isEmpty() || line.startsWith("#")) continue;
-            String[] p = line.split("\\s+");
-            out.append(execute(p[0], Arrays.copyOfRange(p, 1, p.length))).append("\n");
+        if (args.length == 0) return "Usage: cd <path>";
+        String target = args[0];
+        String newPath = UserFileSystem.normalizePath(currentPath, target);
+        List<String> test = isClient ?
+                ClientVirtualFileSystem.listDirectory(newPath) :
+                UserFileSystem.listDirectory(playerUuid, newPath);
+        if (test != null) {
+            currentPath = newPath;
+            cdSuccessful = true;
+            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
         }
-        return out.toString().trim();
+        cdSuccessful = false;
+        return "Error: Directory not found.";
     }
-    private String executeRefresh(String[] args) {
-        if (args.length > 0 && args[0].equalsIgnoreCase("bf")) {
-            BinaryPluginManager.refreshPlugins();
-            return "Plugins refreshed. Found " + BinaryPluginManager.getPluginCount();
-        }
-        return "Usage: refresh bf";
-    }
-    private String executePkg(String[] args) {
-        if (args.length == 0) return "Usage: pkg <update|install|remove|list|search|info|path>";
-        switch (args[0].toLowerCase()) {
-            case "update": return PkgManager.updateIndex();
-            case "install": return args.length < 2 ? "Usage: pkg install <pkg>" : PkgManager.install(args[1], isClient);
-            case "remove": return args.length < 2 ? "Usage: pkg remove <pkg>" : PkgManager.remove(args[1], isClient);
-            case "list": List<String> l = PkgManager.listInstalled(isClient); return l.isEmpty() ? "None" : String.join("\n", l);
-            case "search": return args.length < 2 ? "Usage: pkg search <kw>" : String.join("\n", PkgManager.search(args[1]));
-            case "info": return args.length < 2 ? "Usage: pkg info <pkg>" : PkgManager.showInfo(args[1]);
-            case "path": List<String> p = PkgManager.getPathEntries(isClient); return p.isEmpty() ? "PATH empty" : String.join("\n", p);
-            default: return "Unknown pkg subcommand";
-        }
-    }
-    private String executeMacro(String[] args) {
-        if (!isClient) return "Macro can only be used in terminal panel.";
-        String operate = "";
-        long interval = 3000;
-        for (String arg : args) {
-            if (arg.startsWith("operate:")) operate = arg.substring(8);
-            else if (arg.startsWith("interval:")) {
-                String t = arg.substring(9);
-                if (t.endsWith("s")) interval = Long.parseLong(t.substring(0, t.length()-1)) * 1000;
-                else if (t.endsWith("ms")) interval = Long.parseLong(t.substring(0, t.length()-2));
-                else interval = Long.parseLong(t) * 1000;
-            }
-        }
-        if (operate.isEmpty()) return "Usage: macro operate:<keys> [interval:<time>]";
-        PlayerMacroManager.startMacro(operate, interval);
-        return "Macro started.";
-    }
-    private static String humanReadable(long b) {
-        if (b < 1024) return b + " B";
-        int e = (int) (Math.log(b) / Math.log(1024));
-        return String.format("%.1f %cB", b / Math.pow(1024, e), "KMGTPE".charAt(e-1));
-    }
+
     public boolean wasCdSuccessful() { return cdSuccessful; }
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
+
+    private String executePwd() {
+        return currentPath.isEmpty() ? "/" : currentPath;
+    }
+
+    private String executeCp(String[] args) {
+        if (args.length < 2) return "Usage: cp <source> <destination>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: Source file not found.";
+        if (isClient) {
+            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
+        } else {
+            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
+        }
+        return "Copied.";
+    }
+
+    private String executeMv(String[] args) {
+        if (args.length < 2) return "Usage: mv <source> <destination>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: Source file not found.";
+        if (isClient) {
+            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
+            ClientVirtualFileSystem.delete(currentPath, args[0], false);
+        } else {
+            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
+            UserFileSystem.delete(playerUuid, currentPath, args[0], false);
+        }
+        return "Moved.";
+    }
+
+    private String executeHead(String[] args) {
+        if (args.length == 0) return "Usage: head [-n N] <file>";
+        int lines = 10;
+        String file;
+        if (args[0].equals("-n")) {
+            if (args.length < 3) return "Usage: head [-n N] <file>";
+            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Error: Invalid number."; }
+            file = args[2];
+        } else {
+            file = args[0];
+        }
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, file) :
+                UserFileSystem.readFile(playerUuid, currentPath, file);
+        if (content == null) return "Error: File not found.";
+        String[] allLines = content.split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(lines, allLines.length); i++) {
+            sb.append(allLines[i]).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private String executeTail(String[] args) {
+        if (args.length == 0) return "Usage: tail [-n N] <file>";
+        int lines = 10;
+        String file;
+        if (args[0].equals("-n")) {
+            if (args.length < 3) return "Usage: tail [-n N] <file>";
+            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Error: Invalid number."; }
+            file = args[2];
+        } else {
+            file = args[0];
+        }
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, file) :
+                UserFileSystem.readFile(playerUuid, currentPath, file);
+        if (content == null) return "Error: File not found.";
+        String[] allLines = content.split("\n");
+        StringBuilder sb = new StringBuilder();
+        int start = Math.max(0, allLines.length - lines);
+        for (int i = start; i < allLines.length; i++) {
+            sb.append(allLines[i]).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private String executeWc(String[] args) {
+        if (args.length == 0) return "Usage: wc <file>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: File not found.";
+        int lines = content.split("\n").length;
+        int words = content.split("\\s+").length;
+        int chars = content.length();
+        return String.format("%d %d %d %s", lines, words, chars, args[0]);
+    }
+
+    private String executeGrep(String[] args) {
+        if (args.length < 2) return "Usage: grep <pattern> <file>";
+        String pattern = args[0];
+        String file = args[1];
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, file) :
+                UserFileSystem.readFile(playerUuid, currentPath, file);
+        if (content == null) return "Error: File not found.";
+        StringBuilder sb = new StringBuilder();
+        for (String line : content.split("\n")) {
+            if (line.contains(pattern)) sb.append(line).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private String executeSort(String[] args) {
+        if (args.length == 0) return "Usage: sort <file>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: File not found.";
+        List<String> lines = new ArrayList<>(Arrays.asList(content.split("\n")));
+        Collections.sort(lines);
+        return String.join("\n", lines);
+    }
+
+    private String executeUniq(String[] args) {
+        if (args.length == 0) return "Usage: uniq <file>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: File not found.";
+        List<String> lines = Arrays.asList(content.split("\n"));
+        StringBuilder sb = new StringBuilder();
+        String prev = null;
+        for (String line : lines) {
+            if (!line.equals(prev)) {
+                sb.append(line).append("\n");
+                prev = line;
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private String executeUname(String[] args) {
+        return System.getProperty("os.name") + " " + System.getProperty("os.arch");
+    }
+
+    private String executeDf(String[] args) {
+        Path root = Paths.get(".");
+        try {
+            FileStore store = Files.getFileStore(root);
+            long total = store.getTotalSpace() / (1024*1024);
+            long used = (store.getTotalSpace() - store.getUsableSpace()) / (1024*1024);
+            long avail = store.getUsableSpace() / (1024*1024);
+            return String.format("Filesystem     1M-blocks  Used Available Use%% Mounted on\n%s  %d  %d  %d  %d%% /",
+                    store.name(), total, used, avail, total > 0 ? (used*100/total) : 0);
+        } catch (IOException e) {
+            return "Error: Unable to get disk usage.";
+        }
+    }
+
+    private String executeFree(String[] args) {
+        Runtime rt = Runtime.getRuntime();
+        long total = rt.totalMemory() / (1024*1024);
+        long free = rt.freeMemory() / (1024*1024);
+        long used = total - free;
+        return String.format("              total        used        free      shared  buff/cache   available\nMem:           %d          %d          %d           0           0           0",
+                total, used, free);
+    }
+
+    private String executePs(String[] args) {
+        return "PID TTY          TIME CMD\n  1 ?        00:00:00 java\n  2 ?        00:00:00 Minecraft";
+    }
+
+    private String executeDu(String[] args) {
+        if (args.length == 0) return "Usage: du <file/directory>";
+        Path p = isClient ? Paths.get("client_fs", currentPath, args[0]) : UserFileSystem.getUserPath(playerUuid).resolve(currentPath).resolve(args[0]);
+        try {
+            if (Files.isDirectory(p)) {
+                final long[] size = {0};
+                Files.walkFileTree(p, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        size[0] += attrs.size();
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+                return size[0] / 1024 + "K\t" + args[0];
+            } else {
+                return Files.size(p) / 1024 + "K\t" + args[0];
+            }
+        } catch (IOException e) {
+            return "Error: Unable to get size.";
+        }
+    }
+
+    private String executePing(String[] args) {
+        if (args.length == 0) return "Usage: ping <host>";
+        try {
+            InetAddress address = InetAddress.getByName(args[0]);
+            long start = System.currentTimeMillis();
+            boolean reachable = address.isReachable(3000);
+            long time = System.currentTimeMillis() - start;
+            if (reachable) {
+                return "Reply from " + address.getHostAddress() + ": time=" + time + "ms";
+            } else {
+                return "Request timed out.";
+            }
+        } catch (IOException e) {
+            return "Error: Unknown host.";
+        }
+    }
+
+    private String executeCurl(String[] args) {
+        if (args.length == 0) return "Usage: curl <url>";
+        return fetchUrl(args[0]);
+    }
+
+    private String executeWget(String[] args) {
+        if (args.length < 2) return "Usage: wget <url> <output_file>";
+        String content = fetchUrl(args[0]);
+        if (content.startsWith("Error:")) return content;
+        if (isClient) {
+            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
+        } else {
+            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
+        }
+        return "Downloaded to " + args[1];
+    }
+
+    private String fetchUrl(String urlStr) {
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+            in.close();
+            conn.disconnect();
+            return content.toString().trim();
+        } catch (Exception e) {
+            return "Error: Failed to fetch URL.";
+        }
+    }
+
+    private String executeWhich(String[] args) {
+        if (args.length == 0) return "Usage: which <command>";
+        Path found = findExecutableInPath(args[0]);
+        if (found != null) return found.toString();
+        String builtIn = executeBuiltInCommand(args[0], new String[0]);
+        if (!builtIn.startsWith("Error: Unknown command.")) {
+            return args[0] + ": shell built-in command";
+        }
+        return args[0] + " not found";
+    }
+
+    private String executeChmod(String[] args) {
+        if (args.length < 2) return "Usage: chmod <mode> <file>";
+        if (args[0].equals("+x")) {
+            Path p = isClient ? Paths.get("client_fs", currentPath, args[1]) : UserFileSystem.getUserPath(playerUuid).resolve(currentPath).resolve(args[1]);
+            if (Files.exists(p)) {
+                p.toFile().setExecutable(true);
+                return "Added execute permission.";
+            }
+            return "Error: File not found.";
+        }
+        return "Error: Only +x is supported.";
+    }
+
+    private String executeSh(String[] args) {
+        if (args.length == 0) return "Usage: sh <script>";
+        String content = isClient ?
+                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (content == null) return "Error: Script not found.";
+        StringBuilder output = new StringBuilder();
+        for (String line : content.split("\n")) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] parts = line.split("\\s+");
+            String cmd = parts[0];
+            String[] cmdArgs = Arrays.copyOfRange(parts, 1, parts.length);
+            output.append("> ").append(line).append("\n");
+            output.append(execute(cmd, cmdArgs)).append("\n");
+        }
+        return output.toString().trim();
+    }
+
+    private String executeRefresh(String[] args) {
+        if (args.length == 0) return "Usage: refresh <plugin|bf>";
+        if (args[0].equalsIgnoreCase("plugin")) {
+            BinaryPluginManager.refreshPlugins();
+            return "Plugins refreshed. Available: " + BinaryPluginManager.getAvailablePlugins();
+        } else if (args[0].equalsIgnoreCase("bf")) {
+            return "BF refreshed. (Not implemented)";
+        }
+        return "Usage: refresh <plugin|bf>";
+    }
+
+    private String executePkg(String[] args) {
+        if (args.length == 0) return PkgManager.getHelp();
+        switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "update": return PkgManager.updateIndex();
+            case "search": return args.length > 1 ? PkgManager.search(args[1]) : "Usage: pkg search <keyword>";
+            case "install": return args.length > 1 ? PkgManager.install(args[1], isClient) : "Usage: pkg install <package>";
+            case "remove": return args.length > 1 ? PkgManager.remove(args[1], isClient) : "Usage: pkg remove <package>";
+            case "list": return PkgManager.listInstalled(isClient);
+            case "info": return args.length > 1 ? PkgManager.info(args[1]) : "Usage: pkg info <package>";
+            case "upgrade": return PkgManager.upgrade(isClient);
+            case "clean": return PkgManager.clean(isClient);
+            default: return "Unknown pkg command. Available: update, search, install, remove, list, info, upgrade, clean";
+        }
+    }
+
+    private String executeMacro(String[] args) {
+        if (!isClient) return "macro can only be used in terminal panel.";
+        if (args.length == 0) return "Usage: macro start <operate> [interval_ms]";
+        if (args[0].equalsIgnoreCase("start")) {
+            if (args.length < 2) return "Usage: macro start <operate> [interval_ms]";
+            String operate = args[1];
+            long interval = 3000;
+            if (args.length > 2) {
+                try { interval = Long.parseLong(args[2]); } catch (NumberFormatException e) { return "Error: Invalid interval."; }
+            }
+            PlayerMacroManager.startMacro(operate, interval);
+            return "Macro started.";
+        }
+        return "Usage: macro start <operate> [interval_ms]";
+    }
 }
