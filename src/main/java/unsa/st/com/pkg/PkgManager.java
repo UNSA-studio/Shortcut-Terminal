@@ -38,7 +38,6 @@ public class PkgManager {
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
     private static final String INDEX_CACHE = "var/cache/pkg/index.json";
 
-    // ========== 路径工具 ==========
     private static Path getGameDir(boolean isClient) {
         if (isClient) {
             return Minecraft.getInstance().gameDirectory.toPath();
@@ -68,7 +67,6 @@ public class PkgManager {
         return getGameDir(isClient).resolve(INDEX_CACHE);
     }
 
-    // ========== 本地数据库 ==========
     private static Map<String, PackageInfo> loadLocalDatabase(boolean isClient) {
         Path dbPath = getDbPath(isClient);
         if (Files.exists(dbPath)) {
@@ -93,7 +91,6 @@ public class PkgManager {
         }
     }
 
-    // ========== PATH 维护 ==========
     private static void ensurePath(boolean isClient) {
         try {
             Path pathFile = getPathFile(isClient);
@@ -119,7 +116,6 @@ public class PkgManager {
         }
     }
 
-    // ========== 索引缓存 ==========
     private static void saveIndexCache(boolean isClient) {
         try {
             Path cachePath = getIndexCachePath(isClient);
@@ -147,25 +143,20 @@ public class PkgManager {
         return false;
     }
 
-    // ========== 更新索引（核心修复） ==========
     public static String updateIndex(boolean isClient, boolean force) {
-        // 如果已经加载且不是强制刷新，直接返回
         if (indexLoaded && !force) {
             return "Index already loaded. Use 'pkg update force' to refresh.";
         }
 
-        // 尝试加载本地缓存（仅当非强制刷新时）
         if (!force && loadIndexCache(isClient)) {
             return "Loaded cached index (" + remoteIndex.size() + " packages). Use 'pkg update force' to refresh from network.";
         }
 
-        // 从网络获取
         String arch = System.getProperty("os.arch").toLowerCase().contains("arm") ? "arm64" : "amd64";
         List<String> errors = new ArrayList<>();
 
         for (String mirror : MIRRORS) {
             String base = mirror + "/dists/" + DEBIAN_VERSION + "/main/binary-" + arch;
-            // 优先尝试 .gz（更通用）
             for (String suffix : new String[]{"/Packages.gz", "/Packages.xz"}) {
                 String urlStr = base + suffix;
                 try {
@@ -196,7 +187,6 @@ public class PkgManager {
             }
         }
 
-        // 所有镜像失败，使用保底
         ShortcutTerminal.LOGGER.error("All mirrors failed: {}", String.join("; ", errors));
         fallbackIndex();
         indexLoaded = true;
@@ -204,7 +194,6 @@ public class PkgManager {
     }
 
     public static String updateIndex() {
-        // 无参版本默认使用缓存优先
         return updateIndex(false, false);
     }
 
@@ -237,7 +226,6 @@ public class PkgManager {
                 block.append(line).append("\n");
             }
         }
-        // 最后一块
         if (block.length() > 0) {
             PackageInfo info = PackageInfo.parse(block.toString());
             if (info.packageName != null) {
@@ -246,9 +234,7 @@ public class PkgManager {
         }
     }
 
-    // ========== 安装 ==========
     public static String install(String packageName, boolean isClient) {
-        // 确保索引已加载
         if (!indexLoaded) {
             updateIndex(isClient, false);
         }
@@ -262,13 +248,12 @@ public class PkgManager {
         }
 
         PackageInfo pkg = remoteIndex.get(packageName);
-        String baseUrl = MIRRORS[0]; // 默认用第一个镜像
+        String baseUrl = MIRRORS[0];
         String debUrl = baseUrl + "/" + pkg.filename;
 
         Path tmpDeb = null;
         Path extractDir = null;
         try {
-            // 下载 .deb
             tmpDeb = Files.createTempFile("pkg_", ".deb");
             HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
             conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
@@ -278,11 +263,9 @@ public class PkgManager {
                 Files.copy(in, tmpDeb, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 解压
             extractDir = Files.createTempDirectory("pkg_extract");
             extractDeb(tmpDeb, extractDir);
 
-            // 复制文件
             Path dataDir = extractDir.resolve("data");
             Path targetDir = getProgramPath(isClient);
             if (Files.exists(dataDir)) {
@@ -291,7 +274,6 @@ public class PkgManager {
                 copyDirectory(extractDir, targetDir);
             }
 
-            // 设置可执行权限
             setExecutableRecursive(targetDir.resolve("bin"));
             setExecutableRecursive(targetDir.resolve("sbin"));
             setExecutableRecursive(targetDir.resolve("usr/bin"));
@@ -306,7 +288,6 @@ public class PkgManager {
             ShortcutTerminal.LOGGER.error("Installation failed for " + packageName, e);
             return "Installation failed: " + e.getMessage();
         } finally {
-            // 清理临时文件
             if (tmpDeb != null) try { Files.deleteIfExists(tmpDeb); } catch (IOException ignored) {}
             if (extractDir != null) deleteRecursive(extractDir);
         }
@@ -317,7 +298,6 @@ public class PkgManager {
         Files.walk(dir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
     }
 
-    // ========== 解压 .deb（关键修复：XZ 错误不再被吞） ==========
     private static void extractDeb(Path debFile, Path destDir) throws IOException {
         try (ArArchiveInputStream arIn = new ArArchiveInputStream(new BufferedInputStream(Files.newInputStream(debFile)))) {
             ArArchiveEntry entry;
@@ -341,7 +321,6 @@ public class PkgManager {
                             }
                         }
                     } catch (Exception e) {
-                        // 解压失败，抛出明确异常
                         throw new IOException("Failed to extract " + name + ": " + e.getMessage(), e);
                     }
                 }
@@ -387,7 +366,6 @@ public class PkgManager {
         } catch (IOException ignored) {}
     }
 
-    // ========== 其他命令 ==========
     public static String remove(String packageName, boolean isClient) {
         Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
         if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
@@ -426,7 +404,6 @@ public class PkgManager {
         return new ArrayList<>();
     }
 
-    // 兼容旧调用
     public static String getHelp() {
         return "pkg update [force] - refresh package index\n" +
                "pkg search <keyword> - search packages\n" +
@@ -435,12 +412,11 @@ public class PkgManager {
                "pkg list - list installed\n" +
                "pkg show <pkg> - show package details";
     }
-}
 
-    // ========== 供命令补全使用 ==========
     public static List<String> listAvailable() {
         if (!indexLoaded) {
             updateIndex(false, false);
         }
         return new ArrayList<>(remoteIndex.keySet());
     }
+}
