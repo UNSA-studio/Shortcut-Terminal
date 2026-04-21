@@ -436,3 +436,11 @@ public class PkgManager {
                "pkg show <pkg> - show package details";
     }
 }
+
+    // ========== 供命令补全使用 ==========
+    public static List<String> listAvailable() {
+        if (!indexLoaded) {
+            updateIndex(false, false);
+        }
+        return new ArrayList<>(remoteIndex.keySet());
+    }
