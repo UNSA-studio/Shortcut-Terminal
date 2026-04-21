@@ -38,13 +38,11 @@ public class CoreCommandExecutor {
     }
 
     public String execute(String command, String[] args) {
-        // 1. 尝试内置命令
         String builtInResult = executeBuiltInCommand(command, args);
         if (builtInResult != null && !builtInResult.startsWith("Error: Unknown command.")) {
             return builtInResult;
         }
 
-        // 2. 尝试 PATH 外部命令
         Path ext = findExecutableInPath(command);
         if (ext != null) return executeExternalProgram(ext, args);
 
@@ -70,7 +68,7 @@ public class CoreCommandExecutor {
             case "grep": return executeGrep(args);
             case "sort": return executeSort(args);
             case "uniq": return executeUniq(args);
-            case "whoami": return playerName;
+            case "whoami": return playerName != null ? playerName : "unknown";
             case "uname": return executeUname(args);
             case "df": return executeDf(args);
             case "free": return executeFree(args);
@@ -87,7 +85,7 @@ public class CoreCommandExecutor {
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
-            case "dummymodule": return "Please use '/ST run dummymodule' in chat. Terminal cannot create fake players directly.";
+            case "dummymodule": return "Please use '/ST run dummymodule' in chat.";
             case "stop": return executeStop(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
         }
@@ -147,9 +145,10 @@ public class CoreCommandExecutor {
         return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, stop macro";
     }
 
+    // ---------- 文件系统操作，修正参数 ----------
     private String executeLs() {
         List<String> files = isClient ?
-                ClientVirtualFileSystem.listDirectory(currentPath) :
+                ClientVirtualFileSystem.listDirectory(playerName, currentPath) :
                 UserFileSystem.listDirectory(playerUuid, currentPath);
         if (files == null) return "Error: Directory not found.";
         return String.join("  ", files);
@@ -158,7 +157,7 @@ public class CoreCommandExecutor {
     private String executeMkdir(String[] args) {
         if (args.length == 0) return "Usage: mkdir <directory>";
         boolean ok = isClient ?
-                ClientVirtualFileSystem.createDirectory(currentPath, args[0]) :
+                ClientVirtualFileSystem.createDirectory(playerName, currentPath, args[0]) :
                 UserFileSystem.createDirectory(playerUuid, currentPath, args[0]);
         return ok ? "Directory created." : "Error: Failed to create directory.";
     }
@@ -166,7 +165,7 @@ public class CoreCommandExecutor {
     private String executeTouch(String[] args) {
         if (args.length == 0) return "Usage: touch <file>";
         boolean ok = isClient ?
-                ClientVirtualFileSystem.createFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.createFile(playerName, currentPath, args[0]) :
                 UserFileSystem.createFile(playerUuid, currentPath, args[0]);
         return ok ? "File created." : "Error: Failed to create file.";
     }
@@ -183,7 +182,7 @@ public class CoreCommandExecutor {
             target = args[0];
         }
         boolean ok = isClient ?
-                ClientVirtualFileSystem.delete(currentPath, target, recursive) :
+                ClientVirtualFileSystem.delete(playerName, currentPath, target, recursive) :
                 UserFileSystem.delete(playerUuid, currentPath, target, recursive);
         return ok ? "Deleted." : "Error: Failed to delete.";
     }
@@ -191,7 +190,7 @@ public class CoreCommandExecutor {
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         return content != null ? content : "Error: File not found.";
     }
@@ -205,7 +204,7 @@ public class CoreCommandExecutor {
         String target = args[0];
         String newPath = UserFileSystem.normalizePath(currentPath, target);
         List<String> test = isClient ?
-                ClientVirtualFileSystem.listDirectory(newPath) :
+                ClientVirtualFileSystem.listDirectory(playerName, newPath) :
                 UserFileSystem.listDirectory(playerUuid, newPath);
         if (test != null) {
             currentPath = newPath;
@@ -227,11 +226,11 @@ public class CoreCommandExecutor {
     private String executeCp(String[] args) {
         if (args.length < 2) return "Usage: cp <source> <destination>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: Source file not found.";
         if (isClient) {
-            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
+            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
         } else {
             UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
         }
@@ -241,12 +240,12 @@ public class CoreCommandExecutor {
     private String executeMv(String[] args) {
         if (args.length < 2) return "Usage: mv <source> <destination>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: Source file not found.";
         if (isClient) {
-            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
-            ClientVirtualFileSystem.delete(currentPath, args[0], false);
+            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
+            ClientVirtualFileSystem.delete(playerName, currentPath, args[0], false);
         } else {
             UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
             UserFileSystem.delete(playerUuid, currentPath, args[0], false);
@@ -266,14 +265,12 @@ public class CoreCommandExecutor {
             file = args[0];
         }
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, file) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
                 UserFileSystem.readFile(playerUuid, currentPath, file);
         if (content == null) return "Error: File not found.";
         String[] allLines = content.split("\n");
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < Math.min(lines, allLines.length); i++) {
-            sb.append(allLines[i]).append("\n");
-        }
+        for (int i = 0; i < Math.min(lines, allLines.length); i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
 
@@ -289,22 +286,20 @@ public class CoreCommandExecutor {
             file = args[0];
         }
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, file) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
                 UserFileSystem.readFile(playerUuid, currentPath, file);
         if (content == null) return "Error: File not found.";
         String[] allLines = content.split("\n");
         StringBuilder sb = new StringBuilder();
         int start = Math.max(0, allLines.length - lines);
-        for (int i = start; i < allLines.length; i++) {
-            sb.append(allLines[i]).append("\n");
-        }
+        for (int i = start; i < allLines.length; i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
 
     private String executeWc(String[] args) {
         if (args.length == 0) return "Usage: wc <file>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: File not found.";
         int lines = content.split("\n").length;
@@ -318,20 +313,18 @@ public class CoreCommandExecutor {
         String pattern = args[0];
         String file = args[1];
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, file) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
                 UserFileSystem.readFile(playerUuid, currentPath, file);
         if (content == null) return "Error: File not found.";
         StringBuilder sb = new StringBuilder();
-        for (String line : content.split("\n")) {
-            if (line.contains(pattern)) sb.append(line).append("\n");
-        }
+        for (String line : content.split("\n")) if (line.contains(pattern)) sb.append(line).append("\n");
         return sb.toString().trim();
     }
 
     private String executeSort(String[] args) {
         if (args.length == 0) return "Usage: sort <file>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: File not found.";
         List<String> lines = new ArrayList<>(Arrays.asList(content.split("\n")));
@@ -342,7 +335,7 @@ public class CoreCommandExecutor {
     private String executeUniq(String[] args) {
         if (args.length == 0) return "Usage: uniq <file>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: File not found.";
         List<String> lines = Arrays.asList(content.split("\n"));
@@ -417,11 +410,8 @@ public class CoreCommandExecutor {
             long start = System.currentTimeMillis();
             boolean reachable = address.isReachable(3000);
             long time = System.currentTimeMillis() - start;
-            if (reachable) {
-                return "Reply from " + address.getHostAddress() + ": time=" + time + "ms";
-            } else {
-                return "Request timed out.";
-            }
+            if (reachable) return "Reply from " + address.getHostAddress() + ": time=" + time + "ms";
+            else return "Request timed out.";
         } catch (IOException e) {
             return "Error: Unknown host.";
         }
@@ -437,7 +427,7 @@ public class CoreCommandExecutor {
         String content = fetchUrl(args[0]);
         if (content.startsWith("Error:")) return content;
         if (isClient) {
-            ClientVirtualFileSystem.writeFile(currentPath, args[1], content);
+            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
         } else {
             UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
         }
@@ -454,9 +444,7 @@ public class CoreCommandExecutor {
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             StringBuilder content = new StringBuilder();
             String line;
-            while ((line = in.readLine()) != null) {
-                content.append(line).append("\n");
-            }
+            while ((line = in.readLine()) != null) content.append(line).append("\n");
             in.close();
             conn.disconnect();
             return content.toString().trim();
@@ -470,9 +458,7 @@ public class CoreCommandExecutor {
         Path found = findExecutableInPath(args[0]);
         if (found != null) return found.toString();
         String builtIn = executeBuiltInCommand(args[0], new String[0]);
-        if (!builtIn.startsWith("Error: Unknown command.")) {
-            return args[0] + ": shell built-in command";
-        }
+        if (!builtIn.startsWith("Error: Unknown command.")) return args[0] + ": shell built-in command";
         return args[0] + " not found";
     }
 
@@ -492,7 +478,7 @@ public class CoreCommandExecutor {
     private String executeSh(String[] args) {
         if (args.length == 0) return "Usage: sh <script>";
         String content = isClient ?
-                ClientVirtualFileSystem.readFile(currentPath, args[0]) :
+                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
                 UserFileSystem.readFile(playerUuid, currentPath, args[0]);
         if (content == null) return "Error: Script not found.";
         StringBuilder output = new StringBuilder();
@@ -520,17 +506,27 @@ public class CoreCommandExecutor {
     }
 
     private String executePkg(String[] args) {
-        if (args.length == 0) return PkgManager.getHelp();
+        if (args.length == 0) return "Usage: pkg <update|search|install|remove|list|show>";
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "update": return PkgManager.updateIndex();
-            case "search": return args.length > 1 ? PkgManager.search(args[1]) : "Usage: pkg search <keyword>";
-            case "install": return args.length > 1 ? PkgManager.install(args[1], isClient) : "Usage: pkg install <package>";
-            case "remove": return args.length > 1 ? PkgManager.remove(args[1], isClient) : "Usage: pkg remove <package>";
-            case "list": return PkgManager.listInstalled(isClient);
-            case "info": return args.length > 1 ? PkgManager.info(args[1]) : "Usage: pkg info <package>";
-            case "upgrade": return PkgManager.upgrade(isClient);
-            case "clean": return PkgManager.clean(isClient);
-            default: return "Unknown pkg command. Available: update, search, install, remove, list, info, upgrade, clean";
+            case "search":
+                if (args.length < 2) return "Usage: pkg search <keyword>";
+                List<String> searchResults = PkgManager.search(args[1]);
+                return searchResults.isEmpty() ? "No packages found." : String.join("\n", searchResults);
+            case "install":
+                if (args.length < 2) return "Usage: pkg install <package>";
+                return PkgManager.install(args[1], isClient);
+            case "remove":
+                if (args.length < 2) return "Usage: pkg remove <package>";
+                return PkgManager.remove(args[1], isClient);
+            case "list":
+                List<String> installed = PkgManager.listInstalled(isClient);
+                return installed.isEmpty() ? "No packages installed." : String.join("\n", installed);
+            case "show":
+                if (args.length < 2) return "Usage: pkg show <package>";
+                return PkgManager.showInfo(args[1]);
+            default:
+                return "Unknown pkg command. Available: update, search, install, remove, list, show";
         }
     }
 
