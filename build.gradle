@@ -5,11 +5,9 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
 }
-
 version = '1.0.0'
 group = 'unsa.st.com'
 base.archivesName = 'shortcutterminal'
-
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
@@ -17,19 +15,15 @@ repositories {
     maven { url = 'https://maven.neoforged.net/releases' }
     maven { url = 'https://maven.blamejared.com' }
 }
-
 dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
+    // 不重定位 xz 包，保留原始包名
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
-        version {
-            strictly '[1.9,)'
-            prefer '1.9'
-        }
+        relocate 'org.tukaani.xz', 'org.tukaani.xz'
     }
 }
-
 neoForge {
     version = '21.1.219'
     runs {
@@ -42,7 +36,6 @@ neoForge {
         }
     }
 }
-
 processResources {
     var replaceProperties = [
         minecraft_version      : '1.21.1',
@@ -62,7 +55,6 @@ processResources {
         expand replaceProperties
     }
 }
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
