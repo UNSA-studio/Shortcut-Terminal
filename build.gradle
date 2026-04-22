@@ -19,10 +19,7 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-    // 不重定位 xz 包，保留原始包名
-    jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
-        relocate 'org.tukaani.xz', 'org.tukaani.xz'
-    }
+    jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
 }
 neoForge {
     version = '21.1.219'
