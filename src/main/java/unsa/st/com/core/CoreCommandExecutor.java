@@ -1,12 +1,21 @@
 package unsa.st.com.core;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
+import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.network.ModNetwork;
+import unsa.st.com.network.BlackScreenPayload;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -15,6 +24,9 @@ import java.net.URL;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class CoreCommandExecutor {
     private final boolean isClient;
@@ -22,6 +34,7 @@ public class CoreCommandExecutor {
     private boolean cdSuccessful = false;
     private UUID playerUuid;
     private String playerName;
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public CoreCommandExecutor(boolean isClient) {
         this.isClient = isClient;
@@ -42,10 +55,8 @@ public class CoreCommandExecutor {
         if (builtInResult != null && !builtInResult.startsWith("Error: Unknown command.")) {
             return builtInResult;
         }
-
         Path ext = findExecutableInPath(command);
         if (ext != null) return executeExternalProgram(ext, args);
-
         return "Error: Unknown command. Type 'help' for available commands.";
     }
 
@@ -85,6 +96,7 @@ public class CoreCommandExecutor {
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
+            case "run": return executeRun(args);
             case "dummymodule": return "Please use '/ST run dummymodule' in chat.";
             case "stop": return executeStop(args);
             default: return "Error: Unknown command. Type 'help' for available commands.";
@@ -104,7 +116,7 @@ public class CoreCommandExecutor {
                 if (Files.isExecutable(candidateExe)) return candidateExe;
             }
         } catch (IOException e) {
-            unsa.st.com.ShortcutTerminal.LOGGER.error("PATH read error", e);
+            ShortcutTerminal.LOGGER.error("PATH read error", e);
         }
         return null;
     }
@@ -142,10 +154,9 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, stop macro";
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro";
     }
 
-    // ---------- 文件系统操作，修正参数 ----------
     private String executeLs() {
         List<String> files = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, currentPath) :
@@ -544,5 +555,283 @@ public class CoreCommandExecutor {
             return "Macro started.";
         }
         return "Usage: macro start <operate> [interval_ms]";
+    }
+
+    // ==================== RUN SPOOF ====================
+    private String executeRun(String[] args) {
+        if (args.length == 0) return "Usage: run <module> [args...]";
+        String module = args[0].toLowerCase(Locale.ROOT);
+        String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
+        if ("spoof".equals(module)) {
+            return executeSpoof(moduleArgs);
+        }
+        return "Unknown run module: " + module;
+    }
+
+    private String executeSpoof(String[] args) {
+        if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";
+        String action = args[0].toLowerCase(Locale.ROOT);
+        String targetPlayer = args.length > 1 && !args[1].contains("-") ? args[1] : playerName;
+        String[] params = args.length > (targetPlayer.equals(playerName) ? 1 : 2)
+                ? Arrays.copyOfRange(args, (targetPlayer.equals(playerName) ? 1 : 2), args.length)
+                : new String[0];
+        ServerPlayer target = getServerPlayer(targetPlayer);
+        if (target == null) return "Player not found: " + targetPlayer;
+        Map<String, String> paramMap = parseParams(params);
+        switch (action) {
+            case "ray": return spoofRay(target, paramMap);
+            case "creeper": return spoofCreeper(target, paramMap);
+            case "flyup": return spoofFlyup(target, paramMap);
+            case "evasiveground": return spoofEvasiveGround(target, paramMap);
+            case "stop": return spoofStop(target, paramMap);
+            case "quickly": return spoofQuickly(target, paramMap);
+            case "tortoise": return spoofTortoise(target, paramMap);
+            case "blackscreen": return spoofBlackscreen(target, paramMap);
+            default: return "Unknown spoof action: " + action;
+        }
+    }
+
+    private Map<String, String> parseParams(String[] args) {
+        Map<String, String> map = new HashMap<>();
+        for (String arg : args) {
+            int dash = arg.indexOf('-');
+            if (dash > 0) {
+                String key = arg.substring(0, dash).toLowerCase();
+                String value = arg.substring(dash + 1);
+                map.put(key, value);
+            }
+        }
+        return map;
+    }
+
+    private int getIntParam(Map<String, String> params, String key, int def) {
+        try { return Integer.parseInt(params.getOrDefault(key, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
+    }
+
+    private float getFloatParam(Map<String, String> params, String key, float def) {
+        try { return Float.parseFloat(params.getOrDefault(key, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
+    }
+
+    private long parseTimeMs(String timeStr, long defaultSeconds) {
+        if (timeStr == null || timeStr.isEmpty()) return defaultSeconds * 1000;
+        timeStr = timeStr.toLowerCase();
+        try {
+            if (timeStr.endsWith("ms")) return Long.parseLong(timeStr.replace("ms", ""));
+            if (timeStr.endsWith("s")) return Long.parseLong(timeStr.replace("s", "")) * 1000;
+            if (timeStr.endsWith("m")) return Long.parseLong(timeStr.replace("m", "")) * 60 * 1000;
+            if (timeStr.endsWith("h")) return Long.parseLong(timeStr.replace("h", "")) * 3600 * 1000;
+            return Long.parseLong(timeStr) * 1000;
+        } catch (NumberFormatException e) { return defaultSeconds * 1000; }
+    }
+
+    private ServerPlayer getServerPlayer(String name) {
+        if (Minecraft.getInstance().hasSingleplayerServer()) {
+            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
+        }
+        return null;
+    }
+
+    private String spoofRay(ServerPlayer target, Map<String, String> params) {
+        int quantity = getIntParam(params, "quantity", 1);
+        float damage = getFloatParam(params, "injure", 5.0f);
+        BlockPos pos = target.blockPosition();
+        Level level = target.level();
+        for (int i = 0; i < quantity; i++) {
+            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+            if (bolt != null) {
+                bolt.setPos(Vec3.atBottomCenterOf(pos));
+                bolt.setCause(target);
+                level.addFreshEntity(bolt);
+            }
+        }
+        target.hurt(target.damageSources().lightningBolt(), damage);
+        return "Struck " + target.getName().getString() + " with " + quantity + " lightning bolts, damage: " + damage;
+    }
+
+    private String spoofCreeper(ServerPlayer target, Map<String, String> params) {
+        int quantity = Math.min(getIntParam(params, "quantity", 1), 64);
+        boolean charged = "lightning".equalsIgnoreCase(params.get("morphology"));
+        String timeStr = params.get("time");
+        Level level = target.level();
+        BlockPos pos = target.blockPosition();
+        for (int i = 0; i < quantity; i++) {
+            Creeper creeper = EntityType.CREEPER.create(level);
+            if (creeper != null) {
+                creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+                if (charged) creeper.getEntityData().set(net.minecraft.world.entity.monster.Creeper.DATA_IS_POWERED, true);
+                level.addFreshEntity(creeper);
+                if ("moment".equalsIgnoreCase(timeStr)) {
+                    creeper.ignite();
+                } else if (timeStr != null && !timeStr.isEmpty()) {
+                    long delay = parseTimeMs(timeStr, 0);
+                    scheduler.schedule(() -> creeper.ignite(), delay, TimeUnit.MILLISECONDS);
+                }
+            }
+        }
+        return "Spawned " + quantity + (charged ? " charged" : "") + " creepers at " + target.getName().getString();
+    }
+
+    private String spoofFlyup(ServerPlayer target, Map<String, String> params) {
+        String manner = params.getOrDefault("manner", "");
+        String direction = params.getOrDefault("direction", "");
+        String coordsStr = params.get("coordinates");
+        boolean noFallDamage = "no".equalsIgnoreCase(params.get("injure"));
+        Vec3 start = target.position();
+        Vec3 destination;
+        double speed = 20; // 默认 20 格/秒
+
+        if (!manner.isEmpty()) {
+            if ("fast".equals(manner)) {
+                speed = Double.MAX_VALUE;
+            } else {
+                try { speed = Double.parseDouble(manner); } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        if ("upward".equals(direction)) {
+            destination = start.add(0, 100, 0);
+        } else if (coordsStr != null) {
+            String[] parts = coordsStr.split(",");
+            if (parts.length == 3) {
+                try {
+                    double x = Double.parseDouble(parts[0]);
+                    double y = Double.parseDouble(parts[1]);
+                    double z = Double.parseDouble(parts[2]);
+                    destination = new Vec3(x, y, z);
+                } catch (NumberFormatException e) {
+                    return "Invalid coordinates format. Use x,y,z";
+                }
+            } else return "Coordinates must be x,y,z";
+        } else return "Must specify direction (upward) or coordinates";
+
+        if (speed >= Double.MAX_VALUE) {
+            target.teleportTo(destination.x, destination.y, destination.z);
+        } else {
+            animateTeleport(target, start, destination, speed);
+        }
+        if (noFallDamage) target.fallDistance = 0;
+        return "Teleported " + target.getName().getString() + " to " + destination;
+    }
+
+    private String spoofEvasiveGround(ServerPlayer target, Map<String, String> params) {
+        String manner = params.getOrDefault("manner", "");
+        String coordsStr = params.get("coordinates");
+        boolean suffocate = "yes".equalsIgnoreCase(params.get("injure"));
+        Vec3 start = target.position();
+        Vec3 destination;
+        double speed = 20;
+
+        if (!manner.isEmpty()) {
+            if ("fast".equals(manner)) {
+                speed = Double.MAX_VALUE;
+            } else {
+                try { speed = Double.parseDouble(manner); } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        if (coordsStr != null) {
+            String[] parts = coordsStr.split(",");
+            if (parts.length == 3) {
+                try {
+                    double x = Double.parseDouble(parts[0]);
+                    double y = Double.parseDouble(parts[1]);
+                    double z = Double.parseDouble(parts[2]);
+                    destination = new Vec3(x, y, z);
+                } catch (NumberFormatException e) {
+                    return "Invalid coordinates";
+                }
+            } else return "Invalid coordinates";
+        } else {
+            destination = start.add(0, -10, 0);
+        }
+
+        if (speed >= Double.MAX_VALUE) {
+            target.teleportTo(destination.x, destination.y, destination.z);
+        } else {
+            animateTeleport(target, start, destination, speed);
+        }
+        if (suffocate) target.hurt(target.damageSources().inWall(), 2.0f);
+        return "Burrowed " + target.getName().getString();
+    }
+
+    private void animateTeleport(ServerPlayer player, Vec3 from, Vec3 to, double blocksPerSecond) {
+        double distance = from.distanceTo(to);
+        long durationMs = (long) (distance / blocksPerSecond * 1000);
+        if (durationMs <= 0) {
+            player.teleportTo(to.x, to.y, to.z);
+            return;
+        }
+        scheduler.scheduleAtFixedRate(new Runnable() {
+            long startTime = System.currentTimeMillis();
+            @Override
+            public void run() {
+                long elapsed = System.currentTimeMillis() - startTime;
+                if (elapsed >= durationMs) {
+                    player.teleportTo(to.x, to.y, to.z);
+                    throw new RuntimeException("Done"); // 停止调度
+                }
+                double t = (double) elapsed / durationMs;
+                double x = from.x + (to.x - from.x) * t;
+                double y = from.y + (to.y - from.y) * t;
+                double z = from.z + (to.z - from.z) * t;
+                player.teleportTo(x, y, z);
+            }
+        }, 0, 50, TimeUnit.MILLISECONDS);
+    }
+
+    private String spoofStop(ServerPlayer target, Map<String, String> params) {
+        String timeStr = params.get("time");
+        if (timeStr == null) return "Missing required parameter: time";
+        long ms = parseTimeMs(timeStr, 0);
+        Vec3 pos = target.position();
+        float yRot = target.getYRot();
+        float xRot = target.getXRot();
+        scheduler.scheduleAtFixedRate(() -> {
+            target.teleportTo(pos.x, pos.y, pos.z);
+            target.setYRot(yRot);
+            target.setXRot(xRot);
+            target.setDeltaMovement(0, 0, 0);
+        }, 0, 50, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> {
+            // 停止调度
+        }, ms, TimeUnit.MILLISECONDS);
+        return "Froze " + target.getName().getString() + " for " + (ms/1000) + " seconds";
+    }
+
+    private String spoofQuickly(ServerPlayer target, Map<String, String> params) {
+        String timeStr = params.get("time");
+        float speed = getFloatParam(params, "speed", 2.0f);
+        if (timeStr == null) return "Missing required parameter: time";
+        long ms = parseTimeMs(timeStr, 0);
+        target.getAbilities().setSpeed(speed / 10f);
+        target.onUpdateAbilities();
+        scheduler.schedule(() -> {
+            target.getAbilities().setSpeed(0.1f);
+            target.onUpdateAbilities();
+        }, ms, TimeUnit.MILLISECONDS);
+        return "Applied speed " + speed + " to " + target.getName().getString() + " for " + (ms/1000) + "s";
+    }
+
+    private String spoofTortoise(ServerPlayer target, Map<String, String> params) {
+        String timeStr = params.get("time");
+        if (timeStr == null) return "Missing required parameter: time";
+        long ms = parseTimeMs(timeStr, 0);
+        target.getAbilities().setSpeed(0.02f);
+        target.onUpdateAbilities();
+        scheduler.schedule(() -> {
+            target.getAbilities().setSpeed(0.1f);
+            target.onUpdateAbilities();
+        }, ms, TimeUnit.MILLISECONDS);
+        return "Slowed " + target.getName().getString() + " for " + (ms/1000) + "s";
+    }
+
+    private String spoofBlackscreen(ServerPlayer target, Map<String, String> params) {
+        String timeStr = params.get("time");
+        if (timeStr == null) return "Missing required parameter: time";
+        long ms = parseTimeMs(timeStr, 0);
+        // 发送网络包给客户端显示黑屏
+        ModNetwork.sendToPlayer(new BlackScreenPayload(true), target);
+        scheduler.schedule(() -> ModNetwork.sendToPlayer(new BlackScreenPayload(false), target), ms, TimeUnit.MILLISECONDS);
+        return "Blackscreen applied to " + target.getName().getString() + " for " + (ms/1000) + " seconds";
     }
 }
