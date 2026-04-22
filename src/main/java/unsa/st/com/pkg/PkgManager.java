@@ -11,10 +11,10 @@ import org.apache.commons.compress.archivers.ar.ArArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.*;
+import java.lang.reflect.Constructor;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.*;
@@ -37,6 +37,28 @@ public class PkgManager {
     private static final String PATH_FILE = "PATH.txt";
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
     private static final String INDEX_CACHE = "var/cache/pkg/index.json";
+
+    // 动态查找 XZInputStream 类（处理 jarJar 重定位）
+    private static Class<?> xzInputStreamClass;
+    private static Constructor<?> xzInputStreamConstructor;
+    static {
+        String[] candidateClassNames = {
+            "org.tukaani.xz.XZInputStream",
+            "unsa.st.com.shaded.org.tukaani.xz.XZInputStream",
+            "unsa.st.com.jarjar.org.tukaani.xz.XZInputStream"
+        };
+        for (String className : candidateClassNames) {
+            try {
+                xzInputStreamClass = Class.forName(className);
+                xzInputStreamConstructor = xzInputStreamClass.getConstructor(InputStream.class);
+                ShortcutTerminal.LOGGER.info("Found XZInputStream: {}", className);
+                break;
+            } catch (Exception ignored) {}
+        }
+        if (xzInputStreamConstructor == null) {
+            ShortcutTerminal.LOGGER.error("XZInputStream not found in any expected package. XZ support disabled.");
+        }
+    }
 
     private static Path getGameDir(boolean isClient) {
         if (isClient) {
@@ -178,7 +200,20 @@ public class PkgManager {
                     if (suffix.endsWith(".gz")) {
                         parsePackagesStream(new GzipCompressorInputStream(is));
                     } else {
-                        parsePackagesStream(new XZCompressorInputStream(is));
+                        // 对于索引文件，我们仍可使用 XZCompressorInputStream（来自 commons-compress）
+                        // 但为避免潜在的类加载问题，改用反射创建 XZInputStream 并包装为 InputStream
+                        if (xzInputStreamConstructor != null) {
+                            try {
+                                InputStream xzStream = (InputStream) xzInputStreamConstructor.newInstance(is);
+                                parsePackagesStream(xzStream);
+                            } catch (Exception e) {
+                                errors.add(urlStr + " -> " + e.getMessage());
+                                continue;
+                            }
+                        } else {
+                            errors.add(urlStr + " -> XZ support unavailable");
+                            continue;
+                        }
                     }
                     indexLoaded = true;
                     saveIndexCache(isClient);
@@ -301,8 +336,11 @@ public class PkgManager {
                                 extractTar(tarIn, destDir.resolve("data"));
                             }
                         } else {
-                            try (TarArchiveInputStream tarIn = new TarArchiveInputStream(
-                                    new XZCompressorInputStream(Files.newInputStream(outFile)))) {
+                            if (xzInputStreamConstructor == null) {
+                                throw new IOException("XZ support unavailable, cannot extract data.tar.xz");
+                            }
+                            try (InputStream xzStream = (InputStream) xzInputStreamConstructor.newInstance(Files.newInputStream(outFile));
+                                 TarArchiveInputStream tarIn = new TarArchiveInputStream(xzStream)) {
                                 extractTar(tarIn, destDir.resolve("data"));
                             }
                         }
