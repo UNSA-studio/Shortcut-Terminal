@@ -119,8 +119,6 @@ public class PkgManager {
                 lines.add(entry.getKey() + " - " + entry.getValue().toString());
             }
             Files.write(pathFile, lines);
-
-            ShortcutTerminal.LOGGER.info("PATH updated with {} commands.", commands.size());
         } catch (IOException e) {
             ShortcutTerminal.LOGGER.error("Failed to update PATH", e);
         }
@@ -308,7 +306,6 @@ public class PkgManager {
         Files.walk(dir).filter(Files::isRegularFile).forEach(f -> f.toFile().setExecutable(true));
     }
 
-    // 修复点：不再捕获特定 XZ 异常，统一使用 Exception，避免 NoClassDefFoundError
     private static void extractDeb(Path debFile, Path destDir) throws IOException {
         try (ArArchiveInputStream arIn = new ArArchiveInputStream(new BufferedInputStream(Files.newInputStream(debFile)))) {
             ArArchiveEntry entry;
@@ -325,14 +322,14 @@ public class PkgManager {
                                     new GzipCompressorInputStream(Files.newInputStream(outFile)))) {
                                 extractTar(tarIn, destDir.resolve("data"));
                             }
-                        } else if (name.endsWith(".xz")) {
+                        } else {
+                            // 统一使用 XZCompressorInputStream，避免直接引用 org.tukaani.xz
                             try (TarArchiveInputStream tarIn = new TarArchiveInputStream(
                                     new XZCompressorInputStream(Files.newInputStream(outFile)))) {
                                 extractTar(tarIn, destDir.resolve("data"));
                             }
                         }
                     } catch (Exception e) {
-                        // 捕获所有异常并重新抛出为 IOException，不依赖特定 XZ 异常类
                         throw new IOException("Failed to extract " + name + ": " + e.getMessage(), e);
                     }
                 }
