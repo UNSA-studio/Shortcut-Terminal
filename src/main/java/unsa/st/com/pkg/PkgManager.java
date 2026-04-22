@@ -101,7 +101,6 @@ public class PkgManager {
             Path binaryPath = getBinaryPath(isClient);
 
             Map<String, Path> commands = new LinkedHashMap<>();
-
             for (Path dir : new Path[]{programBin, programSbin, programUsrBin, programUsrSbin, binaryPath}) {
                 if (Files.exists(dir)) {
                     Files.walk(dir, 1)
@@ -155,14 +154,12 @@ public class PkgManager {
         if (indexLoaded && !force) {
             return "Index already loaded. Use 'pkg update force' to refresh.";
         }
-
         if (!force && loadIndexCache(isClient)) {
             return "Loaded cached index (" + remoteIndex.size() + " packages). Use 'pkg update force' to refresh from network.";
         }
 
         String arch = System.getProperty("os.arch").toLowerCase().contains("arm") ? "arm64" : "amd64";
         List<String> errors = new ArrayList<>();
-
         for (String mirror : MIRRORS) {
             String base = mirror + "/dists/" + DEBIAN_VERSION + "/main/binary-" + arch;
             for (String suffix : new String[]{"/Packages.gz", "/Packages.xz"}) {
@@ -173,19 +170,16 @@ public class PkgManager {
                     conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
                     conn.setConnectTimeout(8000);
                     conn.setReadTimeout(15000);
-
                     if (conn.getResponseCode() != 200) {
                         errors.add(urlStr + " -> HTTP " + conn.getResponseCode());
                         continue;
                     }
-
                     InputStream is = conn.getInputStream();
                     if (suffix.endsWith(".gz")) {
                         parsePackagesStream(new GzipCompressorInputStream(is));
                     } else {
                         parsePackagesStream(new XZCompressorInputStream(is));
                     }
-
                     indexLoaded = true;
                     saveIndexCache(isClient);
                     return "Index updated from " + mirror + " (" + remoteIndex.size() + " packages).";
@@ -225,9 +219,7 @@ public class PkgManager {
             if (line.trim().isEmpty()) {
                 if (block.length() > 0) {
                     PackageInfo info = PackageInfo.parse(block.toString());
-                    if (info.packageName != null) {
-                        remoteIndex.put(info.packageName, info);
-                    }
+                    if (info.packageName != null) remoteIndex.put(info.packageName, info);
                     block.setLength(0);
                 }
             } else {
@@ -236,31 +228,21 @@ public class PkgManager {
         }
         if (block.length() > 0) {
             PackageInfo info = PackageInfo.parse(block.toString());
-            if (info.packageName != null) {
-                remoteIndex.put(info.packageName, info);
-            }
+            if (info.packageName != null) remoteIndex.put(info.packageName, info);
         }
     }
 
     public static String install(String packageName, boolean isClient) {
-        if (!indexLoaded) {
-            updateIndex(isClient, false);
-        }
-
+        if (!indexLoaded) updateIndex(isClient, false);
         Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
-        if (!remoteIndex.containsKey(packageName)) {
-            return "Package not found: " + packageName;
-        }
-        if (localDb.containsKey(packageName)) {
-            return "Package already installed: " + packageName;
-        }
+        if (!remoteIndex.containsKey(packageName)) return "Package not found: " + packageName;
+        if (localDb.containsKey(packageName)) return "Package already installed: " + packageName;
 
         PackageInfo pkg = remoteIndex.get(packageName);
         String baseUrl = MIRRORS[0];
         String debUrl = baseUrl + "/" + pkg.filename;
 
-        Path tmpDeb = null;
-        Path extractDir = null;
+        Path tmpDeb = null, extractDir = null;
         try {
             tmpDeb = Files.createTempFile("pkg_", ".deb");
             HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
@@ -275,10 +257,7 @@ public class PkgManager {
             extractDeb(tmpDeb, extractDir);
 
             Path dataDir = extractDir.resolve("data");
-            if (!Files.exists(dataDir)) {
-                dataDir = extractDir;
-            }
-
+            if (!Files.exists(dataDir)) dataDir = extractDir;
             Path targetDir = getProgramPath(isClient);
             copyDirectory(dataDir, targetDir);
 
@@ -290,7 +269,6 @@ public class PkgManager {
             localDb.put(packageName, pkg);
             saveLocalDatabase(isClient, localDb);
             ensurePath(isClient);
-
             return "Package installed: " + packageName + " (" + pkg.version + ")";
         } catch (Exception e) {
             ShortcutTerminal.LOGGER.error("Installation failed for " + packageName, e);
@@ -323,7 +301,6 @@ public class PkgManager {
                                 extractTar(tarIn, destDir.resolve("data"));
                             }
                         } else {
-                            // 统一使用 XZCompressorInputStream，避免直接引用 org.tukaani.xz
                             try (TarArchiveInputStream tarIn = new TarArchiveInputStream(
                                     new XZCompressorInputStream(Files.newInputStream(outFile)))) {
                                 extractTar(tarIn, destDir.resolve("data"));
@@ -369,9 +346,8 @@ public class PkgManager {
     private static void deleteRecursive(Path path) {
         try {
             if (Files.exists(path)) {
-                Files.walk(path)
-                    .sorted(Comparator.reverseOrder())
-                    .forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });
+                Files.walk(path).sorted(Comparator.reverseOrder())
+                        .forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });
             }
         } catch (IOException ignored) {}
     }
@@ -408,9 +384,7 @@ public class PkgManager {
     public static List<String> getPathEntries(boolean isClient) {
         try {
             Path pathFile = getPathFile(isClient);
-            if (Files.exists(pathFile)) {
-                return Files.readAllLines(pathFile);
-            }
+            if (Files.exists(pathFile)) return Files.readAllLines(pathFile);
         } catch (IOException ignored) {}
         return new ArrayList<>();
     }
@@ -425,9 +399,7 @@ public class PkgManager {
     }
 
     public static List<String> listAvailable() {
-        if (!indexLoaded) {
-            updateIndex(false, false);
-        }
+        if (!indexLoaded) updateIndex(false, false);
         return new ArrayList<>(remoteIndex.keySet());
     }
 }
