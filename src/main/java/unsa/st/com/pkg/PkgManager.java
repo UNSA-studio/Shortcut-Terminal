@@ -60,6 +60,19 @@ public class PkgManager {
         }
     }
 
+    // ========== Android 真机检测 ==========
+    private static boolean isRealAndroid() {
+        // 检查特征属性：Android 特有的系统属性或环境变量
+        String javaVendor = System.getProperty("java.vendor", "").toLowerCase();
+        String javaVmName = System.getProperty("java.vm.name", "").toLowerCase();
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String androidRoot = System.getenv("ANDROID_ROOT");
+        String androidData = System.getenv("ANDROID_DATA");
+
+        return (javaVendor.contains("android") || javaVmName.contains("dalvik") || osName.contains("android") ||
+                (androidRoot != null && !androidRoot.isEmpty()) || (androidData != null && !androidData.isEmpty()));
+    }
+
     private static Path getGameDir(boolean isClient) {
         if (isClient) {
             return Minecraft.getInstance().gameDirectory.toPath();
@@ -200,8 +213,6 @@ public class PkgManager {
                     if (suffix.endsWith(".gz")) {
                         parsePackagesStream(new GzipCompressorInputStream(is));
                     } else {
-                        // 对于索引文件，我们仍可使用 XZCompressorInputStream（来自 commons-compress）
-                        // 但为避免潜在的类加载问题，改用反射创建 XZInputStream 并包装为 InputStream
                         if (xzInputStreamConstructor != null) {
                             try {
                                 InputStream xzStream = (InputStream) xzInputStreamConstructor.newInstance(is);
@@ -273,6 +284,12 @@ public class PkgManager {
         if (!remoteIndex.containsKey(packageName)) return "Package not found: " + packageName;
         if (localDb.containsKey(packageName)) return "Package already installed: " + packageName;
 
+        // Android 权限警告
+        String warning = "";
+        if (isRealAndroid()) {
+            warning = "\n§c[!] You are running on Android. Installed programs will NOT be executable due to system restrictions.\n§c    The files are extracted but cannot be granted execute permission. This is unavoidable.";
+        }
+
         PackageInfo pkg = remoteIndex.get(packageName);
         String baseUrl = MIRRORS[0];
         String debUrl = baseUrl + "/" + pkg.filename;
@@ -304,7 +321,7 @@ public class PkgManager {
             localDb.put(packageName, pkg);
             saveLocalDatabase(isClient, localDb);
             ensurePath(isClient);
-            return "Package installed: " + packageName + " (" + pkg.version + ")";
+            return "Package installed: " + packageName + " (" + pkg.version + ")" + warning;
         } catch (Exception e) {
             ShortcutTerminal.LOGGER.error("Installation failed for " + packageName, e);
             return "Installation failed: " + e.getMessage();
