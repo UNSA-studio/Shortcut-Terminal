@@ -9,16 +9,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import unsa.st.com.ShortcutTerminal;
-import unsa.st.com.chunk.ChunkLoadManager;
-import unsa.st.com.chunk.ChunkRequestManager;
 import unsa.st.com.core.CoreCommandExecutor;
-import unsa.st.com.dummy.PlayerMacroManager;
-import unsa.st.com.fakeplayer.FakePlayerManager;
-import unsa.st.com.filesystem.UserFileSystem;
-import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.TriggerSyncPayload;
 import unsa.st.com.pkg.PkgManager;
-import unsa.st.com.util.OfflineTeleportManager;
 
 public class ModCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -28,17 +21,9 @@ public class ModCommands {
                     .then(Commands.literal("strongloading")
                         .then(Commands.argument("distance", StringArgumentType.word())
                             .executes(ctx -> {
+                                String distance = StringArgumentType.getString(ctx, "distance");
                                 ServerPlayer player = ctx.getSource().getPlayer();
-                                if (player == null) return 0;
-                                String distStr = StringArgumentType.getString(ctx, "distance");
-                                try {
-                                    int distance = Integer.parseInt(distStr);
-                                    ChunkLoadManager.setStrongLoading(player, distance);
-                                    ctx.getSource().sendSuccess(() -> Component.literal("Strong loading set to " + distance), true);
-                                } catch (NumberFormatException e) {
-                                    ctx.getSource().sendFailure(Component.literal("Invalid distance value"));
-                                }
-                                return 1;
+                                return runCoreCommand(ctx.getSource(), player, "run", "strongloading", distance);
                             })
                         )
                     )
@@ -48,14 +33,8 @@ public class ModCommands {
                                 .executes(ctx -> {
                                     String action = StringArgumentType.getString(ctx, "action");
                                     String interval = StringArgumentType.getString(ctx, "interval_ms");
-                                    try {
-                                        long ms = Long.parseLong(interval);
-                                        PlayerMacroManager.startMacro(action, ms);
-                                        ctx.getSource().sendSuccess(() -> Component.literal("Macro started: " + action + " every " + ms + "ms"), true);
-                                    } catch (NumberFormatException e) {
-                                        ctx.getSource().sendFailure(Component.literal("Invalid interval"));
-                                    }
-                                    return 1;
+                                    ServerPlayer player = ctx.getSource().getPlayer();
+                                    return runCoreCommand(ctx.getSource(), player, "run", "macro", action, interval);
                                 })
                             )
                         )
@@ -104,10 +83,7 @@ public class ModCommands {
                     .then(Commands.literal("dummymodule")
                         .executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayer();
-                            if (player == null) return 0;
-                            FakePlayerManager.spawnFakePlayer(player);
-                            ctx.getSource().sendSuccess(() -> Component.literal("Fake player spawned."), true);
-                            return 1;
+                            return runCoreCommand(ctx.getSource(), player, "run", "dummymodule");
                         })
                     )
                 )
@@ -165,6 +141,22 @@ public class ModCommands {
                 )
         );
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
+    }
+
+    // 通用调用 CoreCommandExecutor
+    private static int runCoreCommand(CommandSourceStack source, ServerPlayer player, String module, String... args) {
+        if (player == null) {
+            source.sendFailure(Component.literal("This command can only be run by a player."));
+            return 0;
+        }
+        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+        executor.setPlayer(player);
+        String[] fullArgs = new String[args.length + 1];
+        fullArgs[0] = module;
+        System.arraycopy(args, 0, fullArgs, 1, args.length);
+        String result = executor.execute("run", fullArgs);
+        source.sendSuccess(() -> Component.literal(result), false);
+        return 1;
     }
 
     private static String[] buildSpoofArgs(String action, String playerName, String[] params) {
