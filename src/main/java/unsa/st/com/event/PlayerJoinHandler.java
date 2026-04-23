@@ -1,68 +1,49 @@
 package unsa.st.com.event;
 
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.network.PacketDistributor;
+import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.network.TriggerSyncPayload;
 
-import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.*;
 
+@EventBusSubscriber(modid = ShortcutTerminal.MODID)
 public class PlayerJoinHandler {
-    private static final String PATCHOULI_MOD_ID = "patchouli";
-    private static final ResourceLocation OUR_BOOK_ID = ResourceLocation.fromNamespaceAndPath("shortcutterminal", "st_guide");
-    private static final String BOOK_GIVEN_TAG = "shortcutterminal_book_given";
+    private static final ScheduledExecutorService syncScheduler = Executors.newScheduledThreadPool(1);
+    private static final Map<UUID, ScheduledFuture<?>> playerSyncTasks = new ConcurrentHashMap<>();
+
+    // 每5分钟执行一次同步
+    private static final long SYNC_INTERVAL_MINUTES = 5;
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!ModList.get().isLoaded(PATCHOULI_MOD_ID)) {
-            return;
-        }
         if (event.getEntity() instanceof ServerPlayer player) {
-            if (hasReceivedBook(player)) {
-                return;
-            }
+            // 开始定时同步
+            ScheduledFuture<?> task = syncScheduler.scheduleAtFixedRate(() -> {
+                // 向玩家客户端发送同步触发包，执行 local -> server 同步
+                PacketDistributor.sendToPlayer(new TriggerSyncPayload(true), player);
+                
+                // 在服务器日志中记录（可选）
+                ShortcutTerminal.LOGGER.debug("Triggered auto file sync for player {}", player.getName().getString());
+            }, SYNC_INTERVAL_MINUTES, SYNC_INTERVAL_MINUTES, TimeUnit.MINUTES);
             
-            boolean hasBook = player.getInventory().items.stream()
-                    .anyMatch(stack -> {
-                        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-                        return customData != null &&
-                                OUR_BOOK_ID.toString().equals(customData.copyTag().getString("patchouli:book"));
-                    });
-            
-            if (!hasBook) {
-                ItemStack book = getPatchouliBookSafely(OUR_BOOK_ID);
-                if (!book.isEmpty()) {
-                    if (!player.getInventory().add(book)) {
-                        player.drop(book, false);
-                    }
-                }
-            }
-            markBookReceived(player);
+            playerSyncTasks.put(player.getUUID(), task);
         }
     }
 
-    private boolean hasReceivedBook(ServerPlayer player) {
-        return player.getPersistentData().contains(BOOK_GIVEN_TAG);
-    }
-
-    private void markBookReceived(ServerPlayer player) {
-        player.getPersistentData().putBoolean(BOOK_GIVEN_TAG, true);
-    }
-
-    private static ItemStack getPatchouliBookSafely(ResourceLocation bookId) {
-        try {
-            Class<?> apiClass = Class.forName("vazkii.patchouli.api.PatchouliAPI");
-            Method getMethod = apiClass.getMethod("get");
-            Object api = getMethod.invoke(null);
-            Method getBookStackMethod = api.getClass().getMethod("getBookStack", ResourceLocation.class);
-            Object result = getBookStackMethod.invoke(api, bookId);
-            return (result instanceof ItemStack stack) ? stack : ItemStack.EMPTY;
-        } catch (Throwable t) {
-            return ItemStack.EMPTY;
+    @SubscribeEvent
+    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ScheduledFuture<?> task = playerSyncTasks.remove(player.getUUID());
+            if (task != null) {
+                task.cancel(false);
+            }
         }
     }
 }

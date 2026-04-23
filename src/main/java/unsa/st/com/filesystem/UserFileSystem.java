@@ -92,4 +92,22 @@ public class UserFileSystem {
         return copy(u, cur, src, dst, true) && delete(u, cur, src, true);
     }
     public static Path resolvePath(UUID u, String cur, String tgt) { return getUserPath(u).resolve(normalizePath(cur, tgt)); }
+    public static Map<String, String> getFileSystemSnapshot(UUID uuid) {
+    Map<String, String> snapshot = new HashMap<>();
+    Path userRoot = getUserPath(uuid);
+    if (!Files.exists(userRoot)) return snapshot;
+    
+    try {
+        Files.walk(userRoot)
+                .filter(Files::isRegularFile)
+                .forEach(file -> {
+                    try {
+                        String relativePath = "/" + userRoot.relativize(file).toString().replace('\\', '/');
+                        String content = Files.readString(file);
+                        snapshot.put(relativePath, content);
+                    } catch (IOException ignored) {}
+                });
+    } catch (IOException ignored) {}
+    return snapshot;
+}
 }

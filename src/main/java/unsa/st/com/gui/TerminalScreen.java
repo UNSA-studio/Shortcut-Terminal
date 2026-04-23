@@ -13,10 +13,12 @@ import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.client.TerminalSessionManager;
 import unsa.st.com.client.TerminalSessionManager.SessionData;
 import unsa.st.com.network.ExecuteCommandPacket;
+import unsa.st.com.network.RequestServerSyncPayload;
 import unsa.st.com.network.SyncFileSystemPacket;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class TerminalScreen extends Screen {
     private static final int BORDER_COLOR = 0xFFFFFFFF;
@@ -26,7 +28,7 @@ public class TerminalScreen extends Screen {
     private static final int GUI_HEIGHT = 200;
     private static final int PADDING = 6;
     private static final int SCROLLBAR_WIDTH = 6;
-    private static final double SCROLL_SPEED = 40.0; // 提高滚动速度
+    private static final double SCROLL_SPEED = 40.0;
 
     private int leftPos, topPos;
     private EditBox commandInput;
@@ -55,6 +57,10 @@ public class TerminalScreen extends Screen {
     public TerminalScreen() {
         super(Component.literal("Terminal"));
         instance = this;
+    }
+
+    public static TerminalScreen getInstance() {
+        return instance;
     }
 
     @Override
@@ -139,13 +145,11 @@ public class TerminalScreen extends Screen {
         
         int totalContentHeight = outputLines.size() * lineHeight;
         int maxScroll = Math.max(0, totalContentHeight - outputHeight);
-        // 严格裁剪滚动偏移，防止穿模
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
         
         int startLine = (int) (scrollOffset / lineHeight);
         int endLine = Math.min(outputLines.size(), startLine + maxVisibleLines + 1);
         
-        // 修正Y坐标计算，避免超出绘制区域
         for (int i = startLine; i < endLine; i++) {
             int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
             if (y < outputStartY) y = outputStartY;
@@ -338,8 +342,19 @@ public class TerminalScreen extends Screen {
         
         if (cmd.equals("run") && args.length >= 1 && args[0].equals("synchrony")) {
             if (args.length >= 2) {
-                if (args[1].equals("-server")) { pendingSyncAction = SyncAction.TO_LOCAL; forcibleState = true; forciblePrompt = "Are you sure you want to sync from server? [Y/N]"; this.commandInput.setValue(""); return; }
-                else if (args[1].equals("-local")) { pendingSyncAction = SyncAction.TO_SERVER; forcibleState = true; forciblePrompt = "Are you sure you want to sync to server? [Y/N]"; this.commandInput.setValue(""); return; }
+                if (args[1].equals("-server")) { 
+                    pendingSyncAction = SyncAction.TO_LOCAL; 
+                    forcibleState = true; 
+                    forciblePrompt = "Are you sure you want to sync from server? [Y/N]"; 
+                    this.commandInput.setValue(""); 
+                    return; 
+                } else if (args[1].equals("-local")) { 
+                    pendingSyncAction = SyncAction.TO_SERVER; 
+                    forcibleState = true; 
+                    forciblePrompt = "Are you sure you want to sync to server? [Y/N]"; 
+                    this.commandInput.setValue(""); 
+                    return; 
+                }
             }
         }
         
@@ -364,20 +379,46 @@ public class TerminalScreen extends Screen {
     }
     
     private void performSync() {
-        if (pendingSyncAction == SyncAction.TO_SERVER) {
-            syncFileSystemToServer();
-            outputLines.add("Local data synced to server.");
-        } else if (pendingSyncAction == SyncAction.TO_LOCAL) {
-            outputLines.add("Sync from server not yet implemented.");
+    if (pendingSyncAction == SyncAction.TO_SERVER) {
+        // 显示开始消息
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.displayClientMessage(Component.literal("§e[Sync] File sync started, please do not shut down the game."), false);
         }
-        saveCurrentSession();
-        updatePrompt();
-        scrollOffset = Double.MAX_VALUE;
+        syncFileSystemToServer();
+        outputLines.add("Local data synced to server.");
+        // 显示完成消息
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
+        }
+    } else if (pendingSyncAction == SyncAction.TO_LOCAL) {
+        requestSyncFromServer();
     }
+    saveCurrentSession();
+    updatePrompt();
+    scrollOffset = Double.MAX_VALUE;
+}
 
     private void syncFileSystemToServer() {
         var snapshot = ClientVirtualFileSystem.getFileSystemSnapshot(executor.getPlayerUuid().toString());
         PacketDistributor.sendToServer(new SyncFileSystemPacket(executor.getPlayerUuid().toString(), snapshot));
+    }
+
+    public void requestSyncFromServer() {
+        PacketDistributor.sendToServer(new RequestServerSyncPayload(executor.getPlayerUuid().toString()));
+        outputLines.add("Requesting file list from server...");
+    }
+
+    public static void receiveServerSyncData(String uuid, Map<String, String> files) {
+        if (instance == null) return;
+        for (Map.Entry<String, String> entry : files.entrySet()) {
+            String fullPath = entry.getKey();
+            String content = entry.getValue();
+            int lastSlash = fullPath.lastIndexOf('/');
+            String dirPath = lastSlash > 0 ? fullPath.substring(0, lastSlash + 1) : "/";
+            String fileName = fullPath.substring(lastSlash + 1);
+            ClientVirtualFileSystem.writeFile(instance.playerName, dirPath, fileName, content);
+        }
+        instance.addOutputLine("§a[Sync] Received and applied " + files.size() + " files from server.");
     }
 
     public static void receiveCommandResult(String result) {
@@ -386,6 +427,12 @@ public class TerminalScreen extends Screen {
             instance.saveCurrentSession();
             instance.scrollOffset = Double.MAX_VALUE;
         }
+    }
+
+    public void addOutputLine(String line) {
+        outputLines.add(line);
+        saveCurrentSession();
+        scrollOffset = Double.MAX_VALUE;
     }
 
     @Override public boolean isPauseScreen() { return false; }
