@@ -37,7 +37,6 @@ public class ShortcutTerminal {
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TerminalManager());
-        NeoForge.EVENT_BUS.register(new ClientEventHandler());
         NeoForge.EVENT_BUS.register(new PlayerJoinHandler());
         NeoForge.EVENT_BUS.register(new OfflineTeleportManager());
         modEventBus.register(ModNetwork.class);
