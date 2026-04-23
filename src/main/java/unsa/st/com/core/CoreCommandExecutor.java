@@ -662,9 +662,8 @@ if (creeper != null) {
     try {
         java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);
         method.invoke(creeper, true);
-    } catch (Exception e) {
-        // 如果反射失败，尝试直接设置（运行时不会报 private 错误）
-        creeper.getEntityData().set(Creeper.DATA_IS_POWERED, true);
+    } catch (Exception ignored) {
+        // 忽略异常，保证不崩溃
     }
 }
                 level.addFreshEntity(creeper);
