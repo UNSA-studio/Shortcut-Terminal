@@ -48,4 +48,6 @@ public class ModNetwork {
                 ServerSyncDataPayload::handleClient
         );
     }
+    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+    PacketDistributor.sendToPlayer(player, payload);
 }
