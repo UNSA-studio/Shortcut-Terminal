@@ -35,7 +35,7 @@ public class ModCommands {
                             .executes(ctx -> {
                                 ServerPlayer player = ctx.getSource().getPlayer();
                                 if (player != null) {
-                                    PacketDistributor.sendToPlayer(new TriggerSyncPayload(true), player);
+                                    PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
                                     ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering local → server sync..."), false);
                                 }
                                 return 1;
@@ -45,7 +45,7 @@ public class ModCommands {
                             .executes(ctx -> {
                                 ServerPlayer player = ctx.getSource().getPlayer();
                                 if (player != null) {
-                                    PacketDistributor.sendToPlayer(new TriggerSyncPayload(false), player);
+                                    PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(false));
                                     ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering server → local sync..."), false);
                                 }
                                 return 1;

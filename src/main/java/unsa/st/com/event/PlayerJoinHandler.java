@@ -22,7 +22,7 @@ public class PlayerJoinHandler {
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             ScheduledFuture<?> task = syncScheduler.scheduleAtFixedRate(() -> {
-                PacketDistributor.sendToPlayer(new TriggerSyncPayload(true), player);
+                PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
             }, SYNC_INTERVAL_MINUTES, SYNC_INTERVAL_MINUTES, TimeUnit.MINUTES);
             
             playerSyncTasks.put(player.getUUID(), task);
