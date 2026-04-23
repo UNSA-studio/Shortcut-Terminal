@@ -658,7 +658,7 @@ public class CoreCommandExecutor {
             Creeper creeper = EntityType.CREEPER.create(level);
 if (creeper != null) {
     creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-               if (charged) creeper.setPowered(true);
+               if (charged) creeper.getEntityData().set(Creeper.DATA_IS_POWERED, true);
                 level.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
                     creeper.ignite();
