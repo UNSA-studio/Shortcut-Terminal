@@ -2,7 +2,6 @@ package unsa.st.com.event;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import unsa.st.com.ShortcutTerminal;
@@ -12,7 +11,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
-@EventBusSubscriber(modid = ShortcutTerminal.MODID)
 public class PlayerJoinHandler {
     private static final ScheduledExecutorService syncScheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, ScheduledFuture<?>> playerSyncTasks = new ConcurrentHashMap<>();
