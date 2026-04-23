@@ -377,7 +377,7 @@ public class TerminalScreen extends Screen {
 
     private void syncFileSystemToServer() {
         var snapshot = ClientVirtualFileSystem.getFileSystemSnapshot(executor.getPlayerUuid().toString());
-        PacketDistributor.sendToServer(new SyncFileSystemPacket(executor.getPlayerUuid(), snapshot));
+        PacketDistributor.sendToServer(new SyncFileSystemPacket(executor.getPlayerUuid().toString(), snapshot));
     }
 
     public static void receiveCommandResult(String result) {
