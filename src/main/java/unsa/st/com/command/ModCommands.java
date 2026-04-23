@@ -8,10 +8,8 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import unsa.st.com.ShortcutTerminal;
-import unsa.st.com.chunk.ChunkLoadManager;
 import unsa.st.com.core.CoreCommandExecutor;
 import unsa.st.com.dummy.PlayerMacroManager;
-import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.TriggerSyncPayload;
 import unsa.st.com.pkg.PkgManager;
@@ -21,14 +19,6 @@ public class ModCommands {
         dispatcher.register(
             Commands.literal("st")
                 .then(Commands.literal("run")
-                    .then(Commands.literal("strongloading")
-                        .then(Commands.argument("distance", StringArgumentType.word())
-                            .executes(ctx -> {
-                                String distStr = StringArgumentType.getString(ctx, "distance");
-                                return executeStrongloading(ctx.getSource(), distStr);
-                            })
-                        )
-                    )
                     .then(Commands.literal("macro")
                         .then(Commands.argument("action", StringArgumentType.word())
                             .then(Commands.argument("interval_ms", StringArgumentType.word())
@@ -45,7 +35,7 @@ public class ModCommands {
                             .executes(ctx -> {
                                 ServerPlayer player = ctx.getSource().getPlayer();
                                 if (player != null) {
-                                    ModNetwork.sendToPlayer(new TriggerSyncPayload(true), player);
+                                    PacketDistributor.sendToPlayer(new TriggerSyncPayload(true), player);
                                     ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering local → server sync..."), false);
                                 }
                                 return 1;
@@ -55,7 +45,7 @@ public class ModCommands {
                             .executes(ctx -> {
                                 ServerPlayer player = ctx.getSource().getPlayer();
                                 if (player != null) {
-                                    ModNetwork.sendToPlayer(new TriggerSyncPayload(false), player);
+                                    PacketDistributor.sendToPlayer(new TriggerSyncPayload(false), player);
                                     ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering server → local sync..."), false);
                                 }
                                 return 1;
@@ -101,23 +91,10 @@ public class ModCommands {
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
     }
 
-    private static int executeStrongloading(CommandSourceStack source, String distStr) {
-        if (source.getPlayer() == null) return 0;
-        try {
-            int distance = Integer.parseInt(distStr);
-            ChunkLoadManager.setStrongLoading(source.getPlayer(), distance);
-            source.sendSuccess(() -> Component.literal("Strong loading set to " + distance), true);
-        } catch (NumberFormatException e) {
-            source.sendFailure(Component.literal("Invalid distance value"));
-        }
-        return 1;
-    }
-
     private static int executeMacro(CommandSourceStack source, String action, String intervalStr) {
-        if (source.getPlayer() == null) return 0;
         try {
             long interval = Long.parseLong(intervalStr);
-            PlayerMacroManager.startMacro(source.getPlayer(), action, interval);
+            PlayerMacroManager.startMacro(action, interval);  // 修正为正确的参数列表 (String, long)
             source.sendSuccess(() -> Component.literal("Macro started: " + action + " every " + interval + "ms"), true);
         } catch (NumberFormatException e) {
             source.sendFailure(Component.literal("Invalid interval"));

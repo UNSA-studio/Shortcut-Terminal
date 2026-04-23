@@ -5,7 +5,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.filesystem.UserFileSystem;
@@ -39,7 +38,7 @@ public record RequestServerSyncPayload(String uuid) implements CustomPacketPaylo
             if (player == null) return;
             
             Map<String, String> allFiles = UserFileSystem.getFileSystemSnapshot(uuid);
-            PacketDistributor.sendToPlayer(new ServerSyncDataPayload(allFiles), player);
+            ModNetwork.sendToPlayer(player, new ServerSyncDataPayload(allFiles));
         });
     }
 }

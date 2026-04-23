@@ -56,14 +56,13 @@ public record SyncFileSystemPacket(String uuid, Map<String, String> files) imple
                 String fullPath = entry.getKey();
                 String content = entry.getValue();
                 
-                // 解析路径：最后一部分是文件名，前面是目录
                 int lastSlash = fullPath.lastIndexOf('/');
                 String dirPath = lastSlash > 0 ? fullPath.substring(0, lastSlash + 1) : "/";
                 String fileName = fullPath.substring(lastSlash + 1);
                 
-                if (UserFileSystem.writeFile(uuid, dirPath, fileName, content)) {
-                    success++;
-                }
+                // writeFile 返回 void，直接调用无法判断成功与否
+                UserFileSystem.writeFile(uuid, dirPath, fileName, content);
+                success++;
             }
             
             player.sendSystemMessage(Component.literal("§a[Sync] " + success + " files synced from client to server."));

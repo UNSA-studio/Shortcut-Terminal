@@ -47,20 +47,9 @@ public class ModNetwork {
                 ServerSyncDataPayload.STREAM_CODEC,
                 ServerSyncDataPayload::handleClient
         );
-        
-        // 终端命令执行包（客户端→服务端）
-        registrar.playToServer(
-                ExecuteCommandPacket.TYPE,
-                ExecuteCommandPacket.STREAM_CODEC,
-                ExecuteCommandPacket::handleServer
-        );
     }
 
-    public static void sendToPlayer(CustomPacketPayload payload, ServerPlayer player) {
+    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         PacketDistributor.sendToPlayer(player, payload);
-    }
-    
-    public static void sendToServer(CustomPacketPayload payload) {
-        PacketDistributor.sendToServer(payload);
     }
 }
