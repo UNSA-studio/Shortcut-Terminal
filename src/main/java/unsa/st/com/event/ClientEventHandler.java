@@ -10,7 +10,7 @@ import unsa.st.com.client.BlackScreenHandler;
 @EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT)
 public class ClientEventHandler {
     @SubscribeEvent
-    public static void onRenderGuiOverlay(RenderGuiLayerEvent.Post event) {
+    public void onRenderGuiOverlay(RenderGuiLayerEvent.Post event) {  // 去掉 static
         if (BlackScreenHandler.isEnabled()) {
             var graphics = event.getGuiGraphics();
             int width = graphics.guiWidth();
