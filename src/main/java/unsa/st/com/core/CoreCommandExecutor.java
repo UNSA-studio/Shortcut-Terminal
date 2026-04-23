@@ -655,9 +655,9 @@ public class CoreCommandExecutor {
         Level level = target.level();
         BlockPos pos = target.blockPosition();
         for (int i = 0; i < quantity; i++) {
-            Creeper creeper = EntityType..create(level);
-            if ( != null) {
-                .setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+            Creeper creeper = EntityType.CREEPER.create(level);
+if (creeper != null) {
+    creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
                if (charged) creeper.setPowered(true);
                 level.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
