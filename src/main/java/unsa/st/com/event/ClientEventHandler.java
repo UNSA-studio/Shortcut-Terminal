@@ -4,7 +4,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.client.BlackScreenHandler;
 
@@ -14,8 +13,8 @@ public class ClientEventHandler {
     public static void onRenderGuiOverlay(RenderGuiLayerEvent.Post event) {
         if (BlackScreenHandler.isEnabled()) {
             var graphics = event.getGuiGraphics();
-            int width = event.getWindow().getGuiScaledWidth();
-            int height = event.getWindow().getGuiScaledHeight();
+            int width = graphics.guiWidth();
+            int height = graphics.guiHeight();
             graphics.fill(0, 0, width, height, 0xFF000000);
         }
     }

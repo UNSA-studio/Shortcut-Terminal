@@ -6,24 +6,28 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.client.BlackScreenHandler;
 
 public record BlackScreenPayload(boolean enable) implements CustomPacketPayload {
     public static final Type<BlackScreenPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(ShortcutTerminal.MODID, "black_screen"));
-    public static final StreamCodec<FriendlyByteBuf, BlackScreenPayload> STREAM_CODEC = StreamCodec.composite(
-            FriendlyByteBuf::readBoolean,
-            BlackScreenPayload::enable,
-            BlackScreenPayload::new
-    );
+    
+    public static final StreamCodec<FriendlyByteBuf, BlackScreenPayload> STREAM_CODEC = new StreamCodec<>() {
+        @Override
+        public BlackScreenPayload decode(FriendlyByteBuf buf) {
+            return new BlackScreenPayload(buf.readBoolean());
+        }
+        @Override
+        public void encode(FriendlyByteBuf buf, BlackScreenPayload payload) {
+            buf.writeBoolean(payload.enable);
+        }
+    };
 
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     public static void handleClient(final BlackScreenPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            // 客户端设置黑屏渲染标志
-            net.minecraft.client.Minecraft.getInstance().execute(() -> {
-                BlackScreenHandler.setEnabled(payload.enable);
-            });
+            BlackScreenHandler.setEnabled(payload.enable);
         });
     }
 }

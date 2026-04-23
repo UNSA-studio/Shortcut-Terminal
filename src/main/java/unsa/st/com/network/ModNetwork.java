@@ -1,6 +1,8 @@
 package unsa.st.com.network;
 
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import unsa.st.com.ShortcutTerminal;
@@ -14,5 +16,9 @@ public class ModNetwork {
                 BlackScreenPayload.STREAM_CODEC,
                 BlackScreenPayload::handleClient
         );
+    }
+
+    public static void sendToPlayer(CustomPacketPayload payload, ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, payload);
     }
 }

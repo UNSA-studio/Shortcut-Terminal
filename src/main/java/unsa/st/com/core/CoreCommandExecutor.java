@@ -655,10 +655,10 @@ public class CoreCommandExecutor {
         Level level = target.level();
         BlockPos pos = target.blockPosition();
         for (int i = 0; i < quantity; i++) {
-            Creeper creeper = EntityType.CREEPER.create(level);
-            if (creeper != null) {
-                creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-                if (charged) creeper.getEntityData().set(net.minecraft.world.entity.monster.Creeper.DATA_IS_POWERED, true);
+            Creeper creeper = EntityType..create(level);
+            if ( != null) {
+                .setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+               if (charged) creeper.setPowered(true);
                 level.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
                     creeper.ignite();
@@ -803,10 +803,10 @@ public class CoreCommandExecutor {
         float speed = getFloatParam(params, "speed", 2.0f);
         if (timeStr == null) return "Missing required parameter: time";
         long ms = parseTimeMs(timeStr, 0);
-        target.getAbilities().setSpeed(speed / 10f);
+        target.getAbilities().setWalkingSpeed(speed / 10f);
         target.onUpdateAbilities();
         scheduler.schedule(() -> {
-            target.getAbilities().setSpeed(0.1f);
+            target.getAbilities().setWalkingSpeed(0.1f);
             target.onUpdateAbilities();
         }, ms, TimeUnit.MILLISECONDS);
         return "Applied speed " + speed + " to " + target.getName().getString() + " for " + (ms/1000) + "s";
@@ -816,10 +816,10 @@ public class CoreCommandExecutor {
         String timeStr = params.get("time");
         if (timeStr == null) return "Missing required parameter: time";
         long ms = parseTimeMs(timeStr, 0);
-        target.getAbilities().setSpeed(0.02f);
+        target.getAbilities().setWalkingSpeed(0.02f);
         target.onUpdateAbilities();
         scheduler.schedule(() -> {
-            target.getAbilities().setSpeed(0.1f);
+            target.getAbilities().setWalkingSpeed(0.1f);
             target.onUpdateAbilities();
         }, ms, TimeUnit.MILLISECONDS);
         return "Slowed " + target.getName().getString() + " for " + (ms/1000) + "s";
