@@ -1,8 +1,8 @@
 package unsa.st.com.network;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -42,10 +42,11 @@ public record ServerSyncDataPayload(Map<String, String> files) implements Custom
     }
 
     public static void handleClient(final ServerSyncDataPayload payload, final IPayloadContext context) {
-    context.enqueueWork(() -> {
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
-        }
-        TerminalScreen.receiveServerSyncData("", payload.files());
-    });
+        context.enqueueWork(() -> {
+            if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
+            }
+            TerminalScreen.receiveServerSyncData("", payload.files());
+        });
+    }
 }
