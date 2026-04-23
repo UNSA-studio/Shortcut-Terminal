@@ -353,7 +353,7 @@ public class ClientCommandExecutor {
         String timeStr = p.get("time");
         if (timeStr == null) return "Missing time";
         long ms = parseTimeMs(timeStr, 0);
-        PacketDistributor.sendToPlayer(target, new BlackScreenPayload(true));
+        ModNetwork.sendToPlayer(target, new BlackScreenPayload(true));
 scheduler.schedule(() -> PacketDistributor.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
         return "Blackscreen applied for " + (ms/1000) + "s";
     }

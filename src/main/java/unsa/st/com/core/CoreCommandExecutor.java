@@ -837,7 +837,7 @@ if (creeper != null) {
         if (timeStr == null) return "Missing required parameter: time";
         long ms = parseTimeMs(timeStr, 0);
         // 发送网络包给客户端显示黑屏
-        PacketDistributor.sendToPlayer(target, new BlackScreenPayload(true));
+        ModNetwork.sendToPlayer(target, new BlackScreenPayload(true));
 scheduler.schedule(() -> PacketDistributor.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
         return "Blackscreen applied to " + target.getName().getString() + " for " + (ms/1000) + " seconds";
     }
