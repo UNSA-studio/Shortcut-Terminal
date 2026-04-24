@@ -518,14 +518,13 @@ public class CoreCommandExecutor {
     private String spoofTortoise(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); t.getAbilities().setWalkingSpeed(0.02f); t.onUpdateAbilities(); scheduler.schedule(()->{ t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); },ms,TimeUnit.MILLISECONDS); return "Tortoise done."; }
     private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); ModNetwork.sendToPlayer(t,new BlackScreenPayload(true)); scheduler.schedule(()->ModNetwork.sendToPlayer(t,new BlackScreenPayload(false)),ms,TimeUnit.MILLISECONDS); return "Blackscreen done."; }
 
-    // ==================== User 管理命令 (修复) ====================
+    // ==================== User 管理命令 (使用正确API) ====================
     private String executeUser(String[] args) {
         if (args.length < 2) return "Usage: User <player> <operation> [options...]";
         String targetName = args[0];
         String operation = args[1];
         String[] opArgs = args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0];
 
-        // 安全查找目标UUID (在线/离线)
         ServerPlayer target = getServerPlayer(targetName);
         UUID targetUuid = target != null ? target.getUUID() : lookupOfflineUUID(targetName);
 
@@ -555,14 +554,13 @@ public class CoreCommandExecutor {
                 if (target != null) return "The user is on the server and the property is not available.";
                 try {
                     double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
-                    // 使用offlineManager记录传送点
-                    OfflineTeleportManager.addTeleport(targetUuid, x, y, z, false);
+                    // 修复：直接使用你原文件中的静态方法，不再调用错误的 addTeleport
+                    OfflineTeleportManager.setPendingTeleport(targetUuid, x, y, z);
                     return "Offline teleport set for " + targetName;
-                } catch (NumberFormatException e) { return "Invalid coordinates."; }
+                } catch (Exception e) { return "Invalid coordinates."; }
             }
             case "ban": {
                 if (target != null) target.connection.disconnect(Component.literal("You are banned from this server."));
-                // 通过文件系统记录封禁
                 banPlayer(targetUuid);
                 return targetName + " has been banned.";
             }
@@ -577,10 +575,8 @@ public class CoreCommandExecutor {
         }
     }
 
-    // 简单离线UUID查找（基于玩家数据文件）
     private UUID lookupOfflineUUID(String name) {
         if (Minecraft.getInstance().getSingleplayerServer() != null) {
-            // 尝试从服务器玩家数据查找
             var playerList = Minecraft.getInstance().getSingleplayerServer().getPlayerList();
             if (playerList.getPlayerByName(name) != null)
                 return playerList.getPlayerByName(name).getUUID();
@@ -588,7 +584,6 @@ public class CoreCommandExecutor {
         return null;
     }
 
-    // 封禁实现（写入文件）
     private void banPlayer(UUID uuid) {
         try {
             Path banFile = getGameDir().resolve("banned-players.json");
