@@ -23,7 +23,7 @@ public class ModCommands {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "df",
             "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
-            "chmod", "sh", "refresh", "stop", "user", "help"
+            "chmod", "sh", "refresh", "stop", "help"
         };
 
         for (String cmd : builtinCommands) {
@@ -53,7 +53,102 @@ public class ModCommands {
             );
         }
 
-        // ========== 2. run 系列命令 ==========
+        // ========== 2. User 管理命令（大写开头，单独注册） ==========
+        root.then(Commands.literal("User")
+            .then(Commands.argument("player", EntityArgument.players())
+                .then(Commands.literal("switchingmode")
+                    .then(Commands.argument("mode", StringArgumentType.word())
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String mode = StringArgumentType.getString(ctx, "mode");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "switchingmode", mode});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("transport-Online")
+                    .then(Commands.argument("coordinates", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String coords = StringArgumentType.getString(ctx, "coordinates");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "transport-Online", coords});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("transport-Offline")
+                    .then(Commands.argument("coordinates", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String coords = StringArgumentType.getString(ctx, "coordinates");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "transport-Offline", coords});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("ban")
+                    .executes(ctx -> {
+                        ServerPlayer admin = ctx.getSource().getPlayer();
+                        if (admin == null) return 0;
+                        String[] targets = getPlayerNames(ctx, "player");
+                        StringBuilder results = new StringBuilder();
+                        for (String target : targets) {
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(admin);
+                            String result = executor.execute("User", new String[]{target, "ban"});
+                            results.append(result).append("\n");
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                        return 1;
+                    })
+                )
+                .then(Commands.literal("op")
+                    .executes(ctx -> {
+                        ServerPlayer admin = ctx.getSource().getPlayer();
+                        if (admin == null) return 0;
+                        String[] targets = getPlayerNames(ctx, "player");
+                        StringBuilder results = new StringBuilder();
+                        for (String target : targets) {
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(admin);
+                            String result = executor.execute("User", new String[]{target, "op"});
+                            results.append(result).append("\n");
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                        return 1;
+                    })
+                )
+            )
+        );
+
+        // ========== 3. run 系列命令 ==========
         root.then(Commands.literal("run")
             .then(Commands.literal("strongloading")
                 .then(Commands.argument("distance", StringArgumentType.word())
@@ -145,7 +240,7 @@ public class ModCommands {
             )
         );
 
-        // ========== 3. pkg 系列命令 ==========
+        // ========== 4. pkg 系列命令 ==========
         root.then(Commands.literal("pkg")
             .then(Commands.literal("update")
                 .executes(ctx -> {
@@ -201,5 +296,15 @@ public class ModCommands {
 
         dispatcher.register(root);
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
+    }
+
+    // 辅助方法：从命令上下文中获取玩家名列表（支持 @a, @p 等选择器）
+    private static String[] getPlayerNames(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, String argName) {
+        try {
+            java.util.Collection<ServerPlayer> players = EntityArgument.getPlayers(ctx, argName);
+            return players.stream().map(p -> p.getName().getString()).toArray(String[]::new);
+        } catch (Exception e) {
+            return new String[]{};
+        }
     }
 }
