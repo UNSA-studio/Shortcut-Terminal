@@ -555,7 +555,7 @@ public class CoreCommandExecutor {
                 try {
                     double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
                     // 修复：直接使用你原文件中的静态方法，不再调用错误的 addTeleport
-                    OfflineTeleportManager.setPendingTeleport(targetUuid, x, y, z);
+                    OfflineTeleportManager.saveCoordTeleport(targetUuid, x, y, z);
                     return "Offline teleport set for " + targetName;
                 } catch (Exception e) { return "Invalid coordinates."; }
             }
