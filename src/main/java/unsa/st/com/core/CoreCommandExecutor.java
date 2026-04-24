@@ -7,13 +7,16 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.chat.Component;
 import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
 
@@ -30,8 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 public class CoreCommandExecutor {
     private final boolean isClient;
-    private String currentPath = "/";
-    private boolean cdSuccessful = false;
+    private String currentPath = "";
     private UUID playerUuid;
     private String playerName;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
@@ -43,25 +45,35 @@ public class CoreCommandExecutor {
     public void setPlayer(ServerPlayer player) {
         this.playerUuid = player.getUUID();
         this.playerName = player.getName().getString();
+        this.currentPath = "";
+        ensureHomeDirectory();
     }
 
     public void setPlayer(String playerName, String uuid) {
         this.playerName = playerName;
         this.playerUuid = UUID.fromString(uuid);
+        this.currentPath = "";
+        ensureHomeDirectory();
+    }
+
+    private void ensureHomeDirectory() {
+        if (isClient) {
+            ClientVirtualFileSystem.createDirectory(playerName, "", "");
+        } else {
+            UserFileSystem.createUserDirectory(playerUuid);
+        }
     }
 
     public String execute(String command, String[] args) {
         String builtInResult = executeBuiltInCommand(command, args);
-        if (builtInResult != null && !builtInResult.startsWith("Error: Unknown command.")) {
-            return builtInResult;
-        }
+        if (builtInResult != null) return builtInResult;
         Path ext = findExecutableInPath(command);
         if (ext != null) return executeExternalProgram(ext, args);
         return "Error: Unknown command. Type 'help' for available commands.";
     }
 
     private String executeBuiltInCommand(String command, String[] args) {
-        switch (command.toLowerCase(Locale.ROOT)) {
+        switch (command) {
             case "help": return getHelp();
             case "ls": return executeLs();
             case "mkdir": return executeMkdir(args);
@@ -97,27 +109,25 @@ public class CoreCommandExecutor {
             case "pkg": return executePkg(args);
             case "macro": return executeMacro(args);
             case "run": return executeRun(args);
-            case "dummymodule": return "Please use '/ST run dummymodule' in chat.";
+            case "User": return executeUser(args);
             case "stop": return executeStop(args);
-            default: return "Error: Unknown command. Type 'help' for available commands.";
+            default: return null;
         }
     }
 
+    // ==================== 动态 PATH ====================
     private Path findExecutableInPath(String command) {
         Path pathFile = PkgManager.getPathFile(isClient);
         if (!Files.exists(pathFile)) return null;
         try {
-            List<String> paths = Files.readAllLines(pathFile);
-            for (String dirStr : paths) {
-                Path dir = Paths.get(dirStr);
-                Path candidate = dir.resolve(command);
-                if (Files.isExecutable(candidate)) return candidate;
-                Path candidateExe = dir.resolve(command + ".exe");
-                if (Files.isExecutable(candidateExe)) return candidateExe;
+            List<String> lines = Files.readAllLines(pathFile);
+            for (String line : lines) {
+                String[] parts = line.split(" - ");
+                if (parts.length == 2 && parts[0].equals(command)) {
+                    return Paths.get(parts[1]);
+                }
             }
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("PATH read error", e);
-        }
+        } catch (IOException e) { ShortcutTerminal.LOGGER.error("PATH read error", e); }
         return null;
     }
 
@@ -137,24 +147,35 @@ public class CoreCommandExecutor {
             }
             int exit = p.waitFor();
             if (exit != 0) output.append("\nProcess exited with code ").append(exit);
-        } catch (Exception e) {
-            return "Error: Execution failed - " + e.getMessage();
-        }
+        } catch (Exception e) { return "Error: Execution failed."; }
         return output.toString().trim();
     }
 
-    private String executeStop(String[] args) {
-        if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
-            if (isClient) {
-                PlayerMacroManager.stopMacro();
-                return "Macro stopped.";
-            } else return "stop macro can only be used in terminal panel.";
-        }
-        return "Usage: stop macro";
+    // ==================== 基础命令实现 ====================
+    private String getHelp() {
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro, User (admin)";
     }
 
-    private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro";
+    // 文件系统安全辅助
+    private boolean isValidUserPath(String relPath) {
+        if (isClient) return true;
+        return UserFileSystem.isPathValid(playerUuid, relPath);
+    }
+
+    private String readFileSafe(String fileName) {
+        if (!isValidUserPath(currentPath)) return null;
+        return isClient ?
+                ClientVirtualFileSystem.readFile(playerName, currentPath, fileName) :
+                UserFileSystem.readFile(playerUuid, currentPath, fileName);
+    }
+
+    private void writeFileSafe(String fileName, String content) {
+        if (!isValidUserPath(currentPath)) return;
+        if (isClient) {
+            ClientVirtualFileSystem.writeFile(playerName, currentPath, fileName, content);
+        } else {
+            UserFileSystem.writeFile(playerUuid, currentPath, fileName, content);
+        }
     }
 
     private String executeLs() {
@@ -164,141 +185,105 @@ public class CoreCommandExecutor {
         if (files == null) return "Error: Directory not found.";
         return String.join("  ", files);
     }
-
     private String executeMkdir(String[] args) {
         if (args.length == 0) return "Usage: mkdir <directory>";
+        if (!isValidUserPath(currentPath)) return "Error: Access denied.";
         boolean ok = isClient ?
                 ClientVirtualFileSystem.createDirectory(playerName, currentPath, args[0]) :
                 UserFileSystem.createDirectory(playerUuid, currentPath, args[0]);
         return ok ? "Directory created." : "Error: Failed to create directory.";
     }
-
     private String executeTouch(String[] args) {
         if (args.length == 0) return "Usage: touch <file>";
+        if (!isValidUserPath(currentPath)) return "Error: Access denied.";
         boolean ok = isClient ?
                 ClientVirtualFileSystem.createFile(playerName, currentPath, args[0]) :
                 UserFileSystem.createFile(playerUuid, currentPath, args[0]);
         return ok ? "File created." : "Error: Failed to create file.";
     }
-
     private String executeRm(String[] args) {
         if (args.length == 0) return "Usage: rm [-r] <name>";
-        boolean recursive = false;
-        String target;
-        if (args[0].equals("-r")) {
-            if (args.length < 2) return "Usage: rm [-r] <name>";
-            recursive = true;
-            target = args[1];
-        } else {
-            target = args[0];
-        }
+        boolean recursive = args[0].equals("-r");
+        String target = recursive ? (args.length > 1 ? args[1] : "") : args[0];
+        if (target.isEmpty()) return "Invalid target.";
+        if (!isValidUserPath(currentPath)) return "Error: Access denied.";
         boolean ok = isClient ?
                 ClientVirtualFileSystem.delete(playerName, currentPath, target, recursive) :
                 UserFileSystem.delete(playerUuid, currentPath, target, recursive);
         return ok ? "Deleted." : "Error: Failed to delete.";
     }
-
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        if (!isValidUserPath(currentPath)) return "Error: Access denied.";
+        String content = readFileSafe(args[0]);
         return content != null ? content : "Error: File not found.";
     }
-
-    private String executeEcho(String[] args) {
-        return String.join(" ", args);
-    }
+    private String executeEcho(String[] args) { return String.join(" ", args); }
 
     private String executeCd(String[] args) {
-        if (args.length == 0) return "Usage: cd <path>";
-        String target = args[0];
-        String newPath = UserFileSystem.normalizePath(currentPath, target);
+        // 无参数、空格、"."、"./" 都返回玩家家目录
+        if (args.length == 0 || args[0].trim().isEmpty() || args[0].equals(".") || args[0].equals("./")) {
+            currentPath = "";
+            return "Changed directory to: " + getCwdDisplay();
+        }
+        String newPath = UserFileSystem.normalizePath(currentPath, args[0]);
         List<String> test = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, newPath) :
                 UserFileSystem.listDirectory(playerUuid, newPath);
         if (test != null) {
             currentPath = newPath;
-            cdSuccessful = true;
-            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
+            return "Changed directory to: " + getCwdDisplay();
         }
-        cdSuccessful = false;
         return "Error: Directory not found.";
     }
-
-    public boolean wasCdSuccessful() { return cdSuccessful; }
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
-
-    private String executePwd() {
-        return currentPath.isEmpty() ? "/" : currentPath;
-    }
+    private String getCwdDisplay() { return currentPath.isEmpty() ? "~" : currentPath; }
+    private String executePwd() { return currentPath.isEmpty() ? "/" : currentPath; }
 
     private String executeCp(String[] args) {
         if (args.length < 2) return "Usage: cp <source> <destination>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        String content = readFileSafe(args[0]);
         if (content == null) return "Error: Source file not found.";
-        if (isClient) {
-            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
-        } else {
-            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
-        }
+        writeFileSafe(args[1], content);
         return "Copied.";
     }
-
     private String executeMv(String[] args) {
         if (args.length < 2) return "Usage: mv <source> <destination>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        String content = readFileSafe(args[0]);
         if (content == null) return "Error: Source file not found.";
+        writeFileSafe(args[1], content);
         if (isClient) {
-            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
             ClientVirtualFileSystem.delete(playerName, currentPath, args[0], false);
         } else {
-            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
             UserFileSystem.delete(playerUuid, currentPath, args[0], false);
         }
         return "Moved.";
     }
-
     private String executeHead(String[] args) {
         if (args.length == 0) return "Usage: head [-n N] <file>";
-        int lines = 10;
-        String file;
+        int lines = 10; String file;
         if (args[0].equals("-n")) {
             if (args.length < 3) return "Usage: head [-n N] <file>";
-            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Error: Invalid number."; }
+            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Invalid number."; }
             file = args[2];
-        } else {
-            file = args[0];
-        }
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
-                UserFileSystem.readFile(playerUuid, currentPath, file);
+        } else file = args[0];
+        String content = readFileSafe(file);
         if (content == null) return "Error: File not found.";
         String[] allLines = content.split("\n");
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < Math.min(lines, allLines.length); i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
-
     private String executeTail(String[] args) {
         if (args.length == 0) return "Usage: tail [-n N] <file>";
-        int lines = 10;
-        String file;
+        int lines = 10; String file;
         if (args[0].equals("-n")) {
             if (args.length < 3) return "Usage: tail [-n N] <file>";
-            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Error: Invalid number."; }
+            try { lines = Integer.parseInt(args[1]); } catch (NumberFormatException e) { return "Invalid number."; }
             file = args[2];
-        } else {
-            file = args[0];
-        }
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
-                UserFileSystem.readFile(playerUuid, currentPath, file);
+        } else file = args[0];
+        String content = readFileSafe(file);
         if (content == null) return "Error: File not found.";
         String[] allLines = content.split("\n");
         StringBuilder sb = new StringBuilder();
@@ -306,265 +291,141 @@ public class CoreCommandExecutor {
         for (int i = start; i < allLines.length; i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
-
     private String executeWc(String[] args) {
         if (args.length == 0) return "Usage: wc <file>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        String content = readFileSafe(args[0]);
         if (content == null) return "Error: File not found.";
         int lines = content.split("\n").length;
         int words = content.split("\\s+").length;
-        int chars = content.length();
-        return String.format("%d %d %d %s", lines, words, chars, args[0]);
+        return String.format("%d %d %d %s", lines, words, content.length(), args[0]);
     }
-
     private String executeGrep(String[] args) {
         if (args.length < 2) return "Usage: grep <pattern> <file>";
-        String pattern = args[0];
-        String file = args[1];
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, file) :
-                UserFileSystem.readFile(playerUuid, currentPath, file);
+        String content = readFileSafe(args[1]);
         if (content == null) return "Error: File not found.";
         StringBuilder sb = new StringBuilder();
-        for (String line : content.split("\n")) if (line.contains(pattern)) sb.append(line).append("\n");
+        for (String line : content.split("\n")) if (line.contains(args[0])) sb.append(line).append("\n");
         return sb.toString().trim();
     }
-
     private String executeSort(String[] args) {
         if (args.length == 0) return "Usage: sort <file>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        String content = readFileSafe(args[0]);
         if (content == null) return "Error: File not found.";
         List<String> lines = new ArrayList<>(Arrays.asList(content.split("\n")));
         Collections.sort(lines);
         return String.join("\n", lines);
     }
-
     private String executeUniq(String[] args) {
         if (args.length == 0) return "Usage: uniq <file>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
+        String content = readFileSafe(args[0]);
         if (content == null) return "Error: File not found.";
-        List<String> lines = Arrays.asList(content.split("\n"));
         StringBuilder sb = new StringBuilder();
         String prev = null;
-        for (String line : lines) {
-            if (!line.equals(prev)) {
-                sb.append(line).append("\n");
-                prev = line;
-            }
+        for (String line : content.split("\n")) {
+            if (!line.equals(prev)) { sb.append(line).append("\n"); prev = line; }
         }
         return sb.toString().trim();
     }
-
-    private String executeUname(String[] args) {
-        return System.getProperty("os.name") + " " + System.getProperty("os.arch");
-    }
-
-    private String executeDf(String[] args) {
-        Path root = Paths.get(".");
-        try {
-            FileStore store = Files.getFileStore(root);
-            long total = store.getTotalSpace() / (1024*1024);
-            long used = (store.getTotalSpace() - store.getUsableSpace()) / (1024*1024);
-            long avail = store.getUsableSpace() / (1024*1024);
-            return String.format("Filesystem     1M-blocks  Used Available Use%% Mounted on\n%s  %d  %d  %d  %d%% /",
-                    store.name(), total, used, avail, total > 0 ? (used*100/total) : 0);
-        } catch (IOException e) {
-            return "Error: Unable to get disk usage.";
-        }
-    }
-
-    private String executeFree(String[] args) {
-        Runtime rt = Runtime.getRuntime();
-        long total = rt.totalMemory() / (1024*1024);
-        long free = rt.freeMemory() / (1024*1024);
-        long used = total - free;
-        return String.format("              total        used        free      shared  buff/cache   available\nMem:           %d          %d          %d           0           0           0",
-                total, used, free);
-    }
-
-    private String executePs(String[] args) {
-        return "PID TTY          TIME CMD\n  1 ?        00:00:00 java\n  2 ?        00:00:00 Minecraft";
-    }
-
-    private String executeDu(String[] args) {
-        if (args.length == 0) return "Usage: du <file/directory>";
-        Path p = isClient ? Paths.get("client_fs", currentPath, args[0]) : UserFileSystem.getUserPath(playerUuid).resolve(currentPath).resolve(args[0]);
-        try {
-            if (Files.isDirectory(p)) {
-                final long[] size = {0};
-                Files.walkFileTree(p, new SimpleFileVisitor<Path>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        size[0] += attrs.size();
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
-                return size[0] / 1024 + "K\t" + args[0];
-            } else {
-                return Files.size(p) / 1024 + "K\t" + args[0];
-            }
-        } catch (IOException e) {
-            return "Error: Unable to get size.";
-        }
-    }
-
+    private String executeUname(String[] args) { return System.getProperty("os.name") + " " + System.getProperty("os.arch"); }
+    private String executeDf(String[] args) { return "Filesystem data not available."; }
+    private String executeFree(String[] args) { return "Memory data not available."; }
+    private String executePs(String[] args) { return "Process list not available."; }
+    private String executeDu(String[] args) { return "Disk usage not available."; }
     private String executePing(String[] args) {
         if (args.length == 0) return "Usage: ping <host>";
-        try {
-            InetAddress address = InetAddress.getByName(args[0]);
-            long start = System.currentTimeMillis();
-            boolean reachable = address.isReachable(3000);
-            long time = System.currentTimeMillis() - start;
-            if (reachable) return "Reply from " + address.getHostAddress() + ": time=" + time + "ms";
-            else return "Request timed out.";
-        } catch (IOException e) {
-            return "Error: Unknown host.";
-        }
+        try { return InetAddress.getByName(args[0]).isReachable(3000) ? "Host reachable" : "Host unreachable";
+        } catch (IOException e) { return "Error: Unknown host."; }
     }
-
     private String executeCurl(String[] args) {
         if (args.length == 0) return "Usage: curl <url>";
         return fetchUrl(args[0]);
     }
-
     private String executeWget(String[] args) {
         if (args.length < 2) return "Usage: wget <url> <output_file>";
         String content = fetchUrl(args[0]);
         if (content.startsWith("Error:")) return content;
-        if (isClient) {
-            ClientVirtualFileSystem.writeFile(playerName, currentPath, args[1], content);
-        } else {
-            UserFileSystem.writeFile(playerUuid, currentPath, args[1], content);
-        }
+        writeFileSafe(args[1], content);
         return "Downloaded to " + args[1];
     }
-
     private String fetchUrl(String urlStr) {
         try {
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(5000); conn.setReadTimeout(5000);
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder content = new StringBuilder();
-            String line;
+            StringBuilder content = new StringBuilder(); String line;
             while ((line = in.readLine()) != null) content.append(line).append("\n");
-            in.close();
-            conn.disconnect();
+            in.close(); conn.disconnect();
             return content.toString().trim();
-        } catch (Exception e) {
-            return "Error: Failed to fetch URL.";
-        }
+        } catch (Exception e) { return "Error: Failed to fetch URL."; }
     }
-
     private String executeWhich(String[] args) {
         if (args.length == 0) return "Usage: which <command>";
         Path found = findExecutableInPath(args[0]);
         if (found != null) return found.toString();
-        String builtIn = executeBuiltInCommand(args[0], new String[0]);
-        if (!builtIn.startsWith("Error: Unknown command.")) return args[0] + ": shell built-in command";
         return args[0] + " not found";
     }
-
     private String executeChmod(String[] args) {
         if (args.length < 2) return "Usage: chmod <mode> <file>";
         if (args[0].equals("+x")) {
-            Path p = isClient ? Paths.get("client_fs", currentPath, args[1]) : UserFileSystem.getUserPath(playerUuid).resolve(currentPath).resolve(args[1]);
-            if (Files.exists(p)) {
-                p.toFile().setExecutable(true);
-                return "Added execute permission.";
-            }
-            return "Error: File not found.";
+            if (isClient) { ClientVirtualFileSystem.setExecutable(playerName, currentPath, args[1], true); return "Added execute permission."; }
+            else { UserFileSystem.setExecutable(playerUuid, currentPath, args[1], true); return "Added execute permission."; }
         }
         return "Error: Only +x is supported.";
     }
-
     private String executeSh(String[] args) {
         if (args.length == 0) return "Usage: sh <script>";
-        String content = isClient ?
-                ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]) :
-                UserFileSystem.readFile(playerUuid, currentPath, args[0]);
-        if (content == null) return "Error: Script not found.";
+        String script = readFileSafe(args[0]);
+        if (script == null) return "Error: Script not found.";
         StringBuilder output = new StringBuilder();
-        for (String line : content.split("\n")) {
+        for (String line : script.split("\n")) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#")) continue;
             String[] parts = line.split("\\s+");
-            String cmd = parts[0];
-            String[] cmdArgs = Arrays.copyOfRange(parts, 1, parts.length);
-            output.append("> ").append(line).append("\n");
-            output.append(execute(cmd, cmdArgs)).append("\n");
+            output.append("> ").append(line).append("\n").append(execute(parts[0], Arrays.copyOfRange(parts, 1, parts.length))).append("\n");
         }
         return output.toString().trim();
     }
-
     private String executeRefresh(String[] args) {
         if (args.length == 0) return "Usage: refresh <plugin|bf>";
-        if (args[0].equalsIgnoreCase("plugin")) {
-            BinaryPluginManager.refreshPlugins();
-            return "Plugins refreshed. Available: " + BinaryPluginManager.getAvailablePlugins();
-        } else if (args[0].equalsIgnoreCase("bf")) {
-            return "BF refreshed. (Not implemented)";
-        }
+        if (args[0].equalsIgnoreCase("plugin")) { BinaryPluginManager.refreshPlugins(); return "Plugins refreshed."; }
         return "Usage: refresh <plugin|bf>";
     }
-
     private String executePkg(String[] args) {
         if (args.length == 0) return "Usage: pkg <update|search|install|remove|list|show>";
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "update": return PkgManager.updateIndex();
-            case "search":
-                if (args.length < 2) return "Usage: pkg search <keyword>";
-                List<String> searchResults = PkgManager.search(args[1]);
-                return searchResults.isEmpty() ? "No packages found." : String.join("\n", searchResults);
-            case "install":
-                if (args.length < 2) return "Usage: pkg install <package>";
-                return PkgManager.install(args[1], isClient);
-            case "remove":
-                if (args.length < 2) return "Usage: pkg remove <package>";
-                return PkgManager.remove(args[1], isClient);
-            case "list":
-                List<String> installed = PkgManager.listInstalled(isClient);
-                return installed.isEmpty() ? "No packages installed." : String.join("\n", installed);
-            case "show":
-                if (args.length < 2) return "Usage: pkg show <package>";
-                return PkgManager.showInfo(args[1]);
-            default:
-                return "Unknown pkg command. Available: update, search, install, remove, list, show";
+            case "install": return args.length > 1 ? PkgManager.install(args[1], isClient) : "Usage: pkg install <package>";
+            case "remove": return args.length > 1 ? PkgManager.remove(args[1], isClient) : "Usage: pkg remove <package>";
+            case "list": return String.join("\n", PkgManager.listInstalled(isClient));
+            case "search": return args.length > 1 ? String.join("\n", PkgManager.search(args[1])) : "Usage: pkg search <keyword>";
+            case "show": return args.length > 1 ? PkgManager.showInfo(args[1]) : "Usage: pkg show <package>";
+            default: return "Unknown pkg command.";
         }
     }
-
     private String executeMacro(String[] args) {
         if (!isClient) return "macro can only be used in terminal panel.";
-        if (args.length == 0) return "Usage: macro start <operate> [interval_ms]";
+        if (args.length < 2) return "Usage: macro start <operate> [interval_ms]";
         if (args[0].equalsIgnoreCase("start")) {
-            if (args.length < 2) return "Usage: macro start <operate> [interval_ms]";
-            String operate = args[1];
-            long interval = 3000;
-            if (args.length > 2) {
-                try { interval = Long.parseLong(args[2]); } catch (NumberFormatException e) { return "Error: Invalid interval."; }
-            }
-            PlayerMacroManager.startMacro(operate, interval);
-            return "Macro started.";
+            try { PlayerMacroManager.startMacro(args[1], Long.parseLong(args.length > 2 ? args[2] : "3000")); return "Macro started.";
+            } catch (NumberFormatException e) { return "Invalid interval."; }
         }
         return "Usage: macro start <operate> [interval_ms]";
     }
+    private String executeStop(String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
+            if (isClient) { PlayerMacroManager.stopMacro(); return "Macro stopped."; }
+            else return "stop macro can only be used in terminal panel.";
+        }
+        return "Usage: stop macro";
+    }
 
-    // ==================== RUN SPOOF ====================
+    // ==================== RUN / SPOOF (完整展开) ====================
     private String executeRun(String[] args) {
         if (args.length == 0) return "Usage: run <module> [args...]";
         String module = args[0].toLowerCase(Locale.ROOT);
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
-        if ("spoof".equals(module)) {
-            return executeSpoof(moduleArgs);
-        }
+        if ("spoof".equals(module)) return executeSpoof(moduleArgs);
         return "Unknown run module: " + module;
     }
 
@@ -572,9 +433,7 @@ public class CoreCommandExecutor {
         if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";
         String action = args[0].toLowerCase(Locale.ROOT);
         String targetPlayer = args.length > 1 && !args[1].contains("-") ? args[1] : playerName;
-        String[] params = args.length > (targetPlayer.equals(playerName) ? 1 : 2)
-                ? Arrays.copyOfRange(args, (targetPlayer.equals(playerName) ? 1 : 2), args.length)
-                : new String[0];
+        String[] params = targetPlayer.equals(playerName) && args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : (args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0]);
         ServerPlayer target = getServerPlayer(targetPlayer);
         if (target == null) return "Player not found: " + targetPlayer;
         Map<String, String> paramMap = parseParams(params);
@@ -591,254 +450,73 @@ public class CoreCommandExecutor {
         }
     }
 
-    private Map<String, String> parseParams(String[] args) {
-        Map<String, String> map = new HashMap<>();
-        for (String arg : args) {
-            int dash = arg.indexOf('-');
-            if (dash > 0) {
-                String key = arg.substring(0, dash).toLowerCase();
-                String value = arg.substring(dash + 1);
-                map.put(key, value);
+    private Map<String, String> parseParams(String[] args) { Map<String, String> map = new HashMap<>(); for (String a : args) { int d = a.indexOf('-'); if (d>0) map.put(a.substring(0,d).toLowerCase(), a.substring(d+1)); } return map; }
+    private int getIntParam(Map<String, String> p, String k, int def) { try { return Integer.parseInt(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }
+    private float getFloatParam(Map<String, String> p, String k, float def) { try { return Float.parseFloat(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }
+    private long parseTimeMs(String t, long defSec) { if(t==null||t.isEmpty()) return defSec*1000; t=t.toLowerCase(); try { if(t.endsWith("ms")) return Long.parseLong(t.replace("ms","")); if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000; if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000; if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000; return Long.parseLong(t)*1000; } catch (NumberFormatException e) { return defSec*1000; } }
+    private ServerPlayer getServerPlayer(String name) { if (Minecraft.getInstance().hasSingleplayerServer()) return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name); return null; }
+
+    private String spoofRay(ServerPlayer t, Map<String, String> p) { int q = getIntParam(p,"quantity",1); float dmg = getFloatParam(p,"injure",5); for (int i=0;i<q;i++) { LightningBolt bolt=EntityType.LIGHTNING_BOLT.create(t.level()); if(bolt!=null){ bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition())); bolt.setCause(t); t.level().addFreshEntity(bolt); } } t.hurt(t.damageSources().lightningBolt(),dmg); return "Ray done."; }
+    private String spoofCreeper(ServerPlayer t, Map<String, String> p) { int q=Math.min(getIntParam(p,"quantity",1),64); boolean charged="lightning".equalsIgnoreCase(p.get("morphology")); String ts=p.get("time"); Level l=t.level(); BlockPos pos=t.blockPosition(); for (int i=0;i<q;i++) { Creeper c=EntityType.CREEPER.create(l); if(c!=null){ c.setPos(pos.getX()+0.5,pos.getY(),pos.getZ()+0.5); if(charged) c.getEntityData().set(Creeper.DATA_IS_POWERED,true); l.addFreshEntity(c); if("moment".equalsIgnoreCase(ts)) c.ignite(); else if(ts!=null&&!ts.isEmpty()) scheduler.schedule(c::ignite,parseTimeMs(ts,0),TimeUnit.MILLISECONDS); } } return "Creeper done."; }
+    private String spoofFlyup(ServerPlayer t, Map<String, String> p) { String m=p.getOrDefault("manner",""); Vec3 dest; if(p.containsKey("coordinates")) { String[] parts=p.get("coordinates").split(","); dest=new Vec3(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]),Double.parseDouble(parts[2])); } else dest=t.position().add(0,100,0); t.teleportTo(dest.x,dest.y,dest.z); if("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance=0; return "Flyup done."; }
+    private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) { Vec3 dest; if(p.containsKey("coordinates")) { String[] parts=p.get("coordinates").split(","); dest=new Vec3(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]),Double.parseDouble(parts[2])); } else dest=t.position().add(0,-10,0); t.teleportTo(dest.x,dest.y,dest.z); if("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(),2); return "EvasiveGround done."; }
+    private String spoofStop(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); Vec3 pos=t.position(); float yr=t.getYRot(),xr=t.getXRot(); scheduler.scheduleAtFixedRate(()->{ t.teleportTo(pos.x,pos.y,pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); },0,50,TimeUnit.MILLISECONDS); scheduler.schedule(()->{},ms,TimeUnit.MILLISECONDS); return "Stop done."; }
+    private String spoofQuickly(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; float speed=getFloatParam(p,"speed",2); long ms=parseTimeMs(ts,0); t.getAbilities().setWalkingSpeed(speed/10f); t.onUpdateAbilities(); scheduler.schedule(()->{ t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); },ms,TimeUnit.MILLISECONDS); return "Quickly done."; }
+    private String spoofTortoise(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); t.getAbilities().setWalkingSpeed(0.02f); t.onUpdateAbilities(); scheduler.schedule(()->{ t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); },ms,TimeUnit.MILLISECONDS); return "Tortoise done."; }
+    private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); ModNetwork.sendToPlayer(t,new BlackScreenPayload(true)); scheduler.schedule(()->ModNetwork.sendToPlayer(t,new BlackScreenPayload(false)),ms,TimeUnit.MILLISECONDS); return "Blackscreen done."; }
+
+    // ==================== User 管理命令 ====================
+    private String executeUser(String[] args) {
+        if (args.length < 2) return "Usage: User <player> <operation> [options...]";
+        String targetName = args[0];
+        String operation = args[1];
+        String[] opArgs = args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0];
+
+        ServerPlayer target = getServerPlayer(targetName);
+        UUID targetUuid = target != null ? target.getUUID() : UserFileSystem.getUserUUID(targetName);
+        if (targetUuid == null) return "Player not found: " + targetName;
+
+        switch (operation.toLowerCase(Locale.ROOT)) {
+            case "switchingmode": {
+                if (opArgs.length == 0) return "Usage: User <player> switchingmode <mode>";
+                GameType type = GameType.byName(opArgs[0]);
+                if (type == null) { try { int id = Integer.parseInt(opArgs[0]); type = GameType.byId(id); } catch (NumberFormatException e) { return "Invalid mode number."; } }
+                if (type == null) return "Invalid game mode.";
+                if (target != null) { target.setGameMode(type); return targetName + " mode updated."; }
+                return "Player is offline, cannot switch mode.";
             }
-        }
-        return map;
-    }
-
-    private int getIntParam(Map<String, String> params, String key, int def) {
-        try { return Integer.parseInt(params.getOrDefault(key, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
-    }
-
-    private float getFloatParam(Map<String, String> params, String key, float def) {
-        try { return Float.parseFloat(params.getOrDefault(key, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
-    }
-
-    private long parseTimeMs(String timeStr, long defaultSeconds) {
-        if (timeStr == null || timeStr.isEmpty()) return defaultSeconds * 1000;
-        timeStr = timeStr.toLowerCase();
-        try {
-            if (timeStr.endsWith("ms")) return Long.parseLong(timeStr.replace("ms", ""));
-            if (timeStr.endsWith("s")) return Long.parseLong(timeStr.replace("s", "")) * 1000;
-            if (timeStr.endsWith("m")) return Long.parseLong(timeStr.replace("m", "")) * 60 * 1000;
-            if (timeStr.endsWith("h")) return Long.parseLong(timeStr.replace("h", "")) * 3600 * 1000;
-            return Long.parseLong(timeStr) * 1000;
-        } catch (NumberFormatException e) { return defaultSeconds * 1000; }
-    }
-
-    private ServerPlayer getServerPlayer(String name) {
-        if (Minecraft.getInstance().hasSingleplayerServer()) {
-            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
-        }
-        return null;
-    }
-
-    private String spoofRay(ServerPlayer target, Map<String, String> params) {
-        int quantity = getIntParam(params, "quantity", 1);
-        float damage = getFloatParam(params, "injure", 5.0f);
-        BlockPos pos = target.blockPosition();
-        Level level = target.level();
-        for (int i = 0; i < quantity; i++) {
-            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-            if (bolt != null) {
-                bolt.setPos(Vec3.atBottomCenterOf(pos));
-                bolt.setCause(target);
-                level.addFreshEntity(bolt);
-            }
-        }
-        target.hurt(target.damageSources().lightningBolt(), damage);
-        return "Struck " + target.getName().getString() + " with " + quantity + " lightning bolts, damage: " + damage;
-    }
-
-    private String spoofCreeper(ServerPlayer target, Map<String, String> params) {
-        int quantity = Math.min(getIntParam(params, "quantity", 1), 64);
-        boolean charged = "lightning".equalsIgnoreCase(params.get("morphology"));
-        String timeStr = params.get("time");
-        Level level = target.level();
-        BlockPos pos = target.blockPosition();
-        for (int i = 0; i < quantity; i++) {
-            Creeper creeper = EntityType.CREEPER.create(level);
-if (creeper != null) {
-    creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-               if (charged) {
-    try {
-        java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);
-        method.invoke(creeper, true);
-    } catch (Exception ignored) {
-        // 忽略异常，保证不崩溃
-    }
-}
-                level.addFreshEntity(creeper);
-                if ("moment".equalsIgnoreCase(timeStr)) {
-                    creeper.ignite();
-                } else if (timeStr != null && !timeStr.isEmpty()) {
-                    long delay = parseTimeMs(timeStr, 0);
-                    scheduler.schedule(() -> creeper.ignite(), delay, TimeUnit.MILLISECONDS);
-                }
-            }
-        }
-        return "Spawned " + quantity + (charged ? " charged" : "") + " creepers at " + target.getName().getString();
-    }
-
-    private String spoofFlyup(ServerPlayer target, Map<String, String> params) {
-        String manner = params.getOrDefault("manner", "");
-        String direction = params.getOrDefault("direction", "");
-        String coordsStr = params.get("coordinates");
-        boolean noFallDamage = "no".equalsIgnoreCase(params.get("injure"));
-        Vec3 start = target.position();
-        Vec3 destination;
-        double speed = 20; // 默认 20 格/秒
-
-        if (!manner.isEmpty()) {
-            if ("fast".equals(manner)) {
-                speed = Double.MAX_VALUE;
-            } else {
-                try { speed = Double.parseDouble(manner); } catch (NumberFormatException ignored) {}
-            }
-        }
-
-        if ("upward".equals(direction)) {
-            destination = start.add(0, 100, 0);
-        } else if (coordsStr != null) {
-            String[] parts = coordsStr.split(",");
-            if (parts.length == 3) {
+            case "transport-online": {
+                if (opArgs.length < 3) return "Usage: User <player> transport-online <x> <y> <z>";
+                if (target == null) return "The user is not online.";
                 try {
-                    double x = Double.parseDouble(parts[0]);
-                    double y = Double.parseDouble(parts[1]);
-                    double z = Double.parseDouble(parts[2]);
-                    destination = new Vec3(x, y, z);
-                } catch (NumberFormatException e) {
-                    return "Invalid coordinates format. Use x,y,z";
-                }
-            } else return "Coordinates must be x,y,z";
-        } else return "Must specify direction (upward) or coordinates";
-
-        if (speed >= Double.MAX_VALUE) {
-            target.teleportTo(destination.x, destination.y, destination.z);
-        } else {
-            animateTeleport(target, start, destination, speed);
-        }
-        if (noFallDamage) target.fallDistance = 0;
-        return "Teleported " + target.getName().getString() + " to " + destination;
-    }
-
-    private String spoofEvasiveGround(ServerPlayer target, Map<String, String> params) {
-        String manner = params.getOrDefault("manner", "");
-        String coordsStr = params.get("coordinates");
-        boolean suffocate = "yes".equalsIgnoreCase(params.get("injure"));
-        Vec3 start = target.position();
-        Vec3 destination;
-        double speed = 20;
-
-        if (!manner.isEmpty()) {
-            if ("fast".equals(manner)) {
-                speed = Double.MAX_VALUE;
-            } else {
-                try { speed = Double.parseDouble(manner); } catch (NumberFormatException ignored) {}
+                    double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
+                    if (target.isPassenger()) target.stopRiding();
+                    target.teleportTo(x, y, z);
+                    return targetName + " teleported.";
+                } catch (NumberFormatException e) { return "Invalid coordinates."; }
             }
-        }
-
-        if (coordsStr != null) {
-            String[] parts = coordsStr.split(",");
-            if (parts.length == 3) {
+            case "transport-offline": {
+                if (opArgs.length < 3) return "Usage: User <player> transport-offline <x> <y> <z>";
+                if (target != null) return "The user is on the server and the property is not available.";
                 try {
-                    double x = Double.parseDouble(parts[0]);
-                    double y = Double.parseDouble(parts[1]);
-                    double z = Double.parseDouble(parts[2]);
-                    destination = new Vec3(x, y, z);
-                } catch (NumberFormatException e) {
-                    return "Invalid coordinates";
-                }
-            } else return "Invalid coordinates";
-        } else {
-            destination = start.add(0, -10, 0);
-        }
-
-        if (speed >= Double.MAX_VALUE) {
-            target.teleportTo(destination.x, destination.y, destination.z);
-        } else {
-            animateTeleport(target, start, destination, speed);
-        }
-        if (suffocate) target.hurt(target.damageSources().inWall(), 2.0f);
-        return "Burrowed " + target.getName().getString();
-    }
-
-    private void animateTeleport(ServerPlayer player, Vec3 from, Vec3 to, double blocksPerSecond) {
-        double distance = from.distanceTo(to);
-        long durationMs = (long) (distance / blocksPerSecond * 1000);
-        if (durationMs <= 0) {
-            player.teleportTo(to.x, to.y, to.z);
-            return;
-        }
-        scheduler.scheduleAtFixedRate(new Runnable() {
-            long startTime = System.currentTimeMillis();
-            @Override
-            public void run() {
-                long elapsed = System.currentTimeMillis() - startTime;
-                if (elapsed >= durationMs) {
-                    player.teleportTo(to.x, to.y, to.z);
-                    throw new RuntimeException("Done"); // 停止调度
-                }
-                double t = (double) elapsed / durationMs;
-                double x = from.x + (to.x - from.x) * t;
-                double y = from.y + (to.y - from.y) * t;
-                double z = from.z + (to.z - from.z) * t;
-                player.teleportTo(x, y, z);
+                    double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
+                    OfflineTeleportManager.setPendingTeleport(targetUuid, x, y, z);
+                    return "Offline teleport set for " + targetName;
+                } catch (NumberFormatException e) { return "Invalid coordinates."; }
             }
-        }, 0, 50, TimeUnit.MILLISECONDS);
-    }
-
-    private String spoofStop(ServerPlayer target, Map<String, String> params) {
-        String timeStr = params.get("time");
-        if (timeStr == null) return "Missing required parameter: time";
-        long ms = parseTimeMs(timeStr, 0);
-        Vec3 pos = target.position();
-        float yRot = target.getYRot();
-        float xRot = target.getXRot();
-        scheduler.scheduleAtFixedRate(() -> {
-            target.teleportTo(pos.x, pos.y, pos.z);
-            target.setYRot(yRot);
-            target.setXRot(xRot);
-            target.setDeltaMovement(0, 0, 0);
-        }, 0, 50, TimeUnit.MILLISECONDS);
-        scheduler.schedule(() -> {
-            // 停止调度
-        }, ms, TimeUnit.MILLISECONDS);
-        return "Froze " + target.getName().getString() + " for " + (ms/1000) + " seconds";
-    }
-
-    private String spoofQuickly(ServerPlayer target, Map<String, String> params) {
-        String timeStr = params.get("time");
-        float speed = getFloatParam(params, "speed", 2.0f);
-        if (timeStr == null) return "Missing required parameter: time";
-        long ms = parseTimeMs(timeStr, 0);
-        target.getAbilities().setWalkingSpeed(speed / 10f);
-        target.onUpdateAbilities();
-        scheduler.schedule(() -> {
-            target.getAbilities().setWalkingSpeed(0.1f);
-            target.onUpdateAbilities();
-        }, ms, TimeUnit.MILLISECONDS);
-        return "Applied speed " + speed + " to " + target.getName().getString() + " for " + (ms/1000) + "s";
-    }
-
-    private String spoofTortoise(ServerPlayer target, Map<String, String> params) {
-        String timeStr = params.get("time");
-        if (timeStr == null) return "Missing required parameter: time";
-        long ms = parseTimeMs(timeStr, 0);
-        target.getAbilities().setWalkingSpeed(0.02f);
-        target.onUpdateAbilities();
-        scheduler.schedule(() -> {
-            target.getAbilities().setWalkingSpeed(0.1f);
-            target.onUpdateAbilities();
-        }, ms, TimeUnit.MILLISECONDS);
-        return "Slowed " + target.getName().getString() + " for " + (ms/1000) + "s";
-    }
-
-    private String spoofBlackscreen(ServerPlayer target, Map<String, String> params) {
-        String timeStr = params.get("time");
-        if (timeStr == null) return "Missing required parameter: time";
-        long ms = parseTimeMs(timeStr, 0);
-        // 发送网络包给客户端显示黑屏
-        ModNetwork.sendToPlayer(target, new BlackScreenPayload(true));
-scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
-        return "Blackscreen applied to " + target.getName().getString() + " for " + (ms/1000) + " seconds";
+            case "ban": {
+                if (target != null) target.connection.disconnect(Component.literal("You are banned from this server."));
+                UserFileSystem.banPlayer(targetUuid);
+                return targetName + " has been banned.";
+            }
+            case "op": {
+                if (target != null) {
+                    Minecraft.getInstance().getSingleplayerServer().getPlayerList().op(target.getGameProfile());
+                    return targetName + " is now operator.";
+                }
+                return "Player must be online to op.";
+            }
+            default: return "Unknown operation: " + operation;
+        }
     }
 }
