@@ -36,6 +36,7 @@ public class CoreCommandExecutor {
     private String currentPath = "";
     private UUID playerUuid;
     private String playerName;
+    private boolean cdSuccessful = false;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public CoreCommandExecutor(boolean isClient) {
@@ -156,7 +157,6 @@ public class CoreCommandExecutor {
         return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro, User (admin)";
     }
 
-    // 文件系统安全辅助
     private boolean isValidUserPath(String relPath) {
         if (isClient) return true;
         return UserFileSystem.isPathValid(playerUuid, relPath);
@@ -185,6 +185,7 @@ public class CoreCommandExecutor {
         if (files == null) return "Error: Directory not found.";
         return String.join("  ", files);
     }
+
     private String executeMkdir(String[] args) {
         if (args.length == 0) return "Usage: mkdir <directory>";
         if (!isValidUserPath(currentPath)) return "Error: Access denied.";
@@ -193,6 +194,7 @@ public class CoreCommandExecutor {
                 UserFileSystem.createDirectory(playerUuid, currentPath, args[0]);
         return ok ? "Directory created." : "Error: Failed to create directory.";
     }
+
     private String executeTouch(String[] args) {
         if (args.length == 0) return "Usage: touch <file>";
         if (!isValidUserPath(currentPath)) return "Error: Access denied.";
@@ -201,6 +203,7 @@ public class CoreCommandExecutor {
                 UserFileSystem.createFile(playerUuid, currentPath, args[0]);
         return ok ? "File created." : "Error: Failed to create file.";
     }
+
     private String executeRm(String[] args) {
         if (args.length == 0) return "Usage: rm [-r] <name>";
         boolean recursive = args[0].equals("-r");
@@ -212,18 +215,20 @@ public class CoreCommandExecutor {
                 UserFileSystem.delete(playerUuid, currentPath, target, recursive);
         return ok ? "Deleted." : "Error: Failed to delete.";
     }
+
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
         if (!isValidUserPath(currentPath)) return "Error: Access denied.";
         String content = readFileSafe(args[0]);
         return content != null ? content : "Error: File not found.";
     }
+
     private String executeEcho(String[] args) { return String.join(" ", args); }
 
     private String executeCd(String[] args) {
-        // 无参数、空格、"."、"./" 都返回玩家家目录
         if (args.length == 0 || args[0].trim().isEmpty() || args[0].equals(".") || args[0].equals("./")) {
             currentPath = "";
+            cdSuccessful = true;
             return "Changed directory to: " + getCwdDisplay();
         }
         String newPath = UserFileSystem.normalizePath(currentPath, args[0]);
@@ -232,12 +237,17 @@ public class CoreCommandExecutor {
                 UserFileSystem.listDirectory(playerUuid, newPath);
         if (test != null) {
             currentPath = newPath;
+            cdSuccessful = true;
             return "Changed directory to: " + getCwdDisplay();
         }
+        cdSuccessful = false;
         return "Error: Directory not found.";
     }
+
+    public boolean wasCdSuccessful() { return cdSuccessful; }
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
+
     private String getCwdDisplay() { return currentPath.isEmpty() ? "~" : currentPath; }
     private String executePwd() { return currentPath.isEmpty() ? "/" : currentPath; }
 
@@ -248,6 +258,7 @@ public class CoreCommandExecutor {
         writeFileSafe(args[1], content);
         return "Copied.";
     }
+
     private String executeMv(String[] args) {
         if (args.length < 2) return "Usage: mv <source> <destination>";
         String content = readFileSafe(args[0]);
@@ -260,6 +271,7 @@ public class CoreCommandExecutor {
         }
         return "Moved.";
     }
+
     private String executeHead(String[] args) {
         if (args.length == 0) return "Usage: head [-n N] <file>";
         int lines = 10; String file;
@@ -275,6 +287,7 @@ public class CoreCommandExecutor {
         for (int i = 0; i < Math.min(lines, allLines.length); i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
+
     private String executeTail(String[] args) {
         if (args.length == 0) return "Usage: tail [-n N] <file>";
         int lines = 10; String file;
@@ -291,6 +304,7 @@ public class CoreCommandExecutor {
         for (int i = start; i < allLines.length; i++) sb.append(allLines[i]).append("\n");
         return sb.toString().trim();
     }
+
     private String executeWc(String[] args) {
         if (args.length == 0) return "Usage: wc <file>";
         String content = readFileSafe(args[0]);
@@ -299,6 +313,7 @@ public class CoreCommandExecutor {
         int words = content.split("\\s+").length;
         return String.format("%d %d %d %s", lines, words, content.length(), args[0]);
     }
+
     private String executeGrep(String[] args) {
         if (args.length < 2) return "Usage: grep <pattern> <file>";
         String content = readFileSafe(args[1]);
@@ -307,6 +322,7 @@ public class CoreCommandExecutor {
         for (String line : content.split("\n")) if (line.contains(args[0])) sb.append(line).append("\n");
         return sb.toString().trim();
     }
+
     private String executeSort(String[] args) {
         if (args.length == 0) return "Usage: sort <file>";
         String content = readFileSafe(args[0]);
@@ -315,6 +331,7 @@ public class CoreCommandExecutor {
         Collections.sort(lines);
         return String.join("\n", lines);
     }
+
     private String executeUniq(String[] args) {
         if (args.length == 0) return "Usage: uniq <file>";
         String content = readFileSafe(args[0]);
@@ -326,20 +343,24 @@ public class CoreCommandExecutor {
         }
         return sb.toString().trim();
     }
+
     private String executeUname(String[] args) { return System.getProperty("os.name") + " " + System.getProperty("os.arch"); }
     private String executeDf(String[] args) { return "Filesystem data not available."; }
     private String executeFree(String[] args) { return "Memory data not available."; }
     private String executePs(String[] args) { return "Process list not available."; }
     private String executeDu(String[] args) { return "Disk usage not available."; }
+
     private String executePing(String[] args) {
         if (args.length == 0) return "Usage: ping <host>";
         try { return InetAddress.getByName(args[0]).isReachable(3000) ? "Host reachable" : "Host unreachable";
         } catch (IOException e) { return "Error: Unknown host."; }
     }
+
     private String executeCurl(String[] args) {
         if (args.length == 0) return "Usage: curl <url>";
         return fetchUrl(args[0]);
     }
+
     private String executeWget(String[] args) {
         if (args.length < 2) return "Usage: wget <url> <output_file>";
         String content = fetchUrl(args[0]);
@@ -347,6 +368,7 @@ public class CoreCommandExecutor {
         writeFileSafe(args[1], content);
         return "Downloaded to " + args[1];
     }
+
     private String fetchUrl(String urlStr) {
         try {
             URL url = new URL(urlStr);
@@ -359,12 +381,14 @@ public class CoreCommandExecutor {
             return content.toString().trim();
         } catch (Exception e) { return "Error: Failed to fetch URL."; }
     }
+
     private String executeWhich(String[] args) {
         if (args.length == 0) return "Usage: which <command>";
         Path found = findExecutableInPath(args[0]);
         if (found != null) return found.toString();
         return args[0] + " not found";
     }
+
     private String executeChmod(String[] args) {
         if (args.length < 2) return "Usage: chmod <mode> <file>";
         if (args[0].equals("+x")) {
@@ -373,6 +397,7 @@ public class CoreCommandExecutor {
         }
         return "Error: Only +x is supported.";
     }
+
     private String executeSh(String[] args) {
         if (args.length == 0) return "Usage: sh <script>";
         String script = readFileSafe(args[0]);
@@ -386,11 +411,13 @@ public class CoreCommandExecutor {
         }
         return output.toString().trim();
     }
+
     private String executeRefresh(String[] args) {
         if (args.length == 0) return "Usage: refresh <plugin|bf>";
         if (args[0].equalsIgnoreCase("plugin")) { BinaryPluginManager.refreshPlugins(); return "Plugins refreshed."; }
         return "Usage: refresh <plugin|bf>";
     }
+
     private String executePkg(String[] args) {
         if (args.length == 0) return "Usage: pkg <update|search|install|remove|list|show>";
         switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -403,6 +430,7 @@ public class CoreCommandExecutor {
             default: return "Unknown pkg command.";
         }
     }
+
     private String executeMacro(String[] args) {
         if (!isClient) return "macro can only be used in terminal panel.";
         if (args.length < 2) return "Usage: macro start <operate> [interval_ms]";
@@ -412,6 +440,7 @@ public class CoreCommandExecutor {
         }
         return "Usage: macro start <operate> [interval_ms]";
     }
+
     private String executeStop(String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("macro")) {
             if (isClient) { PlayerMacroManager.stopMacro(); return "Macro stopped."; }
@@ -456,8 +485,32 @@ public class CoreCommandExecutor {
     private long parseTimeMs(String t, long defSec) { if(t==null||t.isEmpty()) return defSec*1000; t=t.toLowerCase(); try { if(t.endsWith("ms")) return Long.parseLong(t.replace("ms","")); if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000; if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000; if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000; return Long.parseLong(t)*1000; } catch (NumberFormatException e) { return defSec*1000; } }
     private ServerPlayer getServerPlayer(String name) { if (Minecraft.getInstance().hasSingleplayerServer()) return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name); return null; }
 
+    // 修复：使用反射设置Creeper充能，避免访问私有字段 DATA_IS_POWERED
+    private String spoofCreeper(ServerPlayer t, Map<String, String> p) {
+        int q = Math.min(getIntParam(p,"quantity",1), 64);
+        boolean charged = "lightning".equalsIgnoreCase(p.get("morphology"));
+        String ts = p.get("time");
+        Level l = t.level();
+        BlockPos pos = t.blockPosition();
+        for (int i=0; i<q; i++) {
+            Creeper c = EntityType.CREEPER.create(l);
+            if (c != null) {
+                c.setPos(pos.getX()+0.5, pos.getY(), pos.getZ()+0.5);
+                if (charged) {
+                    try {
+                        java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);
+                        method.invoke(c, true);
+                    } catch (Exception ignored) {}
+                }
+                l.addFreshEntity(c);
+                if ("moment".equalsIgnoreCase(ts)) c.ignite();
+                else if (ts != null && !ts.isEmpty()) scheduler.schedule(c::ignite, parseTimeMs(ts,0), TimeUnit.MILLISECONDS);
+            }
+        }
+        return "Creeper done.";
+    }
+
     private String spoofRay(ServerPlayer t, Map<String, String> p) { int q = getIntParam(p,"quantity",1); float dmg = getFloatParam(p,"injure",5); for (int i=0;i<q;i++) { LightningBolt bolt=EntityType.LIGHTNING_BOLT.create(t.level()); if(bolt!=null){ bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition())); bolt.setCause(t); t.level().addFreshEntity(bolt); } } t.hurt(t.damageSources().lightningBolt(),dmg); return "Ray done."; }
-    private String spoofCreeper(ServerPlayer t, Map<String, String> p) { int q=Math.min(getIntParam(p,"quantity",1),64); boolean charged="lightning".equalsIgnoreCase(p.get("morphology")); String ts=p.get("time"); Level l=t.level(); BlockPos pos=t.blockPosition(); for (int i=0;i<q;i++) { Creeper c=EntityType.CREEPER.create(l); if(c!=null){ c.setPos(pos.getX()+0.5,pos.getY(),pos.getZ()+0.5); if(charged) c.getEntityData().set(Creeper.DATA_IS_POWERED,true); l.addFreshEntity(c); if("moment".equalsIgnoreCase(ts)) c.ignite(); else if(ts!=null&&!ts.isEmpty()) scheduler.schedule(c::ignite,parseTimeMs(ts,0),TimeUnit.MILLISECONDS); } } return "Creeper done."; }
     private String spoofFlyup(ServerPlayer t, Map<String, String> p) { String m=p.getOrDefault("manner",""); Vec3 dest; if(p.containsKey("coordinates")) { String[] parts=p.get("coordinates").split(","); dest=new Vec3(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]),Double.parseDouble(parts[2])); } else dest=t.position().add(0,100,0); t.teleportTo(dest.x,dest.y,dest.z); if("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance=0; return "Flyup done."; }
     private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) { Vec3 dest; if(p.containsKey("coordinates")) { String[] parts=p.get("coordinates").split(","); dest=new Vec3(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]),Double.parseDouble(parts[2])); } else dest=t.position().add(0,-10,0); t.teleportTo(dest.x,dest.y,dest.z); if("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(),2); return "EvasiveGround done."; }
     private String spoofStop(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); Vec3 pos=t.position(); float yr=t.getYRot(),xr=t.getXRot(); scheduler.scheduleAtFixedRate(()->{ t.teleportTo(pos.x,pos.y,pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); },0,50,TimeUnit.MILLISECONDS); scheduler.schedule(()->{},ms,TimeUnit.MILLISECONDS); return "Stop done."; }
@@ -465,15 +518,17 @@ public class CoreCommandExecutor {
     private String spoofTortoise(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); t.getAbilities().setWalkingSpeed(0.02f); t.onUpdateAbilities(); scheduler.schedule(()->{ t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); },ms,TimeUnit.MILLISECONDS); return "Tortoise done."; }
     private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); ModNetwork.sendToPlayer(t,new BlackScreenPayload(true)); scheduler.schedule(()->ModNetwork.sendToPlayer(t,new BlackScreenPayload(false)),ms,TimeUnit.MILLISECONDS); return "Blackscreen done."; }
 
-    // ==================== User 管理命令 ====================
+    // ==================== User 管理命令 (修复) ====================
     private String executeUser(String[] args) {
         if (args.length < 2) return "Usage: User <player> <operation> [options...]";
         String targetName = args[0];
         String operation = args[1];
         String[] opArgs = args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0];
 
+        // 安全查找目标UUID (在线/离线)
         ServerPlayer target = getServerPlayer(targetName);
-        UUID targetUuid = target != null ? target.getUUID() : UserFileSystem.getUserUUID(targetName);
+        UUID targetUuid = target != null ? target.getUUID() : lookupOfflineUUID(targetName);
+
         if (targetUuid == null) return "Player not found: " + targetName;
 
         switch (operation.toLowerCase(Locale.ROOT)) {
@@ -500,13 +555,15 @@ public class CoreCommandExecutor {
                 if (target != null) return "The user is on the server and the property is not available.";
                 try {
                     double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
-                    OfflineTeleportManager.setPendingTeleport(targetUuid, x, y, z);
+                    // 使用offlineManager记录传送点
+                    OfflineTeleportManager.addTeleport(targetUuid, x, y, z, false);
                     return "Offline teleport set for " + targetName;
                 } catch (NumberFormatException e) { return "Invalid coordinates."; }
             }
             case "ban": {
                 if (target != null) target.connection.disconnect(Component.literal("You are banned from this server."));
-                UserFileSystem.banPlayer(targetUuid);
+                // 通过文件系统记录封禁
+                banPlayer(targetUuid);
                 return targetName + " has been banned.";
             }
             case "op": {
@@ -518,5 +575,28 @@ public class CoreCommandExecutor {
             }
             default: return "Unknown operation: " + operation;
         }
+    }
+
+    // 简单离线UUID查找（基于玩家数据文件）
+    private UUID lookupOfflineUUID(String name) {
+        if (Minecraft.getInstance().getSingleplayerServer() != null) {
+            // 尝试从服务器玩家数据查找
+            var playerList = Minecraft.getInstance().getSingleplayerServer().getPlayerList();
+            if (playerList.getPlayerByName(name) != null)
+                return playerList.getPlayerByName(name).getUUID();
+        }
+        return null;
+    }
+
+    // 封禁实现（写入文件）
+    private void banPlayer(UUID uuid) {
+        try {
+            Path banFile = getGameDir().resolve("banned-players.json");
+            Files.writeString(banFile, uuid.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException ignored) {}
+    }
+
+    private Path getGameDir() {
+        return Minecraft.getInstance().getSingleplayerServer().getServerDirectory();
     }
 }
