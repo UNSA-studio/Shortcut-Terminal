@@ -9,10 +9,10 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import unsa.st.com.pkg.PkgManager;
-import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
+import unsa.st.com.music.MusicPlaybackManager;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -34,13 +34,11 @@ public class ClientCommandExecutor {
 
     public ClientCommandExecutor(String playerName) {
         this.playerName = playerName;
-        // 尝试获取UUID，如果是单人游戏可从本地玩家获取
         if (Minecraft.getInstance().player != null) {
             this.playerUuid = Minecraft.getInstance().player.getUUID();
         }
     }
 
-    // 缺失的方法补充
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
     public List<String> getCommandHistory() { return commandHistory; }
@@ -95,12 +93,11 @@ public class ClientCommandExecutor {
     }
 
     private String executeExternalProgram(Path programPath, String[] args) {
-        // 同前，略...
         return "External execution not fully implemented yet.";
     }
 
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, run spoof";
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, run spoof, run mp";
     }
 
     private String executeLs() {
@@ -143,7 +140,6 @@ public class ClientCommandExecutor {
     private String executeCd(String[] args) {
         if (args.length == 0) return "Usage: cd <path>";
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, args[0]);
-        // 检查目录是否存在（用listDirectory判断）
         if (ClientVirtualFileSystem.listDirectory(playerName, newPath) != null) {
             currentPath = newPath;
             return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
@@ -168,22 +164,24 @@ public class ClientCommandExecutor {
         }
     }
 
-    // ========== RUN SPOOF ==========
+    // ========== RUN ==========
     private String executeRun(String[] args) {
         if (args.length == 0) return "Usage: run <module> [args...]";
-        if ("spoof".equals(args[0].toLowerCase(Locale.ROOT))) {
-            return executeSpoof(Arrays.copyOfRange(args, 1, args.length));
+        String module = args[0].toLowerCase(Locale.ROOT);
+        String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
+        switch (module) {
+            case "spoof": return executeSpoof(moduleArgs);
+            case "mp": return executeMp(moduleArgs);
+            default: return "Unknown run module: " + module;
         }
-        return "Unknown run module.";
     }
 
+    // ========== SPOOF ==========
     private String executeSpoof(String[] args) {
         if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";
         String action = args[0].toLowerCase(Locale.ROOT);
         String targetPlayer = args.length > 1 && !args[1].contains("-") ? args[1] : playerName;
-        String[] params = args.length > (targetPlayer.equals(playerName) ? 1 : 2)
-                ? Arrays.copyOfRange(args, (targetPlayer.equals(playerName) ? 1 : 2), args.length)
-                : new String[0];
+        String[] params = targetPlayer.equals(playerName) && args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : (args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0]);
         ServerPlayer target = getServerPlayer(targetPlayer);
         if (target == null) return "Player not found: " + targetPlayer;
         Map<String, String> paramMap = parseParams(params);
@@ -196,7 +194,7 @@ public class ClientCommandExecutor {
             case "quickly": return spoofQuickly(target, paramMap);
             case "tortoise": return spoofTortoise(target, paramMap);
             case "blackscreen": return spoofBlackscreen(target, paramMap);
-            default: return "Unknown spoof action.";
+            default: return "Unknown spoof action: " + action;
         }
     }
 
@@ -261,32 +259,7 @@ public class ClientCommandExecutor {
             Creeper creeper = EntityType.CREEPER.create(lvl);
             if (creeper != null) {
                 creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-                if (charged) {
-    try {
-        java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);
-        method.invoke(creeper, true);
-    } catch (Exception ignored) {
-        // 忽略异常，保证不崩溃
-    }
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
-        String path = args[0];
-        int loop = 0;
-        boolean songlistMode = false;
-        boolean runSonglist = false;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            } else if (a.equals("songlist")) {
-                songlistMode = true;
-            } else if (a.equals("run")) {
-                runSonglist = true;
-            }
-        }
-        return unsa.st.com.music.MusicPlaybackManager.startPlayback(getPlayerUuid(), path, loop, songlistMode && runSonglist);
-    }
-}
+                if (charged) creeper.getEntityData().set(Creeper.DATA_IS_POWERED, true);
                 lvl.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
                     creeper.ignite();
@@ -300,7 +273,6 @@ public class ClientCommandExecutor {
     }
 
     private String spoofFlyup(ServerPlayer target, Map<String, String> p) {
-        // 简化实现：直接传送
         Vec3 dest;
         if (p.containsKey("coordinates")) {
             String[] parts = p.get("coordinates").split(",");
@@ -373,12 +345,11 @@ public class ClientCommandExecutor {
         if (timeStr == null) return "Missing time";
         long ms = parseTimeMs(timeStr, 0);
         ModNetwork.sendToPlayer(target, new BlackScreenPayload(true));
-scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
         return "Blackscreen applied for " + (ms/1000) + "s";
     }
 
-    public List<String> getOutputBuffer() { return outputBuffer; }
-    public void clearOutputBuffer() { outputBuffer.clear(); }
+    // ========== MP (音乐播放) ==========
     private String executeMp(String[] args) {
         if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
         String path = args[0];
@@ -395,6 +366,9 @@ scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(
                 runSonglist = true;
             }
         }
-        return unsa.st.com.music.MusicPlaybackManager.startPlayback(getPlayerUuid(), path, loop, songlistMode && runSonglist);
+        return MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
     }
+
+    public List<String> getOutputBuffer() { return outputBuffer; }
+    public void clearOutputBuffer() { outputBuffer.clear(); }
 }

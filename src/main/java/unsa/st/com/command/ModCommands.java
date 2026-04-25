@@ -18,7 +18,7 @@ public class ModCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         var root = Commands.literal("ST");
 
-        // ========== 1. 所有原有内置命令（完整恢复） ==========
+        // ========== 1. 所有原有内置命令 ==========
         String[] builtinCommands = {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "df",
@@ -32,11 +32,8 @@ public class ModCommands {
                     .executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
-                        
-                        // 信任 CoreCommandExecutor.setPlayer() 的内部初始化
                         CoreCommandExecutor executor = new CoreCommandExecutor(false);
                         executor.setPlayer(player);
-                        
                         String argsStr = StringArgumentType.getString(ctx, "args");
                         String[] args = argsStr.isEmpty() ? new String[0] : argsStr.split(" ");
                         String result = executor.execute(cmd, args);
@@ -47,11 +44,8 @@ public class ModCommands {
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayer();
                     if (player == null) return 0;
-                    
-                    // 信任 CoreCommandExecutor.setPlayer() 的内部初始化
                     CoreCommandExecutor executor = new CoreCommandExecutor(false);
                     executor.setPlayer(player);
-                    
                     String result = executor.execute(cmd, new String[0]);
                     ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                     return 1;
@@ -59,11 +53,20 @@ public class ModCommands {
             );
         }
 
-        // ========== 2. User 管理命令（大写开头，单独注册） ==========
+        // ========== 2. User 管理命令 ==========
         root.then(Commands.literal("User")
             .then(Commands.argument("player", EntityArgument.players())
                 .then(Commands.literal("switchingmode")
                     .then(Commands.argument("mode", StringArgumentType.word())
+                        .suggests((ctx, builder) -> {
+                            builder.suggest("creative");
+                            builder.suggest("survival");
+                            builder.suggest("spectator");
+                            builder.suggest("1");
+                            builder.suggest("2");
+                            builder.suggest("3");
+                            return builder.buildFuture();
+                        })
                         .executes(ctx -> {
                             ServerPlayer admin = ctx.getSource().getPlayer();
                             if (admin == null) return 0;
@@ -161,9 +164,9 @@ public class ModCommands {
                     .executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
+                        String distance = StringArgumentType.getString(ctx, "distance");
                         CoreCommandExecutor executor = new CoreCommandExecutor(false);
                         executor.setPlayer(player);
-                        String distance = StringArgumentType.getString(ctx, "distance");
                         String result = executor.execute("run", new String[]{"strongloading", distance});
                         ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                         return 1;
@@ -194,7 +197,7 @@ public class ModCommands {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player != null) {
                             PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
-                            ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering local → server sync..."), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Triggering local -> server sync..."), false);
                         }
                         return 1;
                     })
@@ -204,32 +207,118 @@ public class ModCommands {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player != null) {
                             PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(false));
-                            ctx.getSource().sendSuccess(() -> Component.literal("§aTriggering server → local sync..."), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Triggering server -> local sync..."), false);
                         }
                         return 1;
                     })
                 )
             )
+            // ===== spoof 命令（修复：玩家名字在前面，操作在后面） =====
             .then(Commands.literal("spoof")
-                .then(Commands.argument("action", StringArgumentType.word())
-                    .then(Commands.argument("player", EntityArgument.player())
+                .then(Commands.argument("player", EntityArgument.player())
+                    .then(Commands.literal("ray")
                         .then(Commands.argument("params", StringArgumentType.greedyString())
                             .executes(ctx -> {
-                                String action = StringArgumentType.getString(ctx, "action");
                                 ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
                                 String paramsStr = StringArgumentType.getString(ctx, "params");
-                                String[] params = paramsStr.split(" ");
-                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
-                                executor.setPlayer(target);
-                                String[] spoofArgs = new String[params.length + 2];
-                                spoofArgs[0] = "spoof";
-                                spoofArgs[1] = action;
-                                System.arraycopy(params, 0, spoofArgs, 2, params.length);
-                                String result = executor.execute("run", spoofArgs);
-                                ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                                return 1;
+                                return executeSpoofAction(ctx.getSource(), target, "ray", paramsStr);
                             })
                         )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "ray", "");
+                        })
+                    )
+                    .then(Commands.literal("creeper")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "creeper", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "creeper", "");
+                        })
+                    )
+                    .then(Commands.literal("flyup")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "flyup", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "flyup", "");
+                        })
+                    )
+                    .then(Commands.literal("evasiveground")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "evasiveground", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "evasiveground", "");
+                        })
+                    )
+                    .then(Commands.literal("stop")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "stop", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "stop", "");
+                        })
+                    )
+                    .then(Commands.literal("quickly")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "quickly", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "quickly", "");
+                        })
+                    )
+                    .then(Commands.literal("tortoise")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "tortoise", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "tortoise", "");
+                        })
+                    )
+                    .then(Commands.literal("blackscreen")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "blackscreen", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "blackscreen", "");
+                        })
                     )
                 )
             )
@@ -302,6 +391,20 @@ public class ModCommands {
 
         dispatcher.register(root);
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
+    }
+
+    // spoof 命令执行辅助方法
+    private static int executeSpoofAction(CommandSourceStack source, ServerPlayer target, String action, String paramsStr) {
+        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+        executor.setPlayer(target);
+        String[] params = paramsStr.isEmpty() ? new String[0] : paramsStr.split(" ");
+        String[] spoofArgs = new String[params.length + 2];
+        spoofArgs[0] = "spoof";
+        spoofArgs[1] = action;
+        System.arraycopy(params, 0, spoofArgs, 2, params.length);
+        String result = executor.execute("run", spoofArgs);
+        source.sendSuccess(() -> Component.literal(result), false);
+        return 1;
     }
 
     // 辅助方法：从命令上下文中获取玩家名列表
