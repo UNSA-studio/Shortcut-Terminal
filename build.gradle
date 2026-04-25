@@ -5,7 +5,7 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
 }
-version = '1.0.0'
+version = '1.0.0(Beta)'
 group = 'unsa.st.com'
 base.archivesName = 'shortcutterminal'
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -43,7 +43,7 @@ processResources {
         mod_id                 : 'shortcutterminal',
         mod_name               : 'Shortcut Terminal',
         mod_license            : 'MIT',
-        mod_version            : '1.0.0',
+        mod_version            : '1.0.0(Beta)',
         mod_authors            : 'UNSA-STUDIO',
         mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
     ]

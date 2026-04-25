@@ -5,13 +5,13 @@ logoFile = "logo.png"
 
 [[mods]]
 modId = "shortcutterminal"
-version = "1.0.0"
+version = "1.0.0(Beta)"
 displayName = "Shortcut Terminal"
 authors = "UNSA-STUDIO"
 description = '''
 Shortcut Terminal - Linux commands in Minecraft!
 
-§c⚠ 需要安装 §n帕秋莉手册 (Patchouli)§r 作为前置！
+⚠ 需要安装 帕秋莉手册 (Patchouli) 作为前置！
 '''
 
 [[dependencies.shortcutterminal]]
