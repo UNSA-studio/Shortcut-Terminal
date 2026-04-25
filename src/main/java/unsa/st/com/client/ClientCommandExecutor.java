@@ -9,6 +9,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import unsa.st.com.pkg.PkgManager;
+import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
@@ -267,6 +268,24 @@ public class ClientCommandExecutor {
     } catch (Exception ignored) {
         // 忽略异常，保证不崩溃
     }
+    private String executeMp(String[] args) {
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        String path = args[0];
+        int loop = 0;
+        boolean songlistMode = false;
+        boolean runSonglist = false;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            if (a.startsWith("loop-")) {
+                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+            } else if (a.equals("songlist")) {
+                songlistMode = true;
+            } else if (a.equals("run")) {
+                runSonglist = true;
+            }
+        }
+        return unsa.st.com.music.MusicPlaybackManager.startPlayback(getPlayerUuid(), path, loop, songlistMode && runSonglist);
+    }
 }
                 lvl.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
@@ -360,4 +379,22 @@ scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(
 
     public List<String> getOutputBuffer() { return outputBuffer; }
     public void clearOutputBuffer() { outputBuffer.clear(); }
+    private String executeMp(String[] args) {
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        String path = args[0];
+        int loop = 0;
+        boolean songlistMode = false;
+        boolean runSonglist = false;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            if (a.startsWith("loop-")) {
+                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+            } else if (a.equals("songlist")) {
+                songlistMode = true;
+            } else if (a.equals("run")) {
+                runSonglist = true;
+            }
+        }
+        return unsa.st.com.music.MusicPlaybackManager.startPlayback(getPlayerUuid(), path, loop, songlistMode && runSonglist);
+    }
 }

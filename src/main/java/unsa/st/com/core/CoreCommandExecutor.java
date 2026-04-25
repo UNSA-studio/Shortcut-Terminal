@@ -17,6 +17,7 @@ import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.util.OfflineTeleportManager;
+import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
 
@@ -112,6 +113,7 @@ public class CoreCommandExecutor {
             case "run": return executeRun(args);
             case "User": return executeUser(args);
             case "stop": return executeStop(args);
+            case "mp": return executeMp(args);
             default: return null;
         }
     }
@@ -593,5 +595,28 @@ public class CoreCommandExecutor {
 
     private Path getGameDir() {
         return Minecraft.getInstance().getSingleplayerServer().getServerDirectory();
+    }
+    private String executeMp(String[] args) {
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        String path = args[0];
+        int loop = 0;
+        boolean songlistMode = false;
+        boolean runSonglist = false;
+        boolean generateSonglist = false;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            if (a.startsWith("loop-")) {
+                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+            } else if (a.equals("songlist")) {
+                songlistMode = true;
+            } else if (a.equals("run")) {
+                runSonglist = true;
+            }
+        }
+        java.nio.file.Path resolved = unsa.st.com.filesystem.UserFileSystem.getUserPath(playerUuid).resolve(path.startsWith("/") ? path.substring(1) : path);
+        if (songlistMode && !runSonglist && java.nio.file.Files.isDirectory(resolved)) {
+            return unsa.st.com.music.MusicPlaybackManager.generateSonglist(playerUuid, path);
+        }
+        return unsa.st.com.music.MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
     }
 }
