@@ -32,10 +32,13 @@ public class ModCommands {
                     .executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
-                        String argsStr = StringArgumentType.getString(ctx, "args");
-                        String[] args = argsStr.isEmpty() ? new String[0] : argsStr.split(" ");
+                        
+                        // 信任 CoreCommandExecutor.setPlayer() 的内部初始化
                         CoreCommandExecutor executor = new CoreCommandExecutor(false);
                         executor.setPlayer(player);
+                        
+                        String argsStr = StringArgumentType.getString(ctx, "args");
+                        String[] args = argsStr.isEmpty() ? new String[0] : argsStr.split(" ");
                         String result = executor.execute(cmd, args);
                         ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                         return 1;
@@ -44,8 +47,11 @@ public class ModCommands {
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayer();
                     if (player == null) return 0;
+                    
+                    // 信任 CoreCommandExecutor.setPlayer() 的内部初始化
                     CoreCommandExecutor executor = new CoreCommandExecutor(false);
                     executor.setPlayer(player);
+                    
                     String result = executor.execute(cmd, new String[0]);
                     ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                     return 1;
@@ -155,9 +161,9 @@ public class ModCommands {
                     .executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
-                        String distance = StringArgumentType.getString(ctx, "distance");
                         CoreCommandExecutor executor = new CoreCommandExecutor(false);
                         executor.setPlayer(player);
+                        String distance = StringArgumentType.getString(ctx, "distance");
                         String result = executor.execute("run", new String[]{"strongloading", distance});
                         ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                         return 1;
@@ -298,7 +304,7 @@ public class ModCommands {
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
     }
 
-    // 辅助方法：从命令上下文中获取玩家名列表（支持 @a, @p 等选择器）
+    // 辅助方法：从命令上下文中获取玩家名列表
     private static String[] getPlayerNames(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, String argName) {
         try {
             java.util.Collection<ServerPlayer> players = EntityArgument.getPlayers(ctx, argName);
