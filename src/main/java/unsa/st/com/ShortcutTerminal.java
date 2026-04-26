@@ -19,7 +19,9 @@ import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.pkg.PackageManager;
 import unsa.st.com.remote.RemoteControlManager;
+import unsa.st.com.terminal.TerminalIdManager;
 import unsa.st.com.remote.RemoteControlManager;
+import unsa.st.com.terminal.TerminalIdManager;
 
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
@@ -37,7 +39,9 @@ public class ShortcutTerminal {
         OfflineTeleportManager.init();
         PackageManager.init();
         RemoteControlManager.init();
+        TerminalIdManager.init();
         RemoteControlManager.init();
+        TerminalIdManager.init();
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TerminalManager());

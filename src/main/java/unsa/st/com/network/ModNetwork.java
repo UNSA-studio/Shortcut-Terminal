@@ -15,6 +15,11 @@ public class ModNetwork {
         
         // 黑屏网络包（服务端→客户端）
         registrar.playToClient(
+        registrar.playToClient(
+                ScreenshotPayload.TYPE,
+                ScreenshotPayload.STREAM_CODEC,
+                ScreenshotPayload::handleClient
+        );
                 BlackScreenPayload.TYPE,
                 BlackScreenPayload.STREAM_CODEC,
                 BlackScreenPayload::handleClient
@@ -29,6 +34,11 @@ public class ModNetwork {
         
         // 触发同步请求（服务端→客户端）
         registrar.playToClient(
+        registrar.playToClient(
+                ScreenshotPayload.TYPE,
+                ScreenshotPayload.STREAM_CODEC,
+                ScreenshotPayload::handleClient
+        );
                 TriggerSyncPayload.TYPE,
                 TriggerSyncPayload.STREAM_CODEC,
                 TriggerSyncPayload::handleClient
@@ -43,6 +53,11 @@ public class ModNetwork {
         
         // 服务端同步数据（服务端→客户端）
         registrar.playToClient(
+        registrar.playToClient(
+                ScreenshotPayload.TYPE,
+                ScreenshotPayload.STREAM_CODEC,
+                ScreenshotPayload::handleClient
+        );
                 ServerSyncDataPayload.TYPE,
                 ServerSyncDataPayload.STREAM_CODEC,
                 ServerSyncDataPayload::handleClient

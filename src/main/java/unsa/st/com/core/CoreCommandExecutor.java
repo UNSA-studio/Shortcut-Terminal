@@ -20,6 +20,7 @@ import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
+import unsa.st.com.network.ScreenshotPayload;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -620,3 +621,32 @@ public class CoreCommandExecutor {
         return unsa.st.com.music.MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
     }
 }
+    private String executeScreenshot(String[] args) {
+        if (args.length == 0) return "Usage: run screenshot <player> [-aov 1-4]";
+        
+        String targetName = args[0];
+        int aov = 1; // 默认第一人称
+        
+        for (int i = 1; i < args.length; i++) {
+            if (args[i].equals("-aov") && i + 1 < args.length) {
+                try { aov = Integer.parseInt(args[i + 1]); } catch (NumberFormatException e) { return "Invalid angle of view."; }
+                break;
+            }
+        }
+        
+        ServerPlayer target = getServerPlayer(targetName);
+        if (target == null) return "Player not found: " + targetName;
+        
+        ModNetwork.sendToPlayer(target, new ScreenshotPayload(aov));
+        return "Screenshot request sent to " + targetName;
+    }
+
+    private String executeId(String[] args) {
+        if (args.length < 2) return "Usage: run id <tid|ram> [options]";
+        
+        String subCommand = args[0].toLowerCase(Locale.ROOT);
+        if ("tid".equals(subCommand) && args.length > 1 && "ram".equals(args[1].toLowerCase())) {
+            return TerminalIdManager.listAllTerminals();
+        }
+        return "Usage: run id tid ram   (list all terminals sorted by RAM usage)";
+    }
