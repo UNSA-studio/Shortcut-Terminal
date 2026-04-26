@@ -40,12 +40,16 @@ public class RemoteControlManager {
 
     public static void init() {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server != null) {
-            dataFile = server.getServerDirectory().resolve("st_remote.json");
-            loadData();
-            generateRID(server);
-            startHttpServer();
+        if (server == null || !server.isDedicatedServer()) {
+            // 单人模式下不初始化远程控制
+            ShortcutTerminal.LOGGER.info("Remote control is only available on dedicated servers.");
+            return;
         }
+
+        dataFile = server.getServerDirectory().resolve("st_remote.json");
+        loadData();
+        generateRID(server);
+        startHttpServer();
     }
 
     private static void generateRID(MinecraftServer server) {
@@ -62,7 +66,9 @@ public class RemoteControlManager {
         }
     }
 
-    public static String getRID() { return currentRID != null ? currentRID : "RID not available."; }
+    public static String getRID() {
+        return currentRID != null ? currentRID : "RID not available. Remote control is disabled in singleplayer.";
+    }
 
     public static String authenticateRCID(String rcid) {
         if (rcid == null || rcid.isEmpty()) return "Invalid RCID.";
@@ -115,7 +121,6 @@ public class RemoteControlManager {
         }
     }
 
-    // 生成随机字符串
     private static String generateRandomString(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         SecureRandom rng = new SecureRandom();
@@ -124,7 +129,6 @@ public class RemoteControlManager {
         return sb.toString();
     }
 
-    // 持久化
     private static void loadData() {
         if (dataFile == null || !Files.exists(dataFile)) return;
         try {
@@ -156,7 +160,6 @@ public class RemoteControlManager {
     }
 
     // ============ HTTP 处理器 ============
-
     static class RidHandler implements HttpHandler {
         public void handle(HttpExchange exchange) throws IOException {
             addCors(exchange);
