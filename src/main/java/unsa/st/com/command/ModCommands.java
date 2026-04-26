@@ -7,15 +7,12 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.core.CoreCommandExecutor;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.network.TriggerSyncPayload;
 import unsa.st.com.pkg.PkgManager;
-import unsa.st.com.remote.RemoteControlManager;
 import unsa.st.com.remote.RemoteControlManager;
 
 public class ModCommands {
@@ -217,7 +214,7 @@ public class ModCommands {
                     })
                 )
             )
-            // ===== spoof 命令（修复：玩家名字在前面，操作在后面） =====
+            // ---------- spoof 模块 ----------
             .then(Commands.literal("spoof")
                 .then(Commands.argument("player", EntityArgument.player())
                     .then(Commands.literal("ray")
@@ -326,6 +323,7 @@ public class ModCommands {
                     )
                 )
             )
+            // ---------- mp 模块（正式加入）----------
             .then(Commands.literal("mp")
                 .then(Commands.argument("args", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -340,6 +338,7 @@ public class ModCommands {
                     })
                 )
             )
+            // ---------- 假人模块 ----------
             .then(Commands.literal("dummymodule")
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayer();
@@ -353,7 +352,52 @@ public class ModCommands {
             )
         );
 
-        // ========== 4. pkg 系列命令 ==========
+        // ========== 4. 远程控制命令 ==========
+        root.then(Commands.literal("RID")
+            .executes(ctx -> {
+                String rid = RemoteControlManager.getRID();
+                ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
+                return 1;
+            })
+        );
+        root.then(Commands.literal("RCID")
+            .then(Commands.argument("rcid", StringArgumentType.word())
+                .executes(ctx -> {
+                    String rcid = StringArgumentType.getString(ctx, "rcid");
+                    String result = RemoteControlManager.authenticateRCID(rcid);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
+        root.then(Commands.literal("account")
+            .then(Commands.argument("credentials", StringArgumentType.greedyString())
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player == null) return 0;
+                    if (!player.hasPermissions(2)) {
+                        ctx.getSource().sendFailure(Component.literal("You must be an operator to change account settings."));
+                        return 0;
+                    }
+                    String creds = StringArgumentType.getString(ctx, "credentials");
+                    String[] parts = creds.split("\\s+");
+                    String name = null, password = null;
+                    for (String part : parts) {
+                        if (part.startsWith("name:")) name = part.substring(5);
+                        if (part.startsWith("password:")) password = part.substring(9);
+                    }
+                    if (name == null || password == null) {
+                        ctx.getSource().sendFailure(Component.literal("Usage: /ST account name:<name> password:<password>"));
+                        return 0;
+                    }
+                    String result = RemoteControlManager.setAccount(name, password);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
+
+        // ========== 5. pkg 系列命令 ==========
         root.then(Commands.literal("pkg")
             .then(Commands.literal("update")
                 .executes(ctx -> {
@@ -407,97 +451,12 @@ public class ModCommands {
             )
         );
 
-        root.then(Commands.literal("RID")
-            .executes(ctx -> {
-                String rid = RemoteControlManager.getRID();
-                ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
-                return 1;
-            })
-        );
-        root.then(Commands.literal("RCID")
-            .then(Commands.argument("rcid", StringArgumentType.word())
-                .executes(ctx -> {
-                    String rcid = StringArgumentType.getString(ctx, "rcid");
-                    String result = RemoteControlManager.authenticateRCID(rcid);
-                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                    return 1;
-                })
-            )
-        );
-        root.then(Commands.literal("account")
-            .then(Commands.argument("credentials", StringArgumentType.greedyString())
-                .executes(ctx -> {
-                    ServerPlayer player = ctx.getSource().getPlayer();
-                    if (player == null) return 0;
-                    if (!player.hasPermissions(2)) {
-                        ctx.getSource().sendFailure(Component.literal("You must be an operator to change account settings."));
-                        return 0;
-                    }
-                    String creds = StringArgumentType.getString(ctx, "credentials");
-                    String[] parts = creds.split("\s+");
-                    String name = null, password = null;
-                    for (String part : parts) {
-                        if (part.startsWith("name:")) name = part.substring(5);
-                        if (part.startsWith("password:")) password = part.substring(9);
-                    }
-                    if (name == null || password == null) {
-                        ctx.getSource().sendFailure(Component.literal("Usage: /ST account name:<name> password:<password>"));
-                        return 0;
-                    }
-                    String result = RemoteControlManager.setAccount(name, password);
-                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                    return 1;
-                })
-            )
-        );
-        root.then(Commands.literal("RID")
-            .executes(ctx -> {
-                String rid = RemoteControlManager.getRID();
-                ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
-                return 1;
-            })
-        );
-        root.then(Commands.literal("RCID")
-            .then(Commands.argument("rcid", StringArgumentType.word())
-                .executes(ctx -> {
-                    String rcid = StringArgumentType.getString(ctx, "rcid");
-                    String result = RemoteControlManager.authenticateRCID(rcid);
-                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                    return 1;
-                })
-            )
-        );
-        root.then(Commands.literal("account")
-            .then(Commands.argument("credentials", StringArgumentType.greedyString())
-                .executes(ctx -> {
-                    ServerPlayer player = ctx.getSource().getPlayer();
-                    if (player == null) return 0;
-                    if (!player.hasPermissions(2)) {
-                        ctx.getSource().sendFailure(Component.literal("You must be an operator to change account settings."));
-                        return 0;
-                    }
-                    String creds = StringArgumentType.getString(ctx, "credentials");
-                    String[] parts = creds.split("\s+");
-                    String name = null, password = null;
-                    for (String part : parts) {
-                        if (part.startsWith("name:")) name = part.substring(5);
-                        if (part.startsWith("password:")) password = part.substring(9);
-                    }
-                    if (name == null || password == null) {
-                        ctx.getSource().sendFailure(Component.literal("Usage: /ST account name:<name> password:<password>"));
-                        return 0;
-                    }
-                    String result = RemoteControlManager.setAccount(name, password);
-                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                    return 1;
-                })
-            )
-        );
         dispatcher.register(root);
         ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
     }
 
-    // spoof 命令执行辅助方法
+    // ========== 辅助方法 ==========
+
     private static int executeSpoofAction(CommandSourceStack source, ServerPlayer target, String action, String paramsStr) {
         CoreCommandExecutor executor = new CoreCommandExecutor(false);
         executor.setPlayer(target);
@@ -511,7 +470,6 @@ public class ModCommands {
         return 1;
     }
 
-    // 辅助方法：从命令上下文中获取玩家名列表
     private static String[] getPlayerNames(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, String argName) {
         try {
             java.util.Collection<ServerPlayer> players = EntityArgument.getPlayers(ctx, argName);
