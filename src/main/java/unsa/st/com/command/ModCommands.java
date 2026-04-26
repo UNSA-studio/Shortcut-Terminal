@@ -322,6 +322,20 @@ public class ModCommands {
                     )
                 )
             )
+            .then(Commands.literal("mp")
+                .then(Commands.argument("args", StringArgumentType.greedyString())
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) return 0;
+                        String argsStr = StringArgumentType.getString(ctx, "args");
+                        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                        executor.setPlayer(player);
+                        String result = executor.execute("run", ("mp " + argsStr).split(" "));
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
             .then(Commands.literal("dummymodule")
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayer();
