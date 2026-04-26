@@ -8,12 +8,14 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.core.CoreCommandExecutor;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.network.TriggerSyncPayload;
 import unsa.st.com.pkg.PkgManager;
+import unsa.st.com.remote.RemoteControlManager;
 import unsa.st.com.remote.RemoteControlManager;
 
 public class ModCommands {
@@ -405,6 +407,49 @@ public class ModCommands {
             )
         );
 
+        root.then(Commands.literal("RID")
+            .executes(ctx -> {
+                String rid = RemoteControlManager.getRID();
+                ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
+                return 1;
+            })
+        );
+        root.then(Commands.literal("RCID")
+            .then(Commands.argument("rcid", StringArgumentType.word())
+                .executes(ctx -> {
+                    String rcid = StringArgumentType.getString(ctx, "rcid");
+                    String result = RemoteControlManager.authenticateRCID(rcid);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
+        root.then(Commands.literal("account")
+            .then(Commands.argument("credentials", StringArgumentType.greedyString())
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player == null) return 0;
+                    if (!player.hasPermissions(2)) {
+                        ctx.getSource().sendFailure(Component.literal("You must be an operator to change account settings."));
+                        return 0;
+                    }
+                    String creds = StringArgumentType.getString(ctx, "credentials");
+                    String[] parts = creds.split("\s+");
+                    String name = null, password = null;
+                    for (String part : parts) {
+                        if (part.startsWith("name:")) name = part.substring(5);
+                        if (part.startsWith("password:")) password = part.substring(9);
+                    }
+                    if (name == null || password == null) {
+                        ctx.getSource().sendFailure(Component.literal("Usage: /ST account name:<name> password:<password>"));
+                        return 0;
+                    }
+                    String result = RemoteControlManager.setAccount(name, password);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
         root.then(Commands.literal("RID")
             .executes(ctx -> {
                 String rid = RemoteControlManager.getRID();
