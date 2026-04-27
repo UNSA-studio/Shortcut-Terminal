@@ -15,11 +15,6 @@ public class ModNetwork {
         
         // 黑屏网络包（服务端→客户端）
         registrar.playToClient(
-        registrar.playToClient(
-                ScreenshotPayload.TYPE,
-                ScreenshotPayload.STREAM_CODEC,
-                ScreenshotPayload::handleClient
-        );
                 BlackScreenPayload.TYPE,
                 BlackScreenPayload.STREAM_CODEC,
                 BlackScreenPayload::handleClient
@@ -34,11 +29,6 @@ public class ModNetwork {
         
         // 触发同步请求（服务端→客户端）
         registrar.playToClient(
-        registrar.playToClient(
-                ScreenshotPayload.TYPE,
-                ScreenshotPayload.STREAM_CODEC,
-                ScreenshotPayload::handleClient
-        );
                 TriggerSyncPayload.TYPE,
                 TriggerSyncPayload.STREAM_CODEC,
                 TriggerSyncPayload::handleClient
@@ -53,18 +43,31 @@ public class ModNetwork {
         
         // 服务端同步数据（服务端→客户端）
         registrar.playToClient(
+                ServerSyncDataPayload.TYPE,
+                ServerSyncDataPayload.STREAM_CODEC,
+                ServerSyncDataPayload::handleClient
+        );
+        
+        // 终端命令执行包（客户端→服务端）
+        registrar.playToServer(
+                ExecuteCommandPacket.TYPE,
+                ExecuteCommandPacket.STREAM_CODEC,
+                ExecuteCommandPacket::handleServer
+        );
+
+        // 截屏网络包（服务端→客户端）
         registrar.playToClient(
                 ScreenshotPayload.TYPE,
                 ScreenshotPayload.STREAM_CODEC,
                 ScreenshotPayload::handleClient
         );
-                ServerSyncDataPayload.TYPE,
-                ServerSyncDataPayload.STREAM_CODEC,
-                ServerSyncDataPayload::handleClient
-        );
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         PacketDistributor.sendToPlayer(player, payload);
+    }
+    
+    public static void sendToServer(CustomPacketPayload payload) {
+        PacketDistributor.sendToServer(payload);
     }
 }
