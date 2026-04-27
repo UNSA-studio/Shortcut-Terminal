@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".wav"};
+    private static final String[] SUPPORTED_FORMATS = {".mp3", ".wav", ".ogg"};
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
 
@@ -107,47 +107,87 @@ public class MusicPlaybackManager {
             try {
                 File file = new File(playback.currentFile);
                 String fileName = file.getName().toLowerCase();
-                
-                if (!fileName.endsWith(".wav")) {
-                    ShortcutTerminal.LOGGER.error("Unsupported audio format (only WAV supported): {}", fileName);
+
+                if (fileName.endsWith(".wav")) {
+                    playWav(file, playback);
+                } else if (fileName.endsWith(".mp3")) {
+                    playMp3(file, playback);
+                } else {
+                    ShortcutTerminal.LOGGER.error("Unsupported audio format: {}", fileName);
                     activePlaybacks.remove(playback.ownerUUID);
-                    return;
-                }
-
-                AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
-                AudioFormat format = audioStream.getFormat();
-                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-                line.open(format);
-                line.start();
-
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = audioStream.read(buffer)) != -1 && !playback.stopped) {
-                    line.write(buffer, 0, bytesRead);
-                }
-
-                line.drain();
-                line.close();
-                audioStream.close();
-
-                if (!playback.stopped) {
-                    if (playback.loopRemaining > 0) {
-                        playback.loopRemaining--;
-                        playNextInThread(playback);
-                    } else if (playback.isSonglist && playback.songlistIndex < playback.songlist.size() - 1) {
-                        playback.songlistIndex++;
-                        playback.currentFile = playback.songlist.get(playback.songlistIndex);
-                        playNextInThread(playback);
-                    } else {
-                        activePlaybacks.remove(playback.ownerUUID);
-                    }
                 }
             } catch (Exception e) {
                 ShortcutTerminal.LOGGER.error("Audio playback error: {}", e.getMessage());
                 activePlaybacks.remove(playback.ownerUUID);
             }
         });
+    }
+
+    private static void playWav(File file, ActivePlayback playback) throws Exception {
+        AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
+        AudioFormat format = audioStream.getFormat();
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = audioStream.read(buffer)) != -1 && !playback.stopped) {
+            line.write(buffer, 0, bytesRead);
+        }
+
+        line.drain();
+        line.close();
+        audioStream.close();
+
+        handlePlaybackFinished(playback);
+    }
+
+    private static void playMp3(File file, ActivePlayback playback) throws Exception {
+        // 使用MP3解码器读取
+        Mp3Decoder decoder = new Mp3Decoder(new FileInputStream(file));
+        AudioFormat format = new AudioFormat(
+            AudioFormat.Encoding.PCM_SIGNED,
+            decoder.getSampleRate(),
+            16,
+            decoder.getChannels(),
+            decoder.getChannels() * 2,
+            decoder.getSampleRate(),
+            false
+        );
+
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = decoder.read(buffer)) != -1 && !playback.stopped) {
+            line.write(buffer, 0, bytesRead);
+        }
+
+        line.drain();
+        line.close();
+        decoder.close();
+
+        handlePlaybackFinished(playback);
+    }
+
+    private static void handlePlaybackFinished(ActivePlayback playback) {
+        if (!playback.stopped) {
+            if (playback.loopRemaining > 0) {
+                playback.loopRemaining--;
+                playNextInThread(playback);
+            } else if (playback.isSonglist && playback.songlistIndex < playback.songlist.size() - 1) {
+                playback.songlistIndex++;
+                playback.currentFile = playback.songlist.get(playback.songlistIndex);
+                playNextInThread(playback);
+            } else {
+                activePlaybacks.remove(playback.ownerUUID);
+            }
+        }
     }
 
     public static void stopPlayback(UUID ownerUUID) {
