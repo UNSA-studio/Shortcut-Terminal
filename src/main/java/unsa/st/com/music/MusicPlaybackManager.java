@@ -1,7 +1,6 @@
 package unsa.st.com.music;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import unsa.st.com.ShortcutTerminal;
@@ -14,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".wav", ".flac", ".aiff"};
+    private static final String[] SUPPORTED_FORMATS = {".wav"};
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
 
@@ -69,9 +68,7 @@ public class MusicPlaybackManager {
                     list.add(baseDir.resolve(songName).toString());
                 }
             }
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to read songlist", e);
-        }
+        } catch (IOException e) {}
         return list;
     }
 
@@ -109,6 +106,14 @@ public class MusicPlaybackManager {
         scheduler.submit(() -> {
             try {
                 File file = new File(playback.currentFile);
+                String fileName = file.getName().toLowerCase();
+                
+                if (!fileName.endsWith(".wav")) {
+                    ShortcutTerminal.LOGGER.error("Unsupported audio format (only WAV supported): {}", fileName);
+                    activePlaybacks.remove(playback.ownerUUID);
+                    return;
+                }
+
                 AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
                 AudioFormat format = audioStream.getFormat();
                 DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
@@ -139,7 +144,7 @@ public class MusicPlaybackManager {
                     }
                 }
             } catch (Exception e) {
-                ShortcutTerminal.LOGGER.error("Audio playback error", e);
+                ShortcutTerminal.LOGGER.error("Audio playback error: {}", e.getMessage());
                 activePlaybacks.remove(playback.ownerUUID);
             }
         });
@@ -149,20 +154,6 @@ public class MusicPlaybackManager {
         ActivePlayback p = activePlaybacks.get(ownerUUID);
         if (p != null) p.stopped = true;
         activePlaybacks.remove(ownerUUID);
-    }
-
-    public static boolean isPlaying(UUID ownerUUID) {
-        return activePlaybacks.containsKey(ownerUUID);
-    }
-
-    public static Vec3 getPlaybackPosition(UUID ownerUUID) {
-        ActivePlayback p = activePlaybacks.get(ownerUUID);
-        if (p != null) {
-            Player player = getPlayer(ownerUUID);
-            if (player != null) p.position = player.position();
-            return p.position;
-        }
-        return null;
     }
 
     private static Path resolvePath(UUID uuid, String relativePath) {
