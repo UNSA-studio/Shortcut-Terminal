@@ -17,11 +17,11 @@ import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.util.OfflineTeleportManager;
-import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
-import unsa.st.com.music.MusicPlaybackManager;
 import unsa.st.com.network.ScreenshotPayload;
+import unsa.st.com.terminal.TerminalIdManager;
+import unsa.st.com.music.MusicPlaybackManager;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -453,15 +453,68 @@ public class CoreCommandExecutor {
         return "Usage: stop macro";
     }
 
-    // ==================== RUN / SPOOF (完整展开) ====================
+    // ==================== RUN 模块（spoof, mp, screenshot, id） ====================
     private String executeRun(String[] args) {
         if (args.length == 0) return "Usage: run <module> [args...]";
         String module = args[0].toLowerCase(Locale.ROOT);
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
-        if ("spoof".equals(module)) return executeSpoof(moduleArgs);
-        return "Unknown run module: " + module;
+        switch (module) {
+            case "spoof": return executeSpoof(moduleArgs);
+            case "mp": return executeMp(moduleArgs);
+            case "screenshot": return executeScreenshot(moduleArgs);
+            case "id": return executeId(moduleArgs);
+            default: return "Unknown run module: " + module;
+        }
     }
 
+    // ========== MP ==========
+    private String executeMp(String[] args) {
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        String path = args[0];
+        int loop = 0;
+        boolean songlistMode = false;
+        boolean runSonglist = false;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            if (a.startsWith("loop-")) {
+                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+            } else if (a.equals("songlist")) {
+                songlistMode = true;
+            } else if (a.equals("run")) {
+                runSonglist = true;
+            }
+        }
+        return MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
+    }
+
+    // ========== Screenshot ==========
+    private String executeScreenshot(String[] args) {
+        if (args.length == 0) return "Usage: run screenshot <player> [-aov 1-4]";
+        String targetName = args[0];
+        int aov = 1;
+        for (int i = 1; i < args.length; i++) {
+            if (args[i].equals("-aov") && i + 1 < args.length) {
+                try { aov = Integer.parseInt(args[i + 1]); } catch (NumberFormatException e) { return "Invalid angle of view."; }
+                break;
+            }
+        }
+        ServerPlayer target = getServerPlayer(targetName);
+        if (target == null) return "Player not found: " + targetName;
+        ModNetwork.sendToPlayer(target, new ScreenshotPayload(aov));
+        return "Screenshot request sent to " + targetName;
+    }
+
+    // ========== ID ==========
+    private String executeId(String[] args) {
+        if (args.length < 2) return "Usage: run id <tid|ram> [options]";
+        String subCommand = args[0].toLowerCase(Locale.ROOT);
+        if ("tid".equals(subCommand) && args.length > 1 && "ram".equals(args[1].toLowerCase())) {
+            return TerminalIdManager.listAllTerminals();
+        }
+        return "Usage: run id tid ram   (list all terminals)";
+    }
+
+    // ========== SPOOF ==========
     private String executeSpoof(String[] args) {
         if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";
         String action = args[0].toLowerCase(Locale.ROOT);
@@ -489,7 +542,6 @@ public class CoreCommandExecutor {
     private long parseTimeMs(String t, long defSec) { if(t==null||t.isEmpty()) return defSec*1000; t=t.toLowerCase(); try { if(t.endsWith("ms")) return Long.parseLong(t.replace("ms","")); if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000; if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000; if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000; return Long.parseLong(t)*1000; } catch (NumberFormatException e) { return defSec*1000; } }
     private ServerPlayer getServerPlayer(String name) { if (Minecraft.getInstance().hasSingleplayerServer()) return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name); return null; }
 
-    // 修复：使用反射设置Creeper充能，避免访问私有字段 DATA_IS_POWERED
     private String spoofCreeper(ServerPlayer t, Map<String, String> p) {
         int q = Math.min(getIntParam(p,"quantity",1), 64);
         boolean charged = "lightning".equalsIgnoreCase(p.get("morphology"));
@@ -522,7 +574,7 @@ public class CoreCommandExecutor {
     private String spoofTortoise(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); t.getAbilities().setWalkingSpeed(0.02f); t.onUpdateAbilities(); scheduler.schedule(()->{ t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); },ms,TimeUnit.MILLISECONDS); return "Tortoise done."; }
     private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) { String ts=p.get("time"); if(ts==null) return "Missing time"; long ms=parseTimeMs(ts,0); ModNetwork.sendToPlayer(t,new BlackScreenPayload(true)); scheduler.schedule(()->ModNetwork.sendToPlayer(t,new BlackScreenPayload(false)),ms,TimeUnit.MILLISECONDS); return "Blackscreen done."; }
 
-    // ==================== User 管理命令 (使用正确API) ====================
+    // ==================== User 管理命令 ====================
     private String executeUser(String[] args) {
         if (args.length < 2) return "Usage: User <player> <operation> [options...]";
         String targetName = args[0];
@@ -531,7 +583,6 @@ public class CoreCommandExecutor {
 
         ServerPlayer target = getServerPlayer(targetName);
         UUID targetUuid = target != null ? target.getUUID() : lookupOfflineUUID(targetName);
-
         if (targetUuid == null) return "Player not found: " + targetName;
 
         switch (operation.toLowerCase(Locale.ROOT)) {
@@ -558,7 +609,6 @@ public class CoreCommandExecutor {
                 if (target != null) return "The user is on the server and the property is not available.";
                 try {
                     double x = Double.parseDouble(opArgs[0]), y = Double.parseDouble(opArgs[1]), z = Double.parseDouble(opArgs[2]);
-                    // 修复：直接使用你原文件中的静态方法，不再调用错误的 addTeleport
                     OfflineTeleportManager.saveCoordTeleport(targetUuid, x, y, z);
                     return "Offline teleport set for " + targetName;
                 } catch (Exception e) { return "Invalid coordinates."; }
@@ -582,8 +632,7 @@ public class CoreCommandExecutor {
     private UUID lookupOfflineUUID(String name) {
         if (Minecraft.getInstance().getSingleplayerServer() != null) {
             var playerList = Minecraft.getInstance().getSingleplayerServer().getPlayerList();
-            if (playerList.getPlayerByName(name) != null)
-                return playerList.getPlayerByName(name).getUUID();
+            if (playerList.getPlayerByName(name) != null) return playerList.getPlayerByName(name).getUUID();
         }
         return null;
     }
@@ -598,75 +647,4 @@ public class CoreCommandExecutor {
     private Path getGameDir() {
         return Minecraft.getInstance().getSingleplayerServer().getServerDirectory();
     }
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
-        String path = args[0];
-        int loop = 0;
-        boolean songlistMode = false;
-        boolean runSonglist = false;
-        boolean generateSonglist = false;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            } else if (a.equals("songlist")) {
-                songlistMode = true;
-            } else if (a.equals("run")) {
-                runSonglist = true;
-            }
-        }
-        java.nio.file.Path resolved = unsa.st.com.filesystem.UserFileSystem.getUserPath(playerUuid).resolve(path.startsWith("/") ? path.substring(1) : path);
-        if (songlistMode && !runSonglist && java.nio.file.Files.isDirectory(resolved)) {
-            return unsa.st.com.music.MusicPlaybackManager.generateSonglist(playerUuid, path);
-        }
-        return unsa.st.com.music.MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
-    }
 }
-    private String executeScreenshot(String[] args) {
-        if (args.length == 0) return "Usage: run screenshot <player> [-aov 1-4]";
-        
-        String targetName = args[0];
-        int aov = 1; // 默认第一人称
-        
-        for (int i = 1; i < args.length; i++) {
-            if (args[i].equals("-aov") && i + 1 < args.length) {
-                try { aov = Integer.parseInt(args[i + 1]); } catch (NumberFormatException e) { return "Invalid angle of view."; }
-                break;
-            }
-        }
-        
-        ServerPlayer target = getServerPlayer(targetName);
-        if (target == null) return "Player not found: " + targetName;
-        
-        ModNetwork.sendToPlayer(target, new ScreenshotPayload(aov));
-        return "Screenshot request sent to " + targetName;
-    }
-
-    private String executeId(String[] args) {
-        if (args.length < 2) return "Usage: run id <tid|ram> [options]";
-        
-        String subCommand = args[0].toLowerCase(Locale.ROOT);
-        if ("tid".equals(subCommand) && args.length > 1 && "ram".equals(args[1].toLowerCase())) {
-            return TerminalIdManager.listAllTerminals();
-        }
-        return "Usage: run id tid ram   (list all terminals sorted by RAM usage)";
-    }
-
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
-        String path = args[0];
-        int loop = 0;
-        boolean songlistMode = false;
-        boolean runSonglist = false;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            } else if (a.equals("songlist")) {
-                songlistMode = true;
-            } else if (a.equals("run")) {
-                runSonglist = true;
-            }
-        }
-        return unsa.st.com.music.MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
-    }
