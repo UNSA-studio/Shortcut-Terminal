@@ -13,49 +13,36 @@ public class ModNetwork {
     public static void register(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar(ShortcutTerminal.MODID);
         
-        // 黑屏网络包（服务端→客户端）
         registrar.playToClient(
                 BlackScreenPayload.TYPE,
                 BlackScreenPayload.STREAM_CODEC,
                 BlackScreenPayload::handleClient
         );
         
-        // 文件同步包（客户端→服务端）
         registrar.playToServer(
                 SyncFileSystemPacket.TYPE,
                 SyncFileSystemPacket.STREAM_CODEC,
                 SyncFileSystemPacket::handleServer
         );
         
-        // 触发同步请求（服务端→客户端）
         registrar.playToClient(
                 TriggerSyncPayload.TYPE,
                 TriggerSyncPayload.STREAM_CODEC,
                 TriggerSyncPayload::handleClient
         );
         
-        // 请求服务端同步（客户端→服务端）
         registrar.playToServer(
                 RequestServerSyncPayload.TYPE,
                 RequestServerSyncPayload.STREAM_CODEC,
                 RequestServerSyncPayload::handleServer
         );
         
-        // 服务端同步数据（服务端→客户端）
         registrar.playToClient(
                 ServerSyncDataPayload.TYPE,
                 ServerSyncDataPayload.STREAM_CODEC,
                 ServerSyncDataPayload::handleClient
         );
-        
-        // 终端命令执行包（客户端→服务端）
-        registrar.playToServer(
-                ExecuteCommandPacket.TYPE,
-                ExecuteCommandPacket.STREAM_CODEC,
-                ExecuteCommandPacket::handleServer
-        );
 
-        // 截屏网络包（服务端→客户端）
         registrar.playToClient(
                 ScreenshotPayload.TYPE,
                 ScreenshotPayload.STREAM_CODEC,
