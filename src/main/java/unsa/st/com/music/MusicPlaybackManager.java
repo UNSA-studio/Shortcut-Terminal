@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".wav", ".flac", ".aiff"};
+    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".wav"};
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
 
