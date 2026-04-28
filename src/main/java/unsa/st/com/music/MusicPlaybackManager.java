@@ -1,8 +1,5 @@
 package unsa.st.com.music;
 
-import javazoom.jl.player.Player;
-import org.jflac.FLACDecoder;
-import org.jflac.metadata.StreamInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -22,7 +19,6 @@ public class MusicPlaybackManager {
 
     public static class ActivePlayback {
         public UUID ownerUUID;
-        public Vec3 position;
         public String currentFile;
         public int loopRemaining;
         public boolean isSonglist;
@@ -42,7 +38,6 @@ public class MusicPlaybackManager {
 
         ActivePlayback playback = new ActivePlayback();
         playback.ownerUUID = ownerUUID;
-        playback.position = owner.position();
         playback.currentFile = actualPath.toString();
         playback.loopRemaining = loop;
         playback.isSonglist = isSonglist;
@@ -111,97 +106,30 @@ public class MusicPlaybackManager {
                 File file = new File(playback.currentFile);
                 String name = file.getName().toLowerCase();
 
-                if (name.endsWith(".mp3")) playMp3(file, playback);
-                else if (name.endsWith(".flac")) playFlac(file, playback);
-                else if (name.endsWith(".ogg")) playOgg(file, playback);
-                else if (name.endsWith(".wav")) playWav(file, playback);
+                AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+                SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+                line.open(format);
+                line.start();
+
+                if (name.endsWith(".mp3")) AudioDecoder.decodeMP3(file, line);
+                else if (name.endsWith(".flac")) AudioDecoder.decodeFLAC(file, line);
+                else if (name.endsWith(".ogg")) AudioDecoder.decodeOGG(file, line);
+                else if (name.endsWith(".wav")) AudioDecoder.decodeWAV(file, line);
                 else {
                     ShortcutTerminal.LOGGER.error("Unsupported format: {}", name);
                     activePlaybacks.remove(playback.ownerUUID);
+                    return;
                 }
+
+                line.drain();
+                line.close();
+                handlePlaybackFinished(playback);
             } catch (Exception e) {
                 ShortcutTerminal.LOGGER.error("Audio playback error: {}", e.getMessage());
                 activePlaybacks.remove(playback.ownerUUID);
             }
         });
-    }
-
-    // -------- MP3 --------
-    private static void playMp3(File file, ActivePlayback playback) throws Exception {
-        try (FileInputStream fis = new FileInputStream(file);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
-            Player mp3Player = new Player(bis);
-            mp3Player.play();
-        }
-        handlePlaybackFinished(playback);
-    }
-
-    // -------- FLAC --------
-    private static void playFlac(File file, ActivePlayback playback) throws Exception {
-        FLACDecoder decoder = new FLACDecoder(new FileInputStream(file));
-        StreamInfo streamInfo = decoder.readStreamInfo();
-        AudioFormat format = new AudioFormat(
-            AudioFormat.Encoding.PCM_SIGNED,
-            streamInfo.getSampleRate(),
-            streamInfo.getBitsPerSample(),
-            streamInfo.getChannels(),
-            streamInfo.getChannels() * (streamInfo.getBitsPerSample() / 8),
-            streamInfo.getSampleRate(),
-            false
-        );
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
-        byte[] buf = new byte[4096];
-        int len;
-        while ((len = decoder.readPcm(buf)) > 0 && !playback.stopped) {
-            line.write(buf, 0, len);
-        }
-        line.drain();
-        line.close();
-        decoder.close();
-        handlePlaybackFinished(playback);
-    }
-
-    // -------- OGG (JOrbis) --------
-    private static void playOgg(File file, ActivePlayback playback) throws Exception {
-        com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath());
-        int channels = vf.getChannels();
-        int rate = vf.getSampleRate();
-        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
-        byte[] buf = new byte[4096 * 4];
-        int len;
-        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
-            line.write(buf, 0, len);
-        }
-        line.drain();
-        line.close();
-        vf.close();
-        handlePlaybackFinished(playback);
-    }
-
-    // -------- WAV --------
-    private static void playWav(File file, ActivePlayback playback) throws Exception {
-        AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
-        AudioFormat format = audioStream.getFormat();
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
-        byte[] buf = new byte[8192];
-        int len;
-        while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
-            line.write(buf, 0, len);
-        }
-        line.drain();
-        line.close();
-        audioStream.close();
-        handlePlaybackFinished(playback);
     }
 
     private static void handlePlaybackFinished(ActivePlayback playback) {
