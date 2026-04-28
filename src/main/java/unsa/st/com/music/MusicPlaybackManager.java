@@ -1,8 +1,6 @@
 package unsa.st.com.music;
 
 import javazoom.jl.decoder.*;
-import javazoom.jl.player.AudioDevice;
-import javazoom.jl.player.JavaSoundAudioDevice;
 import javazoom.jl.player.advanced.AdvancedPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
