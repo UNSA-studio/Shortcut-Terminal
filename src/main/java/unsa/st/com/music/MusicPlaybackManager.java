@@ -1,6 +1,6 @@
 package unsa.st.com.music;
 
-import javazoom.jl.player.Player;
+import javazoom.jl.player.advanced.AdvancedPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import unsa.st.com.ShortcutTerminal;
@@ -107,43 +107,11 @@ public class MusicPlaybackManager {
                 String name = file.getName().toLowerCase();
 
                 if (name.endsWith(".ogg")) {
-                    try (com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath())) {
-                        int channels = vf.getChannels();
-                        int rate = vf.getSampleRate();
-                        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
-                        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-                        line.open(format);
-                        line.start();
-                        byte[] buf = new byte[4096 * 4];
-                        int len;
-                        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
-                            line.write(buf, 0, len);
-                        }
-                        line.drain();
-                        line.close();
-                    }
+                    playOgg(file, playback);
                 } else if (name.endsWith(".mp3")) {
-                    try (FileInputStream fis = new FileInputStream(file);
-                         BufferedInputStream bis = new BufferedInputStream(fis)) {
-                        Player mp3Player = new Player(bis);
-                        mp3Player.play();
-                    }
+                    playMp3(file, playback);
                 } else if (name.endsWith(".wav")) {
-                    AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
-                    AudioFormat format = audioStream.getFormat();
-                    DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                    SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-                    line.open(format);
-                    line.start();
-                    byte[] buf = new byte[8192];
-                    int len;
-                    while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
-                        line.write(buf, 0, len);
-                    }
-                    line.drain();
-                    line.close();
-                    audioStream.close();
+                    playWav(file, playback);
                 } else {
                     ShortcutTerminal.LOGGER.error("Unsupported format: {}", name);
                     activePlaybacks.remove(playback.ownerUUID);
@@ -155,6 +123,57 @@ public class MusicPlaybackManager {
                 activePlaybacks.remove(playback.ownerUUID);
             }
         });
+    }
+
+    private static void playMp3(File file, ActivePlayback playback) throws Exception {
+        try (FileInputStream fis = new FileInputStream(file);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            AdvancedPlayer mp3Player = new AdvancedPlayer(bis);
+            new Thread(() -> {
+                try { mp3Player.play(); } catch (Exception ignored) {}
+            }).start();
+            while (!playback.stopped && activePlaybacks.containsKey(playback.ownerUUID)) {
+                Thread.sleep(100);
+            }
+            mp3Player.close();
+        }
+    }
+
+    private static void playOgg(File file, ActivePlayback playback) throws Exception {
+        com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath());
+        com.jcraft.jorbis.Info vi = vf.getInfo();
+        int channels = vi.channels;
+        int rate = vi.rate;
+        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+        byte[] buf = new byte[4096 * 4];
+        int len;
+        while ((len = vf.read(buf, 0, buf.length, 0, 2, null)) > 0 && !playback.stopped) {
+            line.write(buf, 0, len);
+        }
+        line.drain();
+        line.close();
+        vf.close();
+    }
+
+    private static void playWav(File file, ActivePlayback playback) throws Exception {
+        AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
+        AudioFormat format = audioStream.getFormat();
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+        byte[] buf = new byte[8192];
+        int len;
+        while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
+            line.write(buf, 0, len);
+        }
+        line.drain();
+        line.close();
+        audioStream.close();
     }
 
     private static void handlePlaybackFinished(ActivePlayback playback) {
