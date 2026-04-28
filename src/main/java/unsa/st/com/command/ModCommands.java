@@ -24,6 +24,7 @@ public class ModCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         var root = Commands.literal("ST");
 
+        // ========== 1. 所有内置命令（带状态持久化） ==========
         String[] builtinCommands = {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "df",
@@ -37,7 +38,6 @@ public class ModCommands {
                     .executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
-                        
                         CoreCommandExecutor executor = playerExecutors.computeIfAbsent(player.getUUID(), uuid -> {
                             CoreCommandExecutor exec = new CoreCommandExecutor(false);
                             exec.setPlayer(player);
@@ -45,7 +45,6 @@ public class ModCommands {
                             return exec;
                         });
                         executor.setPlayer(player);
-                        
                         String argsStr = StringArgumentType.getString(ctx, "args");
                         String[] args = argsStr.isEmpty() ? new String[0] : argsStr.split(" ");
                         String result = executor.execute(cmd, args);
@@ -56,7 +55,6 @@ public class ModCommands {
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayer();
                     if (player == null) return 0;
-                    
                     CoreCommandExecutor executor = playerExecutors.computeIfAbsent(player.getUUID(), uuid -> {
                         CoreCommandExecutor exec = new CoreCommandExecutor(false);
                         exec.setPlayer(player);
@@ -64,7 +62,6 @@ public class ModCommands {
                         return exec;
                     });
                     executor.setPlayer(player);
-                    
                     String result = executor.execute(cmd, new String[0]);
                     ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                     return 1;
@@ -72,11 +69,431 @@ public class ModCommands {
             );
         }
 
-        // User, run, pkg 等命令保持原来的逻辑，但 run 中的内置命令也需缓存 executor
-        // 篇幅有限，这里只展示核心修复，其他命令（run, User, pkg）沿用之前完整版
-        // 实际覆盖时请确保包含所有命令
+        // ========== 2. User 管理命令 ==========
+        root.then(Commands.literal("User")
+            .then(Commands.argument("player", EntityArgument.players())
+                .then(Commands.literal("switchingmode")
+                    .then(Commands.argument("mode", StringArgumentType.word())
+                        .suggests((ctx, builder) -> {
+                            builder.suggest("creative");
+                            builder.suggest("survival");
+                            builder.suggest("spectator");
+                            builder.suggest("1");
+                            builder.suggest("2");
+                            builder.suggest("3");
+                            return builder.buildFuture();
+                        })
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String mode = StringArgumentType.getString(ctx, "mode");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "switchingmode", mode});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("transport-Online")
+                    .then(Commands.argument("coordinates", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String coords = StringArgumentType.getString(ctx, "coordinates");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "transport-Online", coords});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("transport-Offline")
+                    .then(Commands.argument("coordinates", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer admin = ctx.getSource().getPlayer();
+                            if (admin == null) return 0;
+                            String coords = StringArgumentType.getString(ctx, "coordinates");
+                            String[] targets = getPlayerNames(ctx, "player");
+                            StringBuilder results = new StringBuilder();
+                            for (String target : targets) {
+                                CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                                executor.setPlayer(admin);
+                                String result = executor.execute("User", new String[]{target, "transport-Offline", coords});
+                                results.append(result).append("\n");
+                            }
+                            ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                            return 1;
+                        })
+                    )
+                )
+                .then(Commands.literal("ban")
+                    .executes(ctx -> {
+                        ServerPlayer admin = ctx.getSource().getPlayer();
+                        if (admin == null) return 0;
+                        String[] targets = getPlayerNames(ctx, "player");
+                        StringBuilder results = new StringBuilder();
+                        for (String target : targets) {
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(admin);
+                            String result = executor.execute("User", new String[]{target, "ban"});
+                            results.append(result).append("\n");
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                        return 1;
+                    })
+                )
+                .then(Commands.literal("op")
+                    .executes(ctx -> {
+                        ServerPlayer admin = ctx.getSource().getPlayer();
+                        if (admin == null) return 0;
+                        String[] targets = getPlayerNames(ctx, "player");
+                        StringBuilder results = new StringBuilder();
+                        for (String target : targets) {
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(admin);
+                            String result = executor.execute("User", new String[]{target, "op"});
+                            results.append(result).append("\n");
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal(results.toString().trim()), false);
+                        return 1;
+                    })
+                )
+            )
+        );
+
+        // ========== 3. run 系列命令 ==========
+        root.then(Commands.literal("run")
+            .then(Commands.literal("strongloading")
+                .then(Commands.argument("distance", StringArgumentType.word())
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) return 0;
+                        String distance = StringArgumentType.getString(ctx, "distance");
+                        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                        executor.setPlayer(player);
+                        String result = executor.execute("run", new String[]{"strongloading", distance});
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("macro")
+                .then(Commands.argument("action", StringArgumentType.word())
+                    .then(Commands.argument("interval_ms", StringArgumentType.word())
+                        .executes(ctx -> {
+                            String action = StringArgumentType.getString(ctx, "action");
+                            String interval = StringArgumentType.getString(ctx, "interval_ms");
+                            try {
+                                long ms = Long.parseLong(interval);
+                                PlayerMacroManager.startMacro(action, ms);
+                                ctx.getSource().sendSuccess(() -> Component.literal("Macro started: " + action + " every " + ms + "ms"), true);
+                            } catch (NumberFormatException e) {
+                                ctx.getSource().sendFailure(Component.literal("Invalid interval"));
+                            }
+                            return 1;
+                        })
+                    )
+                )
+            )
+            .then(Commands.literal("synchrony")
+                .then(Commands.literal("-local")
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player != null) {
+                            PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
+                            ctx.getSource().sendSuccess(() -> Component.literal("Triggering local -> server sync..."), false);
+                        }
+                        return 1;
+                    })
+                )
+                .then(Commands.literal("-server")
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player != null) {
+                            PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(false));
+                            ctx.getSource().sendSuccess(() -> Component.literal("Triggering server -> local sync..."), false);
+                        }
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("spoof")
+                .then(Commands.argument("player", EntityArgument.player())
+                    .then(Commands.literal("ray")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "ray", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "ray", "");
+                        })
+                    )
+                    .then(Commands.literal("creeper")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "creeper", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "creeper", "");
+                        })
+                    )
+                    .then(Commands.literal("flyup")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "flyup", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "flyup", "");
+                        })
+                    )
+                    .then(Commands.literal("evasiveground")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "evasiveground", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "evasiveground", "");
+                        })
+                    )
+                    .then(Commands.literal("stop")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "stop", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "stop", "");
+                        })
+                    )
+                    .then(Commands.literal("quickly")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "quickly", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "quickly", "");
+                        })
+                    )
+                    .then(Commands.literal("tortoise")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "tortoise", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "tortoise", "");
+                        })
+                    )
+                    .then(Commands.literal("blackscreen")
+                        .then(Commands.argument("params", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                String paramsStr = StringArgumentType.getString(ctx, "params");
+                                return executeSpoofAction(ctx.getSource(), target, "blackscreen", paramsStr);
+                            })
+                        )
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            return executeSpoofAction(ctx.getSource(), target, "blackscreen", "");
+                        })
+                    )
+                )
+            )
+            .then(Commands.literal("mp")
+                .then(Commands.argument("args", StringArgumentType.greedyString())
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) return 0;
+                        String argsStr = StringArgumentType.getString(ctx, "args");
+                        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                        executor.setPlayer(player);
+                        String result = executor.execute("mp", argsStr.split(" "));
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("screenshot")
+                .then(Commands.argument("target", EntityArgument.player())
+                    .then(Commands.argument("options", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                            String options = StringArgumentType.getString(ctx, "options");
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(target);
+                            String result = executor.execute("screenshot", options.split(" "));
+                            ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                            return 1;
+                        })
+                    )
+                    .executes(ctx -> {
+                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                        CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                        executor.setPlayer(target);
+                        String result = executor.execute("screenshot", new String[]{target.getName().getString()});
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("id")
+                .then(Commands.literal("tid")
+                    .then(Commands.literal("ram")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayer();
+                            if (player == null || !player.hasPermissions(2)) {
+                                ctx.getSource().sendFailure(Component.literal("You must be an operator."));
+                                return 0;
+                            }
+                            CoreCommandExecutor executor = new CoreCommandExecutor(false);
+                            executor.setPlayer(player);
+                            String result = executor.execute("run", new String[]{"id", "tid", "ram"});
+                            ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                            return 1;
+                        })
+                    )
+                )
+            )
+        );
+
+        // ========== 4. 远程控制命令 ==========
+        root.then(Commands.literal("RID")
+            .executes(ctx -> {
+                String rid = RemoteControlManager.getRID();
+                ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
+                return 1;
+            })
+        );
+        root.then(Commands.literal("RCID")
+            .then(Commands.argument("rcid", StringArgumentType.word())
+                .executes(ctx -> {
+                    String rcid = StringArgumentType.getString(ctx, "rcid");
+                    String result = RemoteControlManager.authenticateRCID(rcid);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
+        root.then(Commands.literal("account")
+            .then(Commands.argument("credentials", StringArgumentType.greedyString())
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player == null || !player.hasPermissions(2)) {
+                        ctx.getSource().sendFailure(Component.literal("You must be an operator."));
+                        return 0;
+                    }
+                    String creds = StringArgumentType.getString(ctx, "credentials");
+                    String[] parts = creds.split("\\s+");
+                    String name = null, password = null;
+                    for (String part : parts) {
+                        if (part.startsWith("name:")) name = part.substring(5);
+                        if (part.startsWith("password:")) password = part.substring(9);
+                    }
+                    if (name == null || password == null) {
+                        ctx.getSource().sendFailure(Component.literal("Usage: /ST account name:<name> password:<password>"));
+                        return 0;
+                    }
+                    String result = RemoteControlManager.setAccount(name, password);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+        );
+
+        // ========== 5. pkg 系列命令 ==========
+        root.then(Commands.literal("pkg")
+            .then(Commands.literal("update")
+                .executes(ctx -> {
+                    String result = PkgManager.updateIndex(false, true);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
+            .then(Commands.literal("install")
+                .then(Commands.argument("package", StringArgumentType.word())
+                    .suggests((ctx, builder) -> {
+                        PkgManager.listAvailable().forEach(builder::suggest);
+                        return builder.buildFuture();
+                    })
+                    .executes(ctx -> {
+                        String pkg = StringArgumentType.getString(ctx, "package");
+                        String result = PkgManager.install(pkg, false);
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("search")
+                .then(Commands.argument("keyword", StringArgumentType.word())
+                    .executes(ctx -> {
+                        String keyword = StringArgumentType.getString(ctx, "keyword");
+                        java.util.List<String> results = PkgManager.search(keyword);
+                        String output = results.isEmpty() ? "No packages found." : String.join("\n", results);
+                        ctx.getSource().sendSuccess(() -> Component.literal(output), false);
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("list")
+                .executes(ctx -> {
+                    java.util.List<String> installed = PkgManager.listInstalled(false);
+                    String output = installed.isEmpty() ? "No packages installed." : String.join("\n", installed);
+                    ctx.getSource().sendSuccess(() -> Component.literal(output), false);
+                    return 1;
+                })
+            )
+            .then(Commands.literal("remove")
+                .then(Commands.argument("package", StringArgumentType.word())
+                    .executes(ctx -> {
+                        String pkg = StringArgumentType.getString(ctx, "package");
+                        String result = PkgManager.remove(pkg, false);
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+            )
+        );
 
         dispatcher.register(root);
+        ShortcutTerminal.LOGGER.info("Shortcut Terminal commands registered");
     }
 
     private static int executeSpoofAction(CommandSourceStack source, ServerPlayer target, String action, String paramsStr) {
