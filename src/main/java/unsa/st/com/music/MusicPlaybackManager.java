@@ -1,6 +1,6 @@
 package unsa.st.com.music;
 
-import javazoom.jl.player.advanced.AdvancedPlayer;
+import unsa.st.com.thirdparty.javazoom.jl.player.advanced.AdvancedPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import unsa.st.com.ShortcutTerminal;
@@ -106,10 +106,10 @@ public class MusicPlaybackManager {
                 File file = new File(playback.currentFile);
                 String name = file.getName().toLowerCase();
 
-                if (name.endsWith(".ogg")) {
-                    playOgg(file, playback);
-                } else if (name.endsWith(".mp3")) {
+                if (name.endsWith(".mp3")) {
                     playMp3(file, playback);
+                } else if (name.endsWith(".ogg")) {
+                    playOgg(file, playback);
                 } else if (name.endsWith(".wav")) {
                     playWav(file, playback);
                 } else {
@@ -141,9 +141,9 @@ public class MusicPlaybackManager {
 
     private static void playOgg(File file, ActivePlayback playback) throws Exception {
         com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath());
-        com.jcraft.jorbis.Info vi = vf.getInfo();
-        int channels = vi.channels;
-        int rate = vi.rate;
+        com.jcraft.jorbis.Info[] infoArray = vf.getInfo();
+        int channels = infoArray[0].channels;
+        int rate = infoArray[0].rate;
         AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
         SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
@@ -151,7 +151,7 @@ public class MusicPlaybackManager {
         line.start();
         byte[] buf = new byte[4096 * 4];
         int len;
-        while ((len = vf.read(buf, 0, buf.length, 0, 2, null)) > 0 && !playback.stopped) {
+        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
             line.write(buf, 0, len);
         }
         line.drain();
