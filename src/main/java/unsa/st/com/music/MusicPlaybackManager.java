@@ -1,8 +1,8 @@
 package unsa.st.com.music;
 
+import javazoom.jl.player.Player;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.filesystem.UserFileSystem;
 
@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".flac", ".wav"};
+    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".wav"};
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
 
@@ -106,24 +106,49 @@ public class MusicPlaybackManager {
                 File file = new File(playback.currentFile);
                 String name = file.getName().toLowerCase();
 
-                AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
-                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-                line.open(format);
-                line.start();
-
-                if (name.endsWith(".mp3")) AudioDecoder.decodeMP3(file, line);
-                else if (name.endsWith(".flac")) AudioDecoder.decodeFLAC(file, line);
-                else if (name.endsWith(".ogg")) AudioDecoder.decodeOGG(file, line);
-                else if (name.endsWith(".wav")) AudioDecoder.decodeWAV(file, line);
-                else {
+                if (name.endsWith(".ogg")) {
+                    try (com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath())) {
+                        int channels = vf.getChannels();
+                        int rate = vf.getSampleRate();
+                        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
+                        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+                        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+                        line.open(format);
+                        line.start();
+                        byte[] buf = new byte[4096 * 4];
+                        int len;
+                        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
+                            line.write(buf, 0, len);
+                        }
+                        line.drain();
+                        line.close();
+                    }
+                } else if (name.endsWith(".mp3")) {
+                    try (FileInputStream fis = new FileInputStream(file);
+                         BufferedInputStream bis = new BufferedInputStream(fis)) {
+                        Player mp3Player = new Player(bis);
+                        mp3Player.play();
+                    }
+                } else if (name.endsWith(".wav")) {
+                    AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
+                    AudioFormat format = audioStream.getFormat();
+                    DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+                    SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+                    line.open(format);
+                    line.start();
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
+                        line.write(buf, 0, len);
+                    }
+                    line.drain();
+                    line.close();
+                    audioStream.close();
+                } else {
                     ShortcutTerminal.LOGGER.error("Unsupported format: {}", name);
                     activePlaybacks.remove(playback.ownerUUID);
                     return;
                 }
-
-                line.drain();
-                line.close();
                 handlePlaybackFinished(playback);
             } catch (Exception e) {
                 ShortcutTerminal.LOGGER.error("Audio playback error: {}", e.getMessage());

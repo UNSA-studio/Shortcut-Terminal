@@ -21,7 +21,6 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.26.0'
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
     jarJar(group: 'javazoom', name: 'jlayer', version: '1.0.1')
-    jarJar(group: 'com.github.axet', name: 'javaflac', version: '1.0')
 }
 neoForge {
     version = '21.1.219'
