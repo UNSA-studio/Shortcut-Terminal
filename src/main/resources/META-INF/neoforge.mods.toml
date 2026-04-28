@@ -34,3 +34,10 @@ Shortcut Terminal - Linux commands in Minecraft!
     versionRange = "[1.21.1-93,)"
     ordering = "AFTER"
     side = "BOTH"
+
+[[dependencies.shortcutterminal]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.21.1,)"
+    ordering="NONE"
+    side="BOTH"

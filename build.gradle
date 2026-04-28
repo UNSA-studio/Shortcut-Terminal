@@ -21,8 +21,6 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.26.0'
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
     jarJar(group: 'com.googlecode.soundlibs', name: 'jlayer', version: '1.0.1.4')
-    jarJar(group: 'com.googlecode.soundlibs', name: 'mp3spi', version: '1.9.5.4')
-    jarJar(group: 'com.googlecode.soundlibs', name: 'vorbisspi', version: '1.0.3.3')
 }
 neoForge {
     version = '21.1.219'
