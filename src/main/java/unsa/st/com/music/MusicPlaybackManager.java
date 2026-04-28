@@ -1,7 +1,8 @@
 package unsa.st.com.music;
 
-import javazoom.jl.decoder.*;
-import javazoom.jl.player.advanced.AdvancedPlayer;
+import javazoom.jl.player.Player;
+import org.jflac.FLACDecoder;
+import org.jflac.metadata.StreamInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -15,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".mp3", ".wav"};
+    private static final String[] SUPPORTED_FORMATS = {".mp3", ".ogg", ".flac", ".wav"};
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
 
@@ -108,14 +109,14 @@ public class MusicPlaybackManager {
         scheduler.submit(() -> {
             try {
                 File file = new File(playback.currentFile);
-                String fileName = file.getName().toLowerCase();
+                String name = file.getName().toLowerCase();
 
-                if (fileName.endsWith(".wav")) {
-                    playWav(file, playback);
-                } else if (fileName.endsWith(".mp3")) {
-                    playMp3(file, playback);
-                } else {
-                    ShortcutTerminal.LOGGER.error("Unsupported audio format: {}", fileName);
+                if (name.endsWith(".mp3")) playMp3(file, playback);
+                else if (name.endsWith(".flac")) playFlac(file, playback);
+                else if (name.endsWith(".ogg")) playOgg(file, playback);
+                else if (name.endsWith(".wav")) playWav(file, playback);
+                else {
+                    ShortcutTerminal.LOGGER.error("Unsupported format: {}", name);
                     activePlaybacks.remove(playback.ownerUUID);
                 }
             } catch (Exception e) {
@@ -125,6 +126,66 @@ public class MusicPlaybackManager {
         });
     }
 
+    // -------- MP3 --------
+    private static void playMp3(File file, ActivePlayback playback) throws Exception {
+        try (FileInputStream fis = new FileInputStream(file);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            Player mp3Player = new Player(bis);
+            mp3Player.play();
+        }
+        handlePlaybackFinished(playback);
+    }
+
+    // -------- FLAC --------
+    private static void playFlac(File file, ActivePlayback playback) throws Exception {
+        FLACDecoder decoder = new FLACDecoder(new FileInputStream(file));
+        StreamInfo streamInfo = decoder.readStreamInfo();
+        AudioFormat format = new AudioFormat(
+            AudioFormat.Encoding.PCM_SIGNED,
+            streamInfo.getSampleRate(),
+            streamInfo.getBitsPerSample(),
+            streamInfo.getChannels(),
+            streamInfo.getChannels() * (streamInfo.getBitsPerSample() / 8),
+            streamInfo.getSampleRate(),
+            false
+        );
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+        byte[] buf = new byte[4096];
+        int len;
+        while ((len = decoder.readPcm(buf)) > 0 && !playback.stopped) {
+            line.write(buf, 0, len);
+        }
+        line.drain();
+        line.close();
+        decoder.close();
+        handlePlaybackFinished(playback);
+    }
+
+    // -------- OGG (JOrbis) --------
+    private static void playOgg(File file, ActivePlayback playback) throws Exception {
+        com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath());
+        int channels = vf.getChannels();
+        int rate = vf.getSampleRate();
+        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
+        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        line.open(format);
+        line.start();
+        byte[] buf = new byte[4096 * 4];
+        int len;
+        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
+            line.write(buf, 0, len);
+        }
+        line.drain();
+        line.close();
+        vf.close();
+        handlePlaybackFinished(playback);
+    }
+
+    // -------- WAV --------
     private static void playWav(File file, ActivePlayback playback) throws Exception {
         AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
         AudioFormat format = audioStream.getFormat();
@@ -132,40 +193,15 @@ public class MusicPlaybackManager {
         SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
         line.open(format);
         line.start();
-
-        byte[] buffer = new byte[8192];
-        int bytesRead;
-        while ((bytesRead = audioStream.read(buffer)) != -1 && !playback.stopped) {
-            line.write(buffer, 0, bytesRead);
+        byte[] buf = new byte[8192];
+        int len;
+        while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
+            line.write(buf, 0, len);
         }
-
         line.drain();
         line.close();
         audioStream.close();
-
         handlePlaybackFinished(playback);
-    }
-
-    private static void playMp3(File file, ActivePlayback playback) throws Exception {
-        FileInputStream fis = new FileInputStream(file);
-        BufferedInputStream bis = new BufferedInputStream(fis);
-        AdvancedPlayer player = new AdvancedPlayer(bis);
-        
-        // 开启播放线程，每帧检查是否被停止
-        new Thread(() -> {
-            try {
-                player.play();
-            } catch (Exception ignored) {}
-            handlePlaybackFinished(playback);
-        }).start();
-
-        // 轮询等待停止信号
-        while (!playback.stopped && activePlaybacks.containsKey(playback.ownerUUID)) {
-            Thread.sleep(100);
-        }
-        player.close();
-        bis.close();
-        fis.close();
     }
 
     private static void handlePlaybackFinished(ActivePlayback playback) {
