@@ -1,6 +1,6 @@
 package unsa.st.com.music;
 
-import unsa.st.com.thirdparty.javazoom.jl.player.advanced.AdvancedPlayer;
+import javazoom.jl.player.advanced.AdvancedPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import unsa.st.com.ShortcutTerminal;
@@ -151,7 +151,9 @@ public class MusicPlaybackManager {
         line.start();
         byte[] buf = new byte[4096 * 4];
         int len;
-        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
+        int[] bitstream = new int[1];
+        // VorbisFile.read 需要 6 个参数: buffer, offset, length, bigendianp, word, bitstream
+        while ((len = vf.read(buf, 0, buf.length, 0, 2, bitstream)) > 0 && !playback.stopped) {
             line.write(buf, 0, len);
         }
         line.drain();
