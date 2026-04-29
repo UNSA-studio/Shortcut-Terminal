@@ -20,8 +20,7 @@ dependencies {
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
-    // 直接引用，无需 relocate，因为 javazoom 与 jorbis 不冲突
-    jarJar(group: 'javazoom', name: 'jlayer', version: '1.0.1')
+    jarJar('javazoom:jlayer:1.0.1')
 }
 neoForge {
     version = '21.1.219'
