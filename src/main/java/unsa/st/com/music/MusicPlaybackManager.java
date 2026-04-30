@@ -48,8 +48,7 @@ public class MusicPlaybackManager {
                 File file = new File(playback.currentFile);
                 try (FileInputStream fis = new FileInputStream(file);
                      BufferedInputStream bis = new BufferedInputStream(fis)) {
-                    Player mp3Player = new Player(bis);
-                    mp3Player.play();
+                    new Player(bis).play();
                 }
                 handlePlaybackFinished(playback);
             } catch (Exception e) {

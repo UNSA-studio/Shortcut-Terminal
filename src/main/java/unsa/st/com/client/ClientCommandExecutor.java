@@ -1,3 +1,4 @@
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 package unsa.st.com.client;
 
 import net.minecraft.client.Minecraft;
