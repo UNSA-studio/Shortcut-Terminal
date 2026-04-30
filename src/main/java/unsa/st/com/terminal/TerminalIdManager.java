@@ -20,7 +20,7 @@ public class TerminalIdManager {
     private static boolean initialized = false;
 
     public static void init() {
-        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
             dataFile = server.getServerDirectory().resolve("st_terminals.json");
             load();

@@ -230,7 +230,7 @@ public class ClientCommandExecutor {
 
     private ServerPlayer getServerPlayer(String name) {
         if (Minecraft.getInstance().hasSingleplayerServer()) {
-            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
+            return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayerByName(name);
         }
         return null;
     }

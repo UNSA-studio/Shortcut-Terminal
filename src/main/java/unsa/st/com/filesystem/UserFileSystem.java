@@ -13,7 +13,7 @@ public class UserFileSystem {
 
     private static Path getBasePath() {
         if (basePath == null) {
-            MinecraftServer s = Minecraft.getInstance().getSingleplayerServer();
+            MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
             basePath = (s != null ? s.getServerDirectory() : Paths.get(BASE_FOLDER)).resolve(BASE_FOLDER);
             try { Files.createDirectories(basePath); } catch (IOException e) {}
         }

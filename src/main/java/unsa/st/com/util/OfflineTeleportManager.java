@@ -24,7 +24,7 @@ public class OfflineTeleportManager {
     private static Path dataFile;
 
     public static void init() {
-        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
             dataFile = server.getServerDirectory().resolve("st_offline_tp.json");
             load();

@@ -16,7 +16,7 @@ public class BinaryPluginManager {
     private static List<String> availablePlugins = new ArrayList<>();
 
     public static void init() {
-        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
             // server.getServerDirectory() 已经返回 Path，无需 toPath()
             pluginPath = server.getServerDirectory().resolve(PLUGIN_FOLDER);

@@ -76,7 +76,7 @@ public class PkgManager {
         if (isClient) {
             return Minecraft.getInstance().gameDirectory.toPath();
         } else {
-            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
             return server.getServerDirectory();
         }
     }

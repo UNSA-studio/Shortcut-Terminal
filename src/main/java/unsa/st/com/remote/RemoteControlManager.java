@@ -38,7 +38,7 @@ public class RemoteControlManager {
     }
 
     public static void init() {
-        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null || !server.isDedicatedServer()) {
             // 单人模式下不初始化远程控制
             ShortcutTerminal.LOGGER.info("Remote control is only available on dedicated servers.");
@@ -89,7 +89,7 @@ public class RemoteControlManager {
     }
 
     public static String executeRemoteCommand(String command) {
-        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return "Server not available.";
         ServerPlayer player = null;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {

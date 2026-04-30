@@ -540,7 +540,7 @@ public class CoreCommandExecutor {
     private int getIntParam(Map<String, String> p, String k, int def) { try { return Integer.parseInt(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }
     private float getFloatParam(Map<String, String> p, String k, float def) { try { return Float.parseFloat(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }
     private long parseTimeMs(String t, long defSec) { if(t==null||t.isEmpty()) return defSec*1000; t=t.toLowerCase(); try { if(t.endsWith("ms")) return Long.parseLong(t.replace("ms","")); if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000; if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000; if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000; return Long.parseLong(t)*1000; } catch (NumberFormatException e) { return defSec*1000; } }
-    private ServerPlayer getServerPlayer(String name) { if (Minecraft.getInstance().hasSingleplayerServer()) return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name); return null; }
+    private ServerPlayer getServerPlayer(String name) { if (Minecraft.getInstance().hasSingleplayerServer()) return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayerByName(name); return null; }
 
     private String spoofCreeper(ServerPlayer t, Map<String, String> p) {
         int q = Math.min(getIntParam(p,"quantity",1), 64);
@@ -620,7 +620,7 @@ public class CoreCommandExecutor {
             }
             case "op": {
                 if (target != null) {
-                    Minecraft.getInstance().getSingleplayerServer().getPlayerList().op(target.getGameProfile());
+                    ServerLifecycleHooks.getCurrentServer().getPlayerList().op(target.getGameProfile());
                     return targetName + " is now operator.";
                 }
                 return "Player must be online to op.";
@@ -630,8 +630,8 @@ public class CoreCommandExecutor {
     }
 
     private UUID lookupOfflineUUID(String name) {
-        if (Minecraft.getInstance().getSingleplayerServer() != null) {
-            var playerList = Minecraft.getInstance().getSingleplayerServer().getPlayerList();
+        if (ServerLifecycleHooks.getCurrentServer() != null) {
+            var playerList = ServerLifecycleHooks.getCurrentServer().getPlayerList();
             if (playerList.getPlayerByName(name) != null) return playerList.getPlayerByName(name).getUUID();
         }
         return null;
@@ -645,6 +645,6 @@ public class CoreCommandExecutor {
     }
 
     private Path getGameDir() {
-        return Minecraft.getInstance().getSingleplayerServer().getServerDirectory();
+        return ServerLifecycleHooks.getCurrentServer().getServerDirectory();
     }
 }

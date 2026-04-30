@@ -22,7 +22,7 @@ public class FakePlayerManager {
 
     public static FakePlayerEntity createFakePlayer(String name, ServerLevel level, BlockPos pos) {
         try {
-            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
             GameProfile profile = new GameProfile(FAKE_UUID, name);
             
             // 从模组资源加载皮肤并应用到 GameProfile
