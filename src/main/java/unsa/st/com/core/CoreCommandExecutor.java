@@ -484,7 +484,7 @@ public class CoreCommandExecutor {
                 runSonglist = true;
             }
         }
-        return MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
+        return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
     }
 
     // ========== Screenshot ==========

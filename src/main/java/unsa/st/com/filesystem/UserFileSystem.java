@@ -1,7 +1,6 @@
 package unsa.st.com.filesystem;
 
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.*;
@@ -14,7 +13,7 @@ public class UserFileSystem {
 
     private static Path getBasePath() {
         if (basePath == null) {
-            MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+            MinecraftServer s = Minecraft.getInstance().getSingleplayerServer();
             basePath = (s != null ? s.getServerDirectory() : Paths.get(BASE_FOLDER)).resolve(BASE_FOLDER);
             try { Files.createDirectories(basePath); } catch (IOException e) {}
         }

@@ -369,7 +369,7 @@ public class ClientCommandExecutor {
                 runSonglist = true;
             }
         }
-        return MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
+        return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
     }
 
     public List<String> getOutputBuffer() { return outputBuffer; }

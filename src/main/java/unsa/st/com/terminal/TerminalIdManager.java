@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.*;
@@ -21,7 +20,7 @@ public class TerminalIdManager {
     private static boolean initialized = false;
 
     public static void init() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) {
             dataFile = server.getServerDirectory().resolve("st_terminals.json");
             load();

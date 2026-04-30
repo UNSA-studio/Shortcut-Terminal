@@ -1,7 +1,6 @@
 package unsa.st.com.plugin;
 
 import net.minecraft.server.MinecraftServer;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.IOException;
@@ -17,7 +16,7 @@ public class BinaryPluginManager {
     private static List<String> availablePlugins = new ArrayList<>();
 
     public static void init() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) {
             // server.getServerDirectory() 已经返回 Path，无需 toPath()
             pluginPath = server.getServerDirectory().resolve(PLUGIN_FOLDER);

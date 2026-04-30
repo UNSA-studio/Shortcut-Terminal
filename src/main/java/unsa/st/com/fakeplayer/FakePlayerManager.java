@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.ByteArrayOutputStream;
@@ -23,7 +22,7 @@ public class FakePlayerManager {
 
     public static FakePlayerEntity createFakePlayer(String name, ServerLevel level, BlockPos pos) {
         try {
-            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
             GameProfile profile = new GameProfile(FAKE_UUID, name);
             
             // 从模组资源加载皮肤并应用到 GameProfile

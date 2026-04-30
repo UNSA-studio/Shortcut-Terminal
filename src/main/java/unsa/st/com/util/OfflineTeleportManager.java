@@ -11,7 +11,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -25,7 +24,7 @@ public class OfflineTeleportManager {
     private static Path dataFile;
 
     public static void init() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) {
             dataFile = server.getServerDirectory().resolve("st_offline_tp.json");
             load();

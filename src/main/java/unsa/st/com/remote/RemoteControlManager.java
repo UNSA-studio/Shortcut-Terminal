@@ -7,7 +7,6 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.core.CoreCommandExecutor;
 
@@ -39,7 +38,7 @@ public class RemoteControlManager {
     }
 
     public static void init() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server == null || !server.isDedicatedServer()) {
             // 单人模式下不初始化远程控制
             ShortcutTerminal.LOGGER.info("Remote control is only available on dedicated servers.");
@@ -90,7 +89,7 @@ public class RemoteControlManager {
     }
 
     public static String executeRemoteCommand(String command) {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server == null) return "Server not available.";
         ServerPlayer player = null;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
