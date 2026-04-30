@@ -173,7 +173,6 @@ public class ClientCommandExecutor {
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
             case "spoof": return executeSpoof(moduleArgs);
-            case "mp": return executeMp(moduleArgs);
             default: return "Unknown run module: " + module;
         }
     }

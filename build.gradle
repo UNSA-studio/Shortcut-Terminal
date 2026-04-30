@@ -21,7 +21,6 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.26.0'
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
     // 修复：使用正确的 jlayer 依赖
-    jarJar(group: 'javazoom', name: 'jlayer', version: '1.0.1')
 }
 neoForge {
     version = '21.1.219'
