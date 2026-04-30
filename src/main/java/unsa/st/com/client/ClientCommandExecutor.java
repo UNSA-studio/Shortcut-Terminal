@@ -172,6 +172,7 @@ public class ClientCommandExecutor {
         String module = args[0].toLowerCase(Locale.ROOT);
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
+            case "mp": return executeMp(args);
             case "spoof": return executeSpoof(moduleArgs);
             default: return "Unknown run module: " + module;
         }
