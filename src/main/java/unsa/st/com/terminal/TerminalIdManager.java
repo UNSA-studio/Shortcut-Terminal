@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.server.MinecraftServer;
 import unsa.st.com.ShortcutTerminal;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.io.*;
 import java.nio.file.Path;

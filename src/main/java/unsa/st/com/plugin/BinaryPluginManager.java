@@ -2,6 +2,7 @@ package unsa.st.com.plugin;
 
 import net.minecraft.server.MinecraftServer;
 import unsa.st.com.ShortcutTerminal;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.io.IOException;
 import java.nio.file.Files;
