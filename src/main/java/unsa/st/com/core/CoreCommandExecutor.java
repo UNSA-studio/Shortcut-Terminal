@@ -10,6 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.pkg.PkgManager;
@@ -137,28 +138,12 @@ public class CoreCommandExecutor {
     }
 
     private String executeExternalProgram(Path programPath, String[] args) {
-        StringBuilder output = new StringBuilder();
-        try {
-            List<String> cmdList = new ArrayList<>();
-            cmdList.add(programPath.toAbsolutePath().toString());
-            cmdList.addAll(Arrays.asList(args));
-            ProcessBuilder pb = new ProcessBuilder(cmdList);
-            pb.directory(programPath.getParent().toFile());
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) output.append(line).append("\n");
-            }
-            int exit = p.waitFor();
-            if (exit != 0) output.append("\nProcess exited with code ").append(exit);
-        } catch (Exception e) { return "Error: Execution failed."; }
-        return output.toString().trim();
+        return "External execution not available.";
     }
 
-    // ==================== 基础命令实现 ====================
+    // ==================== 帮助与安全读写 ====================
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro, User (admin)";
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro, User (admin), mp";
     }
 
     private boolean isValidUserPath(String relPath) {
@@ -182,6 +167,7 @@ public class CoreCommandExecutor {
         }
     }
 
+    // ==================== 文件系统命令 ====================
     private String executeLs() {
         List<String> files = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, currentPath) :
@@ -233,7 +219,7 @@ public class CoreCommandExecutor {
         if (args.length == 0 || args[0].trim().isEmpty() || args[0].equals(".") || args[0].equals("./")) {
             currentPath = "";
             cdSuccessful = true;
-            return "Changed directory to: " + getCwdDisplay();
+            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
         }
         String newPath = UserFileSystem.normalizePath(currentPath, args[0]);
         List<String> test = isClient ?
@@ -242,7 +228,7 @@ public class CoreCommandExecutor {
         if (test != null) {
             currentPath = newPath;
             cdSuccessful = true;
-            return "Changed directory to: " + getCwdDisplay();
+            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
         }
         cdSuccessful = false;
         return "Error: Directory not found.";
@@ -252,18 +238,6 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 
-    private String targetPlayer(String[] args, int startIdx) {
-        return args.length > startIdx && !args[startIdx].contains("-") ? args[startIdx] : playerName;
-    }
-
-    private ServerPlayer getServerPlayer(String name) {
-        if (Minecraft.getInstance().hasSingleplayerServer()) {
-            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
-        }
-        return null;
-    }
-
-    private String getCwdDisplay() { return currentPath.isEmpty() ? "~" : currentPath; }
     private String executePwd() { return currentPath.isEmpty() ? "/" : currentPath; }
 
     private String executeCp(String[] args) {
@@ -359,23 +333,21 @@ public class CoreCommandExecutor {
         return sb.toString().trim();
     }
 
+    // ==================== 系统命令 ====================
     private String executeUname(String[] args) { return System.getProperty("os.name") + " " + System.getProperty("os.arch"); }
     private String executeDf(String[] args) { return "Filesystem data not available."; }
     private String executeFree(String[] args) { return "Memory data not available."; }
     private String executePs(String[] args) { return "Process list not available."; }
     private String executeDu(String[] args) { return "Disk usage not available."; }
-
     private String executePing(String[] args) {
         if (args.length == 0) return "Usage: ping <host>";
         try { return InetAddress.getByName(args[0]).isReachable(3000) ? "Host reachable" : "Host unreachable";
         } catch (IOException e) { return "Error: Unknown host."; }
     }
-
     private String executeCurl(String[] args) {
         if (args.length == 0) return "Usage: curl <url>";
         return fetchUrl(args[0]);
     }
-
     private String executeWget(String[] args) {
         if (args.length < 2) return "Usage: wget <url> <output_file>";
         String content = fetchUrl(args[0]);
@@ -383,7 +355,6 @@ public class CoreCommandExecutor {
         writeFileSafe(args[1], content);
         return "Downloaded to " + args[1];
     }
-
     private String fetchUrl(String urlStr) {
         try {
             URL url = new URL(urlStr);
@@ -396,14 +367,12 @@ public class CoreCommandExecutor {
             return content.toString().trim();
         } catch (Exception e) { return "Error: Failed to fetch URL."; }
     }
-
     private String executeWhich(String[] args) {
         if (args.length == 0) return "Usage: which <command>";
         Path found = findExecutableInPath(args[0]);
         if (found != null) return found.toString();
         return args[0] + " not found";
     }
-
     private String executeChmod(String[] args) {
         if (args.length < 2) return "Usage: chmod <mode> <file>";
         if (args[0].equals("+x")) {
@@ -464,7 +433,7 @@ public class CoreCommandExecutor {
         return "Usage: stop macro";
     }
 
-    // ==================== RUN 模块（spoof, mp, screenshot, id） ====================
+    // ==================== RUN 模块 ====================
     private String executeRun(String[] args) {
         if (args.length == 0) return "Usage: run <module> [args...]";
         String module = args[0].toLowerCase(Locale.ROOT);
@@ -480,25 +449,18 @@ public class CoreCommandExecutor {
 
     // ========== MP ==========
     private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
         String path = args[0];
         int loop = 0;
-        boolean songlistMode = false;
-        boolean runSonglist = false;
         for (int i = 1; i < args.length; i++) {
             String a = args[i].toLowerCase(Locale.ROOT);
             if (a.startsWith("loop-")) {
                 try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            } else if (a.equals("songlist")) {
-                songlistMode = true;
-            } else if (a.equals("run")) {
-                runSonglist = true;
             }
         }
         return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
     }
 
-    // ========== Screenshot ==========
     private String executeScreenshot(String[] args) {
         if (args.length == 0) return "Usage: run screenshot <player> [-aov 1-4]";
         String targetName = args[0];
@@ -515,7 +477,6 @@ public class CoreCommandExecutor {
         return "Screenshot request sent to " + targetName;
     }
 
-    // ========== ID ==========
     private String executeId(String[] args) {
         if (args.length < 2) return "Usage: run id <tid|ram> [options]";
         String subCommand = args[0].toLowerCase(Locale.ROOT);
@@ -525,8 +486,164 @@ public class CoreCommandExecutor {
         return "Usage: run id tid ram   (list all terminals)";
     }
 
-    // ========== SPOOF ==========
-private String executeSpoof(String[] args) {        if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";        String action = args[0].toLowerCase(Locale.ROOT);        String[] params = targetPlayer.equals(playerName) && args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : (args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0]);        ServerPlayer target = getServerPlayer(targetPlayer);        if (target == null) return "Player not found: " + targetPlayer;        Map<String, String> paramMap = parseParams(params);        switch (action) {            case "ray": return spoofRay(target, paramMap);            case "creeper": return spoofCreeper(target, paramMap);            case "flyup": return spoofFlyup(target, paramMap);            case "evasiveground": return spoofEvasiveGround(target, paramMap);            case "stop": return spoofStop(target, paramMap);            case "quickly": return spoofQuickly(target, paramMap);            case "tortoise": return spoofTortoise(target, paramMap);            case "blackscreen": return spoofBlackscreen(target, paramMap);            default: return "Unknown spoof action: " + action;        }    }    private Map<String, String> parseParams(String[] args) { Map<String, String> map = new HashMap<>(); for (String a : args) { int d = a.indexOf('-'); if (d>0) map.put(a.substring(0,d).toLowerCase(), a.substring(d+1)); } return map; }    private int getIntParam(Map<String, String> p, String k, int def) { try { return Integer.parseInt(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }    private float getFloatParam(Map<String, String> p, String k, float def) { try { return Float.parseFloat(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; } }    private long parseTimeMs(String t, long defSec) { if(t==null||t.isEmpty()) return defSec*1000; t=t.toLowerCase(); try { if(t.endsWith("ms")) return Long.parseLong(t.replace("ms","")); if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000; if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000; if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000; return Long.parseLong(t)*1000; } catch (NumberFormatException e) { return defSec*1000; } }    private String spoofRay(ServerPlayer t, Map<String, String> p) {        String fi = p.get("fi");        if (fi != null) {            String[] parts = fi.split("-");            if (parts.length == 2) {                int count = Integer.parseInt(parts[0]);                long interval = parseTimeMs(parts[1], 0);                float dmg = getFloatParam(p, "injure", 5);                for (int i = 0; i < count; i++) {                    scheduler.schedule(() -> {                        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(t.level());                        if (bolt != null) {                            bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition()));                            bolt.setCause(t);                            t.level().addFreshEntity(bolt);                            t.hurt(t.damageSources().lightningBolt(), dmg);                        }                    }, i * interval, TimeUnit.MILLISECONDS);                }                return "Scheduled " + count + " lightning strikes with " + interval + "ms interval.";            }            return "Invalid fi format. Use fi-<count>-<time>.";        }        int q = getIntParam(p, "quantity", 1);        float dmg = getFloatParam(p, "injure", 5);        for (int i = 0; i < q; i++) {            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(t.level());            if (bolt != null) {                bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition()));                bolt.setCause(t);                t.level().addFreshEntity(bolt);            }        }        t.hurt(t.damageSources().lightningBolt(), dmg);        return "Ray done.";    }    private String spoofCreeper(ServerPlayer t, Map<String, String> p) {        int q = Math.min(getIntParam(p, "quantity", 1), 64);        boolean charged = "lightning".equalsIgnoreCase(p.get("morphology"));        String ts = p.get("time");        Level l = t.level();        BlockPos pos = t.blockPosition();        for (int i = 0; i < q; i++) {            Creeper c = EntityType.CREEPER.create(l);            if (c != null) {                c.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);                if (charged) {                    try {                        java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);                        method.invoke(c, true);                    } catch (Exception ignored) {}                }                l.addFreshEntity(c);                if ("moment".equalsIgnoreCase(ts)) c.ignite();            }        }        return "Creeper done.";    }    private String spoofFlyup(ServerPlayer t, Map<String, String> p) {        String m = p.getOrDefault("manner", "");        Vec3 dest;        if (p.containsKey("coordinates")) {            String[] parts = p.get("coordinates").split(",");            dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));        } else dest = t.position().add(0, 100, 0);        t.teleportTo(dest.x, dest.y, dest.z);        if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;        return "Flyup done.";    }    private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {        Vec3 dest;        if (p.containsKey("coordinates")) {            String[] parts = p.get("coordinates").split(",");            dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));        } else dest = t.position().add(0, -10, 0);        t.teleportTo(dest.x, dest.y, dest.z);        if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);        return "EvasiveGround done.";    }    private String spoofStop(ServerPlayer t, Map<String, String> p) {        String ts = p.get("time");        if (ts == null) return "Missing time";        long ms = parseTimeMs(ts, 0);        Vec3 pos = t.position();        float yr = t.getYRot(), xr = t.getXRot();        scheduler.scheduleAtFixedRate(() -> {            t.teleportTo(pos.x, pos.y, pos.z);            t.setYRot(yr); t.setXRot(xr);            t.setDeltaMovement(0, 0, 0);        }, 0, 50, TimeUnit.MILLISECONDS);        scheduler.schedule(() -> {}, ms, TimeUnit.MILLISECONDS);        return "Stop done.";    }    private String spoofQuickly(ServerPlayer t, Map<String, String> p) {        String ts = p.get("time");        if (ts == null) return "Missing time";        float speed = getFloatParam(p, "speed", 2);        long ms = parseTimeMs(ts, 0);        t.getAbilities().setWalkingSpeed(speed / 10f);        t.onUpdateAbilities();        scheduler.schedule(() -> {            t.getAbilities().setWalkingSpeed(0.1f);            t.onUpdateAbilities();        }, ms, TimeUnit.MILLISECONDS);        return "Quickly done.";    }    private String spoofTortoise(ServerPlayer t, Map<String, String> p) {        String ts = p.get("time");        if (ts == null) return "Missing time";        long ms = parseTimeMs(ts, 0);        t.getAbilities().setWalkingSpeed(0.02f);        t.onUpdateAbilities();        scheduler.schedule(() -> {            t.getAbilities().setWalkingSpeed(0.1f);            t.onUpdateAbilities();        }, ms, TimeUnit.MILLISECONDS);        return "Tortoise done.";    }    private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) {        String ts = p.get("time");        if (ts == null) return "Missing time";        long ms = parseTimeMs(ts, 0);        ModNetwork.sendToPlayer(t, new BlackScreenPayload(true));        scheduler.schedule(() -> ModNetwork.sendToPlayer(t, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);        return "Blackscreen done.";    }
+    // ========== SPOOF 完整实现 ==========
+    private String executeSpoof(String[] args) {
+        if (args.length == 0) return "Usage: run spoof <action> [player] [parameters...]";
+        String action = args[0].toLowerCase(Locale.ROOT);
+        String targetPlayer = args.length > 1 && !args[1].contains("-") ? args[1] : playerName;
+        String[] params = targetPlayer.equals(playerName) && args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : (args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : new String[0]);
+        ServerPlayer target = getServerPlayer(targetPlayer);
+        if (target == null) return "Player not found: " + targetPlayer;
+        Map<String, String> paramMap = parseParams(params);
+        switch (action) {
+            case "ray": return spoofRay(target, paramMap);
+            case "creeper": return spoofCreeper(target, paramMap);
+            case "flyup": return spoofFlyup(target, paramMap);
+            case "evasiveground": return spoofEvasiveGround(target, paramMap);
+            case "stop": return spoofStop(target, paramMap);
+            case "quickly": return spoofQuickly(target, paramMap);
+            case "tortoise": return spoofTortoise(target, paramMap);
+            case "blackscreen": return spoofBlackscreen(target, paramMap);
+            default: return "Unknown spoof action: " + action;
+        }
+    }
+
+    private Map<String, String> parseParams(String[] args) {
+        Map<String, String> map = new HashMap<>();
+        for (String a : args) { int d = a.indexOf('-'); if (d>0) map.put(a.substring(0,d).toLowerCase(), a.substring(d+1)); }
+        return map;
+    }
+
+    private int getIntParam(Map<String, String> p, String k, int def) {
+        try { return Integer.parseInt(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
+    }
+
+    private float getFloatParam(Map<String, String> p, String k, float def) {
+        try { return Float.parseFloat(p.getOrDefault(k, String.valueOf(def))); } catch (NumberFormatException e) { return def; }
+    }
+
+    private long parseTimeMs(String t, long defSec) {
+        if(t==null||t.isEmpty()) return defSec*1000;
+        t=t.toLowerCase();
+        try {
+            if(t.endsWith("ms")) return Long.parseLong(t.replace("ms",""));
+            if(t.endsWith("s")) return Long.parseLong(t.replace("s",""))*1000;
+            if(t.endsWith("m")) return Long.parseLong(t.replace("m",""))*60000;
+            if(t.endsWith("h")) return Long.parseLong(t.replace("h",""))*3600000;
+            return Long.parseLong(t)*1000;
+        } catch (NumberFormatException e) { return defSec*1000; }
+    }
+
+    private ServerPlayer getServerPlayer(String name) {
+        if (Minecraft.getInstance().hasSingleplayerServer()) {
+            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
+        }
+        return null;
+    }
+
+    // spoof 子动作
+    private String spoofRay(ServerPlayer t, Map<String, String> p) {
+        String fi = p.get("fi");
+        if (fi != null) {
+            String[] parts = fi.split("-");
+            if (parts.length == 2) {
+                int count = Integer.parseInt(parts[0]);
+                long interval = parseTimeMs(parts[1], 0);
+                float dmg = getFloatParam(p, "injure", 5);
+                for (int i = 0; i < count; i++) {
+                    scheduler.schedule(() -> {
+                        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(t.level());
+                        if (bolt != null) {
+                            bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition()));
+                            bolt.setCause(t);
+                            t.level().addFreshEntity(bolt);
+                            t.hurt(t.damageSources().lightningBolt(), dmg);
+                        }
+                    }, i * interval, TimeUnit.MILLISECONDS);
+                }
+                return "Scheduled " + count + " lightning strikes.";
+            }
+            return "Invalid fi format.";
+        }
+        int q = getIntParam(p, "quantity", 1);
+        float dmg = getFloatParam(p, "injure", 5);
+        for (int i = 0; i < q; i++) {
+            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(t.level());
+            if (bolt != null) { bolt.setPos(Vec3.atBottomCenterOf(t.blockPosition())); bolt.setCause(t); t.level().addFreshEntity(bolt); }
+        }
+        t.hurt(t.damageSources().lightningBolt(), dmg);
+        return "Ray done.";
+    }
+
+    private String spoofCreeper(ServerPlayer t, Map<String, String> p) {
+        int q = Math.min(getIntParam(p, "quantity", 1), 64);
+        boolean charged = "lightning".equalsIgnoreCase(p.get("morphology"));
+        String ts = p.get("time");
+        Level l = t.level(); BlockPos pos = t.blockPosition();
+        for (int i = 0; i < q; i++) {
+            Creeper c = EntityType.CREEPER.create(l);
+            if (c != null) {
+                c.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+                if (charged) { try { Creeper.class.getMethod("setPowered", boolean.class).invoke(c, true); } catch (Exception ignored) {} }
+                l.addFreshEntity(c);
+                if ("moment".equalsIgnoreCase(ts)) c.ignite();
+                else if (ts != null && !ts.isEmpty()) scheduler.schedule(c::ignite, parseTimeMs(ts, 0), TimeUnit.MILLISECONDS);
+            }
+        }
+        return "Creeper done.";
+    }
+
+    private String spoofFlyup(ServerPlayer t, Map<String, String> p) {
+        Vec3 dest;
+        if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
+        else dest = t.position().add(0, 100, 0);
+        t.teleportTo(dest.x, dest.y, dest.z);
+        if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
+        return "Flyup done.";
+    }
+
+    private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {
+        Vec3 dest;
+        if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
+        else dest = t.position().add(0, -10, 0);
+        t.teleportTo(dest.x, dest.y, dest.z);
+        if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);
+        return "EvasiveGround done.";
+    }
+
+    private String spoofStop(ServerPlayer t, Map<String, String> p) {
+        String ts = p.get("time"); if (ts == null) return "Missing time";
+        long ms = parseTimeMs(ts, 0); Vec3 pos = t.position(); float yr = t.getYRot(), xr = t.getXRot();
+        scheduler.scheduleAtFixedRate(() -> { t.teleportTo(pos.x, pos.y, pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> {}, ms, TimeUnit.MILLISECONDS);
+        return "Stop done.";
+    }
+
+    private String spoofQuickly(ServerPlayer t, Map<String, String> p) {
+        String ts = p.get("time"); if (ts == null) return "Missing time";
+        float speed = getFloatParam(p, "speed", 2); long ms = parseTimeMs(ts, 0);
+        t.getAbilities().setWalkingSpeed(speed / 10f); t.onUpdateAbilities();
+        scheduler.schedule(() -> { t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); }, ms, TimeUnit.MILLISECONDS);
+        return "Quickly done.";
+    }
+
+    private String spoofTortoise(ServerPlayer t, Map<String, String> p) {
+        String ts = p.get("time"); if (ts == null) return "Missing time";
+        long ms = parseTimeMs(ts, 0);
+        t.getAbilities().setWalkingSpeed(0.02f); t.onUpdateAbilities();
+        scheduler.schedule(() -> { t.getAbilities().setWalkingSpeed(0.1f); t.onUpdateAbilities(); }, ms, TimeUnit.MILLISECONDS);
+        return "Tortoise done.";
+    }
+
+    private String spoofBlackscreen(ServerPlayer t, Map<String, String> p) {
+        String ts = p.get("time"); if (ts == null) return "Missing time";
+        long ms = parseTimeMs(ts, 0);
+        ModNetwork.sendToPlayer(t, new BlackScreenPayload(true));
+        scheduler.schedule(() -> ModNetwork.sendToPlayer(t, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
+        return "Blackscreen done.";
+    }
+
+    // ==================== User 管理命令 ====================
     private String executeUser(String[] args) {
         if (args.length < 2) return "Usage: User <player> <operation> [options...]";
         String targetName = args[0];
@@ -582,8 +699,8 @@ private String executeSpoof(String[] args) {        if (args.length == 0) return
     }
 
     private UUID lookupOfflineUUID(String name) {
-        if (Minecraft.getInstance().getSingleplayerServer() != null) {
-            var playerList = Minecraft.getInstance().getSingleplayerServer().getPlayerList();
+        if (ServerLifecycleHooks.getCurrentServer() != null) {
+            var playerList = ServerLifecycleHooks.getCurrentServer().getPlayerList();
             if (playerList.getPlayerByName(name) != null) return playerList.getPlayerByName(name).getUUID();
         }
         return null;
@@ -591,12 +708,8 @@ private String executeSpoof(String[] args) {        if (args.length == 0) return
 
     private void banPlayer(UUID uuid) {
         try {
-            Path banFile = getGameDir().resolve("banned-players.json");
+            Path banFile = ServerLifecycleHooks.getCurrentServer().getServerDirectory().resolve("banned-players.json");
             Files.writeString(banFile, uuid.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException ignored) {}
-    }
-
-    private Path getGameDir() {
-        return Minecraft.getInstance().getSingleplayerServer().getServerDirectory();
     }
 }
