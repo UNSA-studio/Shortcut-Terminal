@@ -2,14 +2,15 @@ package unsa.st.com.music;
 
 import javazoom.jl.decoder.*;
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.sounds.AudioStream;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import org.lwjgl.openal.AL10;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.filesystem.UserFileSystem;
 
+import javax.sound.sampled.*;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -21,15 +22,12 @@ import java.util.concurrent.*;
 public class MusicPlaybackManager {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
-    private static boolean wasInWorld = false;
 
     public static class ActivePlayback {
         public UUID ownerUUID;
         public String currentFile;
         public int loopRemaining;
         public volatile boolean stopped = false;
-        public int source = -1;
-        public List<Integer> buffers = new ArrayList<>();
     }
 
     public static String startPlayback(UUID ownerUUID, String filePath, int loop) {
@@ -41,6 +39,7 @@ public class MusicPlaybackManager {
             return "File not found: " + filePath;
         }
 
+        // 停止旧的播放
         stopPlayback(ownerUUID);
 
         ActivePlayback playback = new ActivePlayback();
@@ -49,104 +48,92 @@ public class MusicPlaybackManager {
         playback.loopRemaining = loop;
 
         activePlaybacks.put(ownerUUID, playback);
-        scheduler.submit(() -> streamOpenAL(playback));
+        scheduler.submit(() -> playWithSoundEngine(playback));
 
         return "Now playing: " + actualPath.getFileName() + (loop > 0 ? " (loop " + loop + ")" : "");
     }
 
-    private static void streamOpenAL(ActivePlayback playback) {
+    private static void playWithSoundEngine(ActivePlayback playback) {
         try {
-            Bitstream bitstream = new Bitstream(new FileInputStream(playback.currentFile));
-            Decoder decoder = new Decoder();
-            playback.source = AL10.alGenSources();
-
-            int[] buffers = new int[3];
-            for (int i = 0; i < 3; i++) buffers[i] = AL10.alGenBuffers();
-            playback.buffers = new ArrayList<>(Arrays.asList(buffers[0], buffers[1], buffers[2]));
-
-            Header header = bitstream.readFrame();
-            if (header == null) return;
-            SampleBuffer sample = (SampleBuffer) decoder.decodeFrame(header, bitstream);
-            int channels = sample.getChannelCount();
-            int sampleRate = sample.getSampleFrequency();
-            int format = (channels == 2) ? AL10.AL_FORMAT_STEREO16 : AL10.AL_FORMAT_MONO16;
-
-            ByteBuffer pcm = decodeToBuffer(sample.getBuffer());
-            AL10.alBufferData(buffers[0], format, pcm, sampleRate);
-            AL10.alSourceQueueBuffers(playback.source, buffers[0]);
-            bitstream.closeFrame();
-
-            AL10.alSourcePlay(playback.source);
-
-            int currentBuf = 1;
-            while (!playback.stopped) {
-                int processed = AL10.alGetSourcei(playback.source, AL10.AL_BUFFERS_PROCESSED);
-                while (processed > 0) {
-                    AL10.alSourceUnqueueBuffers(playback.source);
-                    processed--;
-                }
-
-                header = bitstream.readFrame();
-                if (header != null) {
-                    sample = (SampleBuffer) decoder.decodeFrame(header, bitstream);
-                    pcm = decodeToBuffer(sample.getBuffer());
-                    AL10.alBufferData(buffers[currentBuf], format, pcm, sampleRate);
-                    AL10.alSourceQueueBuffers(playback.source, buffers[currentBuf]);
-                    bitstream.closeFrame();
-                    currentBuf = (currentBuf + 1) % 3;
-                } else {
-                    break;
-                }
-
-                if (AL10.alGetSourcei(playback.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
-                    AL10.alSourcePlay(playback.source);
-                }
-                Thread.sleep(10);
+            // 1. 用 jlayer 解码整个 MP3 到内存
+            byte[] pcmData = decodeMp3ToPcm(playback.currentFile);
+            if (pcmData == null) {
+                ShortcutTerminal.LOGGER.error("Failed to decode MP3: {}", playback.currentFile);
+                activePlaybacks.remove(playback.ownerUUID);
+                return;
             }
 
-            bitstream.close();
-            while (AL10.alGetSourcei(playback.source, AL10.AL_BUFFERS_PROCESSED) < 3 && !playback.stopped) {
-                Thread.sleep(50);
+            // 2. 将 PCM 数据包装成 Minecraft 的 AudioStream
+            AudioStream audioStream = new PcmAudioStream(pcmData);
+            
+            // 3. 获取播放者位置作为音源
+            Minecraft mc = Minecraft.getInstance();
+            Player player = mc.player;
+            double x = player.getX();
+            double y = player.getY();
+            double z = player.getZ();
+
+            // 4. 通过 SoundEngine 播放，范围约 15 格（同唱片机）
+            SimpleSoundInstance sound = new SimpleSoundInstance(
+                new net.minecraft.resources.ResourceLocation("shortcutterminal", "custom_mp3"),
+                SoundSource.RECORDS,
+                1.0F, 1.0F,
+                mc.level.getRandom(),
+                false, 0,
+                net.minecraft.client.resources.sounds.SoundInstance.Attenuation.LINEAR,
+                x, y, z,
+                true
+            );
+
+            mc.getSoundManager().play(sound);
+            
+            // 等待播放结束（根据 PCM 数据长度估算时间）
+            int durationMs = (pcmData.length / (44100 * 2 * 2)) * 1000;
+            long startTime = System.currentTimeMillis();
+            while (!playback.stopped && System.currentTimeMillis() - startTime < durationMs) {
+                Thread.sleep(100);
             }
 
-            if (!playback.stopped) {
-                if (playback.loopRemaining > 0) {
-                    playback.loopRemaining--;
-                    cleanup(playback);
-                    streamOpenAL(playback);
-                } else {
-                    cleanup(playback);
-                    activePlaybacks.remove(playback.ownerUUID);
-                }
+            // 处理循环
+            if (!playback.stopped && playback.loopRemaining > 0) {
+                playback.loopRemaining--;
+                playWithSoundEngine(playback);
             } else {
-                cleanup(playback);
                 activePlaybacks.remove(playback.ownerUUID);
             }
         } catch (Exception e) {
-            ShortcutTerminal.LOGGER.error("OpenAL streaming error: {}", e.getMessage());
-            cleanup(playback);
+            ShortcutTerminal.LOGGER.error("SoundEngine playback error: {}", e.getMessage());
             activePlaybacks.remove(playback.ownerUUID);
         }
     }
 
-    private static ByteBuffer decodeToBuffer(short[] pcm) {
-        ByteBuffer buf = ByteBuffer.allocateDirect(pcm.length * 2);
-        buf.order(ByteOrder.nativeOrder());
-        ShortBuffer shortBuf = buf.asShortBuffer();
-        shortBuf.put(pcm);
-        buf.rewind();
-        return buf;
-    }
+    private static byte[] decodeMp3ToPcm(String filePath) {
+        try {
+            Bitstream bitstream = new Bitstream(new FileInputStream(filePath));
+            Decoder decoder = new Decoder();
+            ByteArrayOutputStream pcmOut = new ByteArrayOutputStream();
+            boolean hasMoreFrames = true;
 
-    private static void cleanup(ActivePlayback playback) {
-        if (playback.source != -1) {
-            AL10.alSourceStop(playback.source);
-            AL10.alDeleteSources(playback.source);
-            for (int buf : playback.buffers) {
-                AL10.alDeleteBuffers(buf);
+            while (hasMoreFrames) {
+                Header header = bitstream.readFrame();
+                if (header == null) {
+                    hasMoreFrames = false;
+                    break;
+                }
+                SampleBuffer output = (SampleBuffer) decoder.decodeFrame(header, bitstream);
+                short[] samples = output.getBuffer();
+                ByteBuffer buf = ByteBuffer.allocate(samples.length * 2);
+                buf.order(ByteOrder.LITTLE_ENDIAN);
+                ShortBuffer shortBuf = buf.asShortBuffer();
+                shortBuf.put(samples);
+                pcmOut.write(buf.array());
+                bitstream.closeFrame();
             }
-            playback.source = -1;
-            playback.buffers.clear();
+            bitstream.close();
+            return pcmOut.toByteArray();
+        } catch (Exception e) {
+            ShortcutTerminal.LOGGER.error("MP3 decoding error: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -154,25 +141,7 @@ public class MusicPlaybackManager {
         ActivePlayback p = activePlaybacks.get(ownerUUID);
         if (p != null) {
             p.stopped = true;
-            cleanup(p);
             activePlaybacks.remove(ownerUUID);
-        }
-    }
-
-    // 用 ClientTickEvent 检测世界退出，自动停止所有播放
-    @EventBusSubscriber(modid = "shortcutterminal", value = Dist.CLIENT)
-    public static class ClientEvents {
-        @SubscribeEvent
-        public static void onClientTick(ClientTickEvent.Post event) {
-            Minecraft mc = Minecraft.getInstance();
-            boolean inWorld = mc.level != null;
-            if (wasInWorld && !inWorld) {
-                for (UUID uuid : new ArrayList<>(activePlaybacks.keySet())) {
-                    stopPlayback(uuid);
-                }
-                activePlaybacks.clear();
-            }
-            wasInWorld = inWorld;
         }
     }
 
@@ -182,5 +151,34 @@ public class MusicPlaybackManager {
             return userRoot.resolve(relativePath.substring(1));
         }
         return userRoot.resolve(relativePath);
+    }
+
+    // 简单的 PCM AudioStream 包装类
+    private static class PcmAudioStream implements AudioStream {
+        private final byte[] data;
+        private int position = 0;
+
+        PcmAudioStream(byte[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public AudioFormat getFormat() {
+            return new AudioFormat(44100, 16, 2, true, false);
+        }
+
+        @Override
+        public ByteBuffer read(int size) {
+            int remaining = data.length - position;
+            int toRead = Math.min(size, remaining);
+            ByteBuffer buf = ByteBuffer.allocateDirect(toRead);
+            buf.put(data, position, toRead);
+            buf.flip();
+            position += toRead;
+            return buf;
+        }
+
+        @Override
+        public void close() {}
     }
 }
