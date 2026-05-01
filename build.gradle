@@ -16,11 +16,11 @@ repositories {
     maven { url = 'https://maven.blamejared.com' }
 }
 dependencies {
-    implementation fileTree(dir: 'libs', include: '*.jar')
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9')
+    jarJar('javazoom:jlayer:1.0.1')
     // 修复：使用正确的 jlayer 依赖
 }
 neoForge {
