@@ -13,8 +13,6 @@ import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
 import unsa.st.com.music.MusicPlaybackManager;
-import unsa.st.com.client.ClientVirtualFileSystem;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -77,7 +75,6 @@ public class ClientCommandExecutor {
         }
     }
 
-    // 动态 PATH
     private Path findExecutableInPath(String command) {
         Path pathFile = PkgManager.getPathFile(true);
         if (!Files.exists(pathFile)) return null;
@@ -89,7 +86,9 @@ public class ClientCommandExecutor {
                     return Paths.get(parts[1]);
                 }
             }
-        } catch (IOException e) { ShortcutTerminal.LOGGER.error("PATH read error", e); }
+        } catch (IOException e) {
+            ShortcutTerminal.LOGGER.error("PATH read error", e);
+        }
         return null;
     }
 
@@ -101,7 +100,6 @@ public class ClientCommandExecutor {
         return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, run spoof, run mp";
     }
 
-    // 内置命令实现
     private String executeLs() {
         List<String> files = ClientVirtualFileSystem.listDirectory(playerName, currentPath);
         if (files == null) return "Error: Directory not found.";
@@ -140,11 +138,14 @@ public class ClientCommandExecutor {
     }
 
     private String executeCd(String[] args) {
-        if (args.length == 0) return "Usage: cd <path>";
+        if (args.length == 0 || args[0].trim().isEmpty() || args[0].equals(".") || args[0].equals("./")) {
+            currentPath = "";
+            return "Changed directory to: ~";
+        }
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, args[0]);
         if (ClientVirtualFileSystem.listDirectory(playerName, newPath) != null) {
             currentPath = newPath;
-            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
+            return "Changed directory to: " + (currentPath.isEmpty() ? "~" : currentPath);
         }
         return "Error: Directory not found.";
     }
@@ -172,24 +173,10 @@ public class ClientCommandExecutor {
         String module = args[0].toLowerCase(Locale.ROOT);
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
-            case "mp": return executeMp(args);
             case "spoof": return executeSpoof(moduleArgs);
+            case "mp": return executeMp(moduleArgs);
             default: return "Unknown run module: " + module;
         }
-    }
-
-    // MP3 播放
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
-        String path = args[0];
-        int loop = 0;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            }
-        }
-        return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
     }
 
     // ========== SPOOF ==========
@@ -214,7 +201,6 @@ public class ClientCommandExecutor {
         }
     }
 
-    // 工具方法
     private Map<String, String> parseParams(String[] args) {
         Map<String, String> map = new HashMap<>();
         for (String arg : args) {
@@ -244,12 +230,11 @@ public class ClientCommandExecutor {
 
     private ServerPlayer getServerPlayer(String name) {
         if (Minecraft.getInstance().hasSingleplayerServer()) {
-            return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayerByName(name);
+            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
         }
         return null;
     }
 
-    // spoof 子动作
     private String spoofRay(ServerPlayer target, Map<String, String> p) {
         int q = getIntParam(p, "quantity", 1);
         float dmg = getFloatParam(p, "injure", 5.0f);
@@ -277,12 +262,7 @@ public class ClientCommandExecutor {
             Creeper creeper = EntityType.CREEPER.create(lvl);
             if (creeper != null) {
                 creeper.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-                if (charged) {
-                    try {
-                        java.lang.reflect.Method method = Creeper.class.getMethod("setPowered", boolean.class);
-                        method.invoke(creeper, true);
-                    } catch (Exception ignored) {}
-                }
+                if (charged) { try { Creeper.class.getMethod("setPowered", boolean.class).invoke(creeper, true); } catch (Exception ignored) {}}
                 lvl.addFreshEntity(creeper);
                 if ("moment".equalsIgnoreCase(timeStr)) {
                     creeper.ignite();
@@ -370,6 +350,26 @@ public class ClientCommandExecutor {
         ModNetwork.sendToPlayer(target, new BlackScreenPayload(true));
         scheduler.schedule(() -> ModNetwork.sendToPlayer(target, new BlackScreenPayload(false)), ms, TimeUnit.MILLISECONDS);
         return "Blackscreen applied for " + (ms/1000) + "s";
+    }
+
+    // ========== MP (音乐播放) ==========
+    private String executeMp(String[] args) {
+        if (args.length == 0) return "Usage: run mp <path> [loop-<n>] [songlist [run]]";
+        String path = args[0];
+        int loop = 0;
+        boolean songlistMode = false;
+        boolean runSonglist = false;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            if (a.startsWith("loop-")) {
+                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+            } else if (a.equals("songlist")) {
+                songlistMode = true;
+            } else if (a.equals("run")) {
+                runSonglist = true;
+            }
+        }
+        return MusicPlaybackManager.startPlayback(playerUuid, path, loop, songlistMode && runSonglist);
     }
 
     public List<String> getOutputBuffer() { return outputBuffer; }
