@@ -86,7 +86,7 @@ public class MusicPlaybackManager {
 
         byte[] buf = new byte[4096 * 4];
         int len;
-        while ((len = vf.read(buf, 0, buf.length)) > 0 && !playback.stopped) {
+        while ((len = vf.read(buf, 0, buf.length, 0, 2, new int[1])) > 0 && !playback.stopped) {
             line.write(buf, 0, len);
         }
         line.drain();

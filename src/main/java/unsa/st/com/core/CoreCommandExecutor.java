@@ -252,6 +252,17 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 
+    private String targetPlayer(String[] args, int startIdx) {
+        return args.length > startIdx && !args[startIdx].contains("-") ? args[startIdx] : playerName;
+    }
+
+    private ServerPlayer getServerPlayer(String name) {
+        if (Minecraft.getInstance().hasSingleplayerServer()) {
+            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
+        }
+        return null;
+    }
+
     private String getCwdDisplay() { return currentPath.isEmpty() ? "~" : currentPath; }
     private String executePwd() { return currentPath.isEmpty() ? "/" : currentPath; }
 

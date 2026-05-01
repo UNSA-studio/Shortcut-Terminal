@@ -49,6 +49,17 @@ public class ClientCommandExecutor {
     public UUID getPlayerUuid() { return playerUuid; }
     public String getPlayerName() { return playerName; }
 
+    private String targetPlayer(String[] args, int startIdx) {
+        return args.length > startIdx && !args[startIdx].contains("-") ? args[startIdx] : playerName;
+    }
+
+    private ServerPlayer getServerPlayer(String name) {
+        if (Minecraft.getInstance().hasSingleplayerServer()) {
+            return Minecraft.getInstance().getSingleplayerServer().getPlayerList().getPlayerByName(name);
+        }
+        return null;
+    }
+
     public String execute(String command, String[] args) {
         String result = executeBuiltInCommand(command, args);
         if (result != null) return result;
