@@ -72,26 +72,74 @@ public class MusicPlaybackManager {
     }
 
     private static void playOgg(File file, ActivePlayback playback) throws Exception {
-        com.jcraft.jorbis.VorbisFile vf = new com.jcraft.jorbis.VorbisFile(file.getAbsolutePath());
-        com.jcraft.jorbis.Info[] infoArray = vf.getInfo();
-        int channels = infoArray[0].channels;
-        int rate = infoArray[0].rate;
+        com.jcraft.jogg.SyncState sync = new com.jcraft.jogg.SyncState();
+        com.jcraft.jogg.StreamState stream = new com.jcraft.jogg.StreamState();
+        com.jcraft.jogg.Page page = new com.jcraft.jogg.Page();
+        com.jcraft.jogg.Packet packet = new com.jcraft.jogg.Packet();
+        com.jcraft.jorbis.Info info = new com.jcraft.jorbis.Info();
+        com.jcraft.jorbis.Comment comment = new com.jcraft.jorbis.Comment();
+        com.jcraft.jorbis.DspState dsp = new com.jcraft.jorbis.DspState();
+        com.jcraft.jorbis.Block block = new com.jcraft.jorbis.Block(dsp);
 
-        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, channels, channels * 2, rate, false);
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        FileInputStream fis = new FileInputStream(file);
+        byte[] buffer = new byte[4096];
+        int bytes = fis.read(buffer, 0, 4096);
+        sync.write(buffer, 0, bytes);
+
+        while (sync.pageOut(page) == 0) {
+            bytes = fis.read(buffer, 0, 4096);
+            if (bytes == -1) break;
+            sync.write(buffer, 0, bytes);
+        }
+
+        stream.init(page.serialno());
+        stream.reset();
+        info.init();
+        comment.init();
+        stream.pageIn(page);
+        stream.packetOut(packet);
+        info.synthesisHeaderin(comment, packet);
+
+        dsp.synthesisInit(info);
+        block.init(dsp);
+
+        AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, info.rate, 16, info.channels, info.channels * 2, info.rate, false);
+        DataLine.Info lineInfo = new DataLine.Info(SourceDataLine.class, format);
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(lineInfo);
         line.open(format);
         line.start();
 
-        byte[] buf = new byte[4096 * 4];
-        int len;
-        int[] bitstream = new int[1];
-        while ((len = vf.read(buf, 0, buf.length, 0, 2, bitstream)) > 0 && !playback.stopped) {
-            line.write(buf, 0, len);
+        float[][][] pcmInfo = new float[1][][];
+        int[] index = new int[info.channels];
+
+        while (!playback.stopped) {
+            while (sync.pageOut(page) > 0) {
+                stream.pageIn(page);
+                while (stream.packetOut(packet) > 0) {
+                    if (packet.e_o_s == 0) {
+                        block.synthesis(packet);
+                        dsp.synthesisBlockin(block);
+                        int samples;
+                        while ((samples = dsp.synthesisPcmout(pcmInfo, index)) > 0) {
+                            for (int s = 0; s < samples; s++) {
+                                for (int c = 0; c < info.channels; c++) {
+                                    int val = (int) (pcmInfo[0][c][s] * 32767);
+                                    line.write(new byte[]{(byte)(val & 0xFF), (byte)((val >> 8) & 0xFF)}, 0, 2);
+                                }
+                            }
+                            dsp.synthesisRead(samples);
+                        }
+                    }
+                }
+            }
+            bytes = fis.read(buffer, 0, 4096);
+            if (bytes == -1) break;
+            sync.write(buffer, 0, bytes);
         }
+
         line.drain();
         line.close();
-        vf.close();
+        fis.close();
     }
 
     private static void playWav(File file, ActivePlayback playback) throws Exception {
