@@ -1,8 +1,6 @@
 package unsa.st.com.music;
 
-import javazoom.jl.player.Player;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.player.Player;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.filesystem.UserFileSystem;
 
@@ -23,7 +21,7 @@ public class MusicPlaybackManager {
     }
 
     public static String startPlayback(UUID ownerUUID, String filePath, int loop) {
-        Player owner = getPlayer(ownerUUID);
+        net.minecraft.world.entity.player.Player owner = getPlayer(ownerUUID);
         if (owner == null) return "Player not found.";
 
         Path actualPath = resolvePath(ownerUUID, filePath);
@@ -48,7 +46,7 @@ public class MusicPlaybackManager {
                 File file = new File(playback.currentFile);
                 try (FileInputStream fis = new FileInputStream(file);
                      BufferedInputStream bis = new BufferedInputStream(fis)) {
-                    new Player(bis).play();
+                    new javazoom.jl.player.Player(bis).play();
                 }
                 handlePlaybackFinished(playback);
             } catch (Exception e) {
@@ -83,7 +81,7 @@ public class MusicPlaybackManager {
         return userRoot.resolve(relativePath);
     }
 
-    private static Player getPlayer(UUID uuid) {
+    private static net.minecraft.world.entity.player.Player getPlayer(UUID uuid) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.hasSingleplayerServer()) {
             return mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);
