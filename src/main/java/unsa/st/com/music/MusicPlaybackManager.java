@@ -75,7 +75,7 @@ public class MusicPlaybackManager {
 
             // 4. 通过 SoundEngine 播放，范围约 15 格（同唱片机）
             SimpleSoundInstance sound = new SimpleSoundInstance(
-                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("shortcutterminal", "custom_mp3"),
+                new net.minecraft.resources.ResourceLocation("shortcutterminal", "custom_mp3"),
                 SoundSource.RECORDS,
                 1.0F, 1.0F,
                 mc.level.getRandom(),
