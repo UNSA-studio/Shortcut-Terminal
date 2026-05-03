@@ -5,7 +5,7 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
 }
-version = '1.0.0(Beta)'
+version = '1.0.1(Beta)'
 group = 'unsa.st.com'
 base.archivesName = 'shortcutterminal'
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
