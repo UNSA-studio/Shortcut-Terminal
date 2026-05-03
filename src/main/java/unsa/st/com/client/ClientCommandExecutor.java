@@ -165,24 +165,24 @@ public class ClientCommandExecutor {
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
             case "spoof": return executeSpoof(moduleArgs);
-            case "mp": return executeMp(moduleArgs);
+//             case "mp": return executeMp(moduleArgs);
             default: return "Unknown run module: " + module;
         }
     }
 
     // ========== MP ==========
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
-        String path = args[0];
-        int loop = 0;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            }
-        }
-        return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
-    }
+//     private String executeMp(String[] args) {
+//         if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
+//         String path = args[0];
+//         int loop = 0;
+//         for (int i = 1; i < args.length; i++) {
+//             String a = args[i].toLowerCase(Locale.ROOT);
+//             if (a.startsWith("loop-")) {
+//                 try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+//             }
+//         }
+//         return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
+//     }
 
     // ========== SPOOF ==========
     private String executeSpoof(String[] args) {

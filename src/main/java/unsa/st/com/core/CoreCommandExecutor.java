@@ -116,7 +116,7 @@ public class CoreCommandExecutor {
             case "run": return executeRun(args);
             case "User": return executeUser(args);
             case "stop": return executeStop(args);
-            case "mp": return executeMp(args);
+//             case "mp": return executeMp(args);
             default: return null;
         }
     }
@@ -448,18 +448,18 @@ public class CoreCommandExecutor {
     }
 
     // ========== MP ==========
-    private String executeMp(String[] args) {
-        if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
-        String path = args[0];
-        int loop = 0;
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i].toLowerCase(Locale.ROOT);
-            if (a.startsWith("loop-")) {
-                try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
-            }
-        }
-        return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
-    }
+//     private String executeMp(String[] args) {
+//         if (args.length == 0) return "Usage: run mp <path> [loop-<n>]";
+//         String path = args[0];
+//         int loop = 0;
+//         for (int i = 1; i < args.length; i++) {
+//             String a = args[i].toLowerCase(Locale.ROOT);
+//             if (a.startsWith("loop-")) {
+//                 try { loop = Integer.parseInt(a.substring(5)); } catch (NumberFormatException e) { return "Invalid loop number."; }
+//             }
+//         }
+//         return MusicPlaybackManager.startPlayback(playerUuid, path, loop);
+//     }
 
     private String executeScreenshot(String[] args) {
         if (args.length == 0) return "Usage: run screenshot <player> [-aov 1-4]";

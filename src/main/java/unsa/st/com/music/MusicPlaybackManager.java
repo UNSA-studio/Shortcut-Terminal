@@ -1,96 +1,10 @@
 package unsa.st.com.music;
 
-import net.minecraft.client.Minecraft;
-import unsa.st.com.ShortcutTerminal;
-import unsa.st.com.filesystem.UserFileSystem;
-
-import javax.sound.sampled.*;
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.*;
-
+// MP3 播放模块已暂时关闭维护。
+// 原因：在安卓环境下，Java 标准音频 API (javax.sound) 和第三方 MP3 解码库均无法稳定工作。
+// 如需启用，请删除此文件并恢复 Git 历史版本。
 public class MusicPlaybackManager {
-    private static final String[] SUPPORTED_FORMATS = {".wav"};
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
-    private static final Map<UUID, ActivePlayback> activePlaybacks = new ConcurrentHashMap<>();
-
-    public static class ActivePlayback {
-        public UUID ownerUUID;
-        public String currentFile;
-        public int loopRemaining;
-        public volatile boolean stopped = false;
-    }
-
-    public static String startPlayback(UUID ownerUUID, String filePath, int loop) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return "Player not found.";
-
-        Path actualPath = resolvePath(ownerUUID, filePath);
-        if (actualPath == null || !Files.exists(actualPath)) {
-            return "File not found: " + filePath;
-        }
-
-        stopPlayback(ownerUUID);
-
-        ActivePlayback playback = new ActivePlayback();
-        playback.ownerUUID = ownerUUID;
-        playback.currentFile = actualPath.toString();
-        playback.loopRemaining = loop;
-
-        activePlaybacks.put(ownerUUID, playback);
-        scheduler.submit(() -> playInThread(playback));
-
-        return "Now playing: " + actualPath.getFileName() + (loop > 0 ? " (loop " + loop + ")" : "");
-    }
-
-    private static void playInThread(ActivePlayback playback) {
-        try {
-            File file = new File(playback.currentFile);
-            playWav(file, playback);
-
-            if (!playback.stopped && playback.loopRemaining > 0) {
-                playback.loopRemaining--;
-                playInThread(playback);
-            } else {
-                activePlaybacks.remove(playback.ownerUUID);
-            }
-        } catch (Exception e) {
-            ShortcutTerminal.LOGGER.error("Audio playback error: {}", e.getMessage());
-            activePlaybacks.remove(playback.ownerUUID);
-        }
-    }
-
-    private static void playWav(File file, ActivePlayback playback) throws Exception {
-        AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
-        AudioFormat format = audioStream.getFormat();
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
-        byte[] buf = new byte[8192];
-        int len;
-        while ((len = audioStream.read(buf)) != -1 && !playback.stopped) {
-            line.write(buf, 0, len);
-        }
-        line.drain();
-        line.close();
-        audioStream.close();
-    }
-
-    public static void stopPlayback(UUID ownerUUID) {
-        ActivePlayback p = activePlaybacks.get(ownerUUID);
-        if (p != null) {
-            p.stopped = true;
-            activePlaybacks.remove(ownerUUID);
-        }
-    }
-
-    private static Path resolvePath(UUID uuid, String relativePath) {
-        Path userRoot = UserFileSystem.getUserPath(uuid);
-        if (relativePath.startsWith("/")) {
-            return userRoot.resolve(relativePath.substring(1));
-        }
-        return userRoot.resolve(relativePath);
+    public static String startPlayback(java.util.UUID ownerUUID, String filePath, int loop) {
+        return "MP3 module is currently disabled.";
     }
 }
