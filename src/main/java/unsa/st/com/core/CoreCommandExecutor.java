@@ -594,38 +594,44 @@ public class CoreCommandExecutor {
     }
 
     private String spoofFlyup(ServerPlayer t, Map<String, String> p) {
-        double height = 100;
-        for (String key : p.keySet()) {
-            if (key.matches("\\d+\\.?\\d*")) {
-                try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
-            }
+    double height = 100;
+    String m = p.getOrDefault("manner", "");
+    // 解析参数中的数字作为高度
+    for (String key : p.keySet()) {
+        if (key.matches("\\d+\\.?\\d*")) {
+            try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
         }
-        if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}
-        Vec3 dest = t.position().add(0, height, 0);
-        Vec3 dest;
-        if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
-        else dest = t.position().add(0, 100, 0);
-        t.teleportTo(dest.x, dest.y, dest.z);
-        if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
-        return "Flyup done.";
     }
+    if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}
+    
+    Vec3 dest = t.position().add(0, height, 0);
+    if (p.containsKey("coordinates")) {
+        String[] parts = p.get("coordinates").split(",");
+        dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+    }
+    t.teleportTo(dest.x, dest.y, dest.z);
+    if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
+    return "Flyup done.";
+}
 
     private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {
-        double depth = 10;
-        for (String key : p.keySet()) {
-            if (key.matches("\\d+\\.?\\d*")) {
-                try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
-            }
+    double depth = 10;
+    for (String key : p.keySet()) {
+        if (key.matches("\\d+\\.?\\d*")) {
+            try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
         }
-        if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}
-        Vec3 dest = t.position().add(0, -depth, 0);
-        Vec3 dest;
-        if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
-        else dest = t.position().add(0, -10, 0);
-        t.teleportTo(dest.x, dest.y, dest.z);
-        if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);
-        return "EvasiveGround done.";
     }
+    if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}
+    
+    Vec3 dest = t.position().add(0, -depth, 0);
+    if (p.containsKey("coordinates")) {
+        String[] parts = p.get("coordinates").split(",");
+        dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+    }
+    t.teleportTo(dest.x, dest.y, dest.z);
+    if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);
+    return "EvasiveGround done.";
+}
 
     private String spoofStop(ServerPlayer t, Map<String, String> p) {
         String ts = p.get("time"); if (ts == null) return "Missing time";
