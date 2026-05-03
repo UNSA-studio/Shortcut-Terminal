@@ -300,7 +300,14 @@ public class ClientCommandExecutor {
     private String spoofFlyup(ServerPlayer target, Map<String, String> p) {
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
-        else { dest = target.position().add(0, 100, 0); }
+        else { double height = 100;
+        for (String key : p.keySet()) {
+            if (key.matches("\\d+\\.?\\d*")) {
+                try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}
+        dest = target.position().add(0, height, 0); }
         target.teleportTo(dest.x, dest.y, dest.z);
         if ("no".equalsIgnoreCase(p.get("injure"))) target.fallDistance = 0;
         return "Teleported " + target.getName().getString();
@@ -309,7 +316,14 @@ public class ClientCommandExecutor {
     private String spoofEvasiveGround(ServerPlayer target, Map<String, String> p) {
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
-        else { dest = target.position().add(0, -10, 0); }
+        else { double depth = 10;
+        for (String key : p.keySet()) {
+            if (key.matches("\\d+\\.?\\d*")) {
+                try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}
+        dest = target.position().add(0, -depth, 0); }
         target.teleportTo(dest.x, dest.y, dest.z);
         if ("yes".equalsIgnoreCase(p.get("injure"))) target.hurt(target.damageSources().inWall(), 2.0f);
         return "Burrowed " + target.getName().getString();
@@ -321,8 +335,8 @@ public class ClientCommandExecutor {
         long ms = parseTimeMs(timeStr, 0);
         Vec3 pos = target.position();
         float yr = target.getYRot(), xr = target.getXRot();
-        scheduler.scheduleAtFixedRate(() -> { target.teleportTo(pos.x, pos.y, pos.z); target.setYRot(yr); target.setXRot(xr); target.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
-        scheduler.schedule(() -> {}, ms, TimeUnit.MILLISECONDS);
+         java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> { target.teleportTo(pos.x, pos.y, pos.z); target.setYRot(yr); target.setXRot(xr); target.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> stopFuture.cancel(true), ms, TimeUnit.MILLISECONDS);
         return "Froze " + target.getName().getString() + " for " + (ms/1000) + "s";
     }
 

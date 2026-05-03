@@ -594,6 +594,14 @@ public class CoreCommandExecutor {
     }
 
     private String spoofFlyup(ServerPlayer t, Map<String, String> p) {
+        double height = 100;
+        for (String key : p.keySet()) {
+            if (key.matches("\\d+\\.?\\d*")) {
+                try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}
+        Vec3 dest = t.position().add(0, height, 0);
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
         else dest = t.position().add(0, 100, 0);
@@ -603,6 +611,14 @@ public class CoreCommandExecutor {
     }
 
     private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {
+        double depth = 10;
+        for (String key : p.keySet()) {
+            if (key.matches("\\d+\\.?\\d*")) {
+                try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}
+        Vec3 dest = t.position().add(0, -depth, 0);
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
         else dest = t.position().add(0, -10, 0);
@@ -614,8 +630,8 @@ public class CoreCommandExecutor {
     private String spoofStop(ServerPlayer t, Map<String, String> p) {
         String ts = p.get("time"); if (ts == null) return "Missing time";
         long ms = parseTimeMs(ts, 0); Vec3 pos = t.position(); float yr = t.getYRot(), xr = t.getXRot();
-        scheduler.scheduleAtFixedRate(() -> { t.teleportTo(pos.x, pos.y, pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
-        scheduler.schedule(() -> {}, ms, TimeUnit.MILLISECONDS);
+         java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> { t.teleportTo(pos.x, pos.y, pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> stopFuture.cancel(true), ms, TimeUnit.MILLISECONDS);
         return "Stop done.";
     }
 
