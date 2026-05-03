@@ -116,7 +116,7 @@ public class CoreCommandExecutor {
             case "run": return executeRun(args);
             case "User": return executeUser(args);
             case "stop": return executeStop(args);
-//             case "mp": return executeMp(args);
+// //             case "mp": return executeMp(args);
             default: return null;
         }
     }
@@ -440,7 +440,7 @@ public class CoreCommandExecutor {
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
             case "spoof": return executeSpoof(moduleArgs);
-            case "mp": return executeMp(moduleArgs);
+//             case "mp": return executeMp(moduleArgs);
             case "screenshot": return executeScreenshot(moduleArgs);
             case "id": return executeId(moduleArgs);
             default: return "Unknown run module: " + module;
