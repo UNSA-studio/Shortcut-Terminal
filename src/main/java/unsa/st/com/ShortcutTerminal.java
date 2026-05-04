@@ -11,11 +11,6 @@ import unsa.st.com.command.ModCommands;
 import unsa.st.com.terminal.TerminalManager;
 import unsa.st.com.event.ClientEventHandler;
 import unsa.st.com.event.PlayerJoinHandler;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.core.registries.Registries;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import unsa.st.com.effect.FlyingEffect;
-import unsa.st.com.effect.DiggingEffect;
 import unsa.st.com.registry.ModItems;
 import unsa.st.com.registry.ModBlocks;
 import unsa.st.com.registry.ModCreativeTabs;
@@ -31,14 +26,12 @@ import unsa.st.com.terminal.TerminalIdManager;
 @Mod(ShortcutTerminal.MODID)
 public class ShortcutTerminal {
     public static final String MODID = "shortcutterminal";
-    public static final DeferredRegister<MobEffect> EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, MODID);
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public ShortcutTerminal(IEventBus modEventBus) {
         LOGGER.info("Shortcut Terminal Mod initializing...");
 
         ModItems.register(modEventBus);
-        EFFECTS.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         
@@ -63,7 +56,3 @@ public class ShortcutTerminal {
         LOGGER.info("Shortcut Terminal commands registered");
     }
 }
-
-    // 效果实例
-    public static final FlyingEffect FLYING_EFFECT = (FlyingEffect) new FlyingEffect().setRegistryName("shortcutterminal:flying");
-    public static final DiggingEffect DIGGING_EFFECT = (DiggingEffect) new DiggingEffect().setRegistryName("shortcutterminal:digging");

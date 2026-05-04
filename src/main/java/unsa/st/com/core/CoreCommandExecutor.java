@@ -593,10 +593,44 @@ public class CoreCommandExecutor {
         return "Creeper done.";
     }
 
-private String spoofFlyup(ServerPlayer t, Map<String, String> p) {        double height = 100;        for (String key : p.keySet()) {            if (key.matches("\d+\.?\d*")) {                try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}            }        }        if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}                double targetY = t.getY() + height;        t.getPersistentData().putDouble("flyTargetY", targetY);        t.addEffect(new net.minecraft.world.effect.MobEffectInstance(ShortcutTerminal.FLYING_EFFECT, 99999, 0, false, false));        return "Flyup started. Target height: " + String.format("%.1f", targetY);    }
+    private String spoofFlyup(ServerPlayer t, Map<String, String> p) {
+    double height = 100;
+    String m = p.getOrDefault("manner", "");
+    // 解析参数中的数字作为高度
+    for (String key : p.keySet()) {
+        if (key.matches("\\d+\\.?\\d*")) {
+            try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+        }
+    }
+    if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}
+    
+    Vec3 dest = t.position().add(0, height, 0);
+    if (p.containsKey("coordinates")) {
+        String[] parts = p.get("coordinates").split(",");
+        dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+    }
+    t.teleportTo(dest.x, dest.y, dest.z);
+    if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
+    return "Flyup done.";
 }
 
-private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {        double depth = 10;        for (String key : p.keySet()) {            if (key.matches("\d+\.?\d*")) {                try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}            }        }        if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}                double targetY = t.getY() - depth;        t.getPersistentData().putDouble("digTargetY", targetY);        t.addEffect(new net.minecraft.world.effect.MobEffectInstance(ShortcutTerminal.DIGGING_EFFECT, 99999, 0, false, false));        return "Digging started. Target depth: " + String.format("%.1f", targetY);    }
+    private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {
+    double depth = 10;
+    for (String key : p.keySet()) {
+        if (key.matches("\\d+\\.?\\d*")) {
+            try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}
+        }
+    }
+    if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}
+    
+    Vec3 dest = t.position().add(0, -depth, 0);
+    if (p.containsKey("coordinates")) {
+        String[] parts = p.get("coordinates").split(",");
+        dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+    }
+    t.teleportTo(dest.x, dest.y, dest.z);
+    if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);
+    return "EvasiveGround done.";
 }
 
     private String spoofStop(ServerPlayer t, Map<String, String> p) {

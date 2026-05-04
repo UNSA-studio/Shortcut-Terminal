@@ -297,7 +297,7 @@ public class ClientCommandExecutor {
         return "Creeper done.";
     }
 
-private String spoofFlyup(ServerPlayer t, Map<String, String> p) {        double height = 100;        for (String key : p.keySet()) {            if (key.matches("\d+\.?\d*")) {                try { height = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}            }        }        if (p.containsKey("height")) try { height = Double.parseDouble(p.get("height")); } catch (NumberFormatException ignored) {}                double targetY = t.getY() + height;        t.getPersistentData().putDouble("flyTargetY", targetY);        t.addEffect(new net.minecraft.world.effect.MobEffectInstance(ShortcutTerminal.FLYING_EFFECT, 99999, 0, false, false));        return "Flyup started.";    }
+    private String spoofFlyup(ServerPlayer target, Map<String, String> p) {
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
         else { double height = 100;
@@ -313,7 +313,7 @@ private String spoofFlyup(ServerPlayer t, Map<String, String> p) {        double
         return "Teleported " + target.getName().getString();
     }
 
-private String spoofEvasiveGround(ServerPlayer t, Map<String, String> p) {        double depth = 10;        for (String key : p.keySet()) {            if (key.matches("\d+\.?\d*")) {                try { depth = Double.parseDouble(key); break; } catch (NumberFormatException ignored) {}            }        }        if (p.containsKey("depth")) try { depth = Double.parseDouble(p.get("depth")); } catch (NumberFormatException ignored) {}                double targetY = t.getY() - depth;        t.getPersistentData().putDouble("digTargetY", targetY);        t.addEffect(new net.minecraft.world.effect.MobEffectInstance(ShortcutTerminal.DIGGING_EFFECT, 99999, 0, false, false));        return "Digging started.";    }
+    private String spoofEvasiveGround(ServerPlayer target, Map<String, String> p) {
         Vec3 dest;
         if (p.containsKey("coordinates")) { String[] parts = p.get("coordinates").split(","); dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])); }
         else { double depth = 10;
