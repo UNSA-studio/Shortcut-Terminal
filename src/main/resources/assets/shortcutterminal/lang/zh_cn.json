@@ -1,11 +1,4 @@
 {
-    "item.shortcutterminal.terminal_core": "终端核心",
-    "item.shortcutterminal.terminal_panel": "终端面板",
-    "item.shortcutterminal.guide_book": "快捷终端使用指南",
-    "itemGroup.shortcutterminal": "快捷终端",
-    "st.terminal_core.desc": "复杂且巧妙的核心，造价稍贵，但值得，拿上它开启你的终端之旅",
-    "st.terminal_panel.desc": "精巧且紧密的一块终端面板，命令提示符正在闪烁着等待输入",
-    "st.guide_book.desc": "一本包含了所有终端命令的指南书",
-    "st.chunk.request.sent": "请求已发送给管理员或服主",
-    "st.chunk.request.broadcast": "玩家 %s 请求一个新的强加载区块 (区块坐标: %d, %d)"
+  "effect.shortcutterminal.flying": "装逼让你飞起来！",
+  "effect.shortcutterminal.digging": "我是穿山甲！"
 }
