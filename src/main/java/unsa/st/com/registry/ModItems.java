@@ -35,3 +35,13 @@ public class ModItems {
         ITEMS.register(eventBus);
     }
 }
+
+    // Cloud Storage 物品
+    public static final DeferredItem<Item> CLOUD_STORAGE_MANAGER = ITEMS.register("cloud_storage_manager",
+            () -> new Item(new Item.Properties().stacksTo(1).fireResistant()));
+    public static final DeferredItem<Item> CLOUD_CORE = ITEMS.register("cloud_core",
+            () -> new Item(new Item.Properties().stacksTo(1).fireResistant()));
+    public static final DeferredItem<Item> RADAR = ITEMS.register("radar",
+            () -> new Item(new Item.Properties().stacksTo(64)));
+    public static final DeferredItem<Item> RECEIVER = ITEMS.register("receiver",
+            () -> new Item(new Item.Properties().stacksTo(64)));

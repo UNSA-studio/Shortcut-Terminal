@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "DNR",
+    "ITC",
+    "RGW"
+  ],
+  "key": {
+    "D": { "item": "minecraft:diamond" },
+    "N": { "item": "minecraft:netherite_ingot" },
+    "R": { "item": "minecraft:iron_ingot" },
+    "I": { "item": "shortcutterminal:radar" },
+    "T": { "item": "shortcutterminal:terminal_panel" },
+    "C": { "item": "minecraft:copper_ingot" },
+    "G": { "item": "minecraft:redstone_lamp" },
+    "W": { "item": "minecraft:glass" }
+  },
+  "result": {
+    "id": "shortcutterminal:cloud_core",
+    "count": 1
+  }
+}

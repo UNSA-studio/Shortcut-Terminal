@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " D ",
+    " R ",
+    " B "
+  ],
+  "key": {
+    "D": { "item": "minecraft:observer" },
+    "R": { "item": "minecraft:repeater" },
+    "B": { "item": "minecraft:redstone_block" }
+  },
+  "result": {
+    "id": "shortcutterminal:radar",
+    "count": 1
+  }
+}
