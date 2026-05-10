@@ -14,7 +14,7 @@ import java.util.*;
 public class CloudStorageScreen extends Screen {
     private final UUID ownerUUID;
     private CloudStorageManager.CloudRepository repository;
-    private int sortMode = 0; // 0=默认, 1=名字A-Z, 2=名字Z-A, 3=数量升序, 4=数量降序
+    private int sortMode = 0;
     private static final int ITEMS_PER_PAGE = 28;
     private int currentPage = 0;
 
@@ -28,15 +28,12 @@ public class CloudStorageScreen extends Screen {
     protected void init() {
         super.init();
         int centerX = this.width / 2;
-        int centerY = this.height / 2;
 
-        // 排序按钮
         this.addRenderableWidget(Button.builder(Component.literal("Sort: Default"), btn -> {
             sortMode = (sortMode + 1) % 5;
             btn.setMessage(Component.literal(getSortModeName()));
         }).pos(centerX - 100, 20).size(200, 20).build());
 
-        // 翻页按钮
         if (repository != null && repository.items.size() > ITEMS_PER_PAGE) {
             this.addRenderableWidget(Button.builder(Component.literal("<-"), btn -> {
                 if (currentPage > 0) currentPage--;
@@ -53,8 +50,8 @@ public class CloudStorageScreen extends Screen {
             case 0 -> "Sort: Default";
             case 1 -> "Sort: Name A-Z";
             case 2 -> "Sort: Name Z-A";
-            case 3 -> "Sort: Count ↑";
-            case 4 -> "Sort: Count ↓";
+            case 3 -> "Sort: Count Up";
+            case 4 -> "Sort: Count Down";
             default -> "Sort: Default";
         };
     }
@@ -93,19 +90,11 @@ public class CloudStorageScreen extends Screen {
             int itemX = x + col * 40;
             int itemY = y + row * 40;
 
-            // 绘制物品图标
-            ItemStack stack = new ItemStack(Items.AIR);
-            try {
-                ResourceLocation loc = ResourceLocation.tryParse(item.itemId);
-                if (loc != null) {
-                    stack = new ItemStack(Items.byBlock(null));
-                }
-            } catch (Exception ignored) {}
-
+            // 使用铁锭作为占位图标
+            ItemStack stack = new ItemStack(Items.IRON_INGOT);
             guiGraphics.renderItem(stack, itemX, itemY);
-            guiGraphics.drawString(this.font, "64", itemX + 12, itemY + 12, 0xAAAAAA, true);
+            guiGraphics.drawString(this.font, String.valueOf(item.count), itemX + 12, itemY + 12, 0xAAAAAA, true);
 
-            // 鼠标悬停显示实际数量
             if (mouseX >= itemX && mouseX <= itemX + 16 && mouseY >= itemY && mouseY <= itemY + 16) {
                 guiGraphics.renderTooltip(this.font, Component.literal(item.displayName + " x" + item.count), mouseX, mouseY);
             }
