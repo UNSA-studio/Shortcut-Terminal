@@ -33,7 +33,7 @@ public class ShortcutTerminal {
     public ShortcutTerminal(IEventBus modEventBus) {
         LOGGER.info("Shortcut Terminal Mod initializing...");
 
-        ModItems.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         
