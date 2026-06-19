@@ -32,7 +32,7 @@ public class PackageManager {
     private static Set<String> pathEntries = new LinkedHashSet<>();
 
     public static void init() {
-        gameDir = FMLEnvironment.getGameDirectory().toPath();
+        gameDir = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get();
         programPath = gameDir.resolve(PROGRAM_DIR);
         binaryPath = gameDir.resolve(BINARY_DIR);
         pathFile = gameDir.resolve(PATH_FILE);
