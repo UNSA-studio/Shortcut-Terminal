@@ -1,6 +1,6 @@
 package unsa.st.com.pkg;
 
-import net.neoforged.fml.loading.FMLEnvironment;
+import net.minecraft.client.Minecraft;
 import unsa.st.com.ShortcutTerminal;
 
 import java.io.IOException;
@@ -32,7 +32,8 @@ public class PackageManager {
     private static Set<String> pathEntries = new LinkedHashSet<>();
 
     public static void init() {
-        gameDir = FMLEnvironment.getGameDirectory().toPath();
+        Minecraft mc = Minecraft.getInstance();
+        gameDir = mc.gameDirectory.toPath();
         programPath = gameDir.resolve(PROGRAM_DIR);
         binaryPath = gameDir.resolve(BINARY_DIR);
         pathFile = gameDir.resolve(PATH_FILE);

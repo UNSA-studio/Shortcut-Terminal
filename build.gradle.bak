@@ -38,27 +38,6 @@ dependencies {
 }
 
 // ================= Shadow 配置（核心隔离） =================
-shadowJar {
-    archiveClassifier = '' 
-    
-    // 1. 彻底清空所有从依赖中带入的服务配置文件 (这是你报错的根源)
-    // 既然你是做模组，不要合并这些服务文件，除非你确定是你自己定义的
-    exclude 'META-INF/services/**'
-    
-    // 2. 强制排除所有可能导致冲突的底层定义
-    exclude 'cpw/**'
-    exclude 'net/neoforged/**'
-    exclude 'net/minecraft/**'
-    exclude 'module-info.class'
-    exclude 'META-INF/versions/**/module-info.class'
-
-    // 3. 严格重定向，确保不留死角
-    relocate 'org.tukaani.xz', 'unsa.st.com.shortcutterminal.shadow.xz'
-    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
-
-    // 4. 【重要】如果你必须使用某些库的 SPI，只能手动包含，不要用 mergeServiceFiles()
-    // mergeServiceFiles() // ← 必须删掉这一行！它会把所有依赖的服务定义全塞进来
-}
 
 tasks.build.dependsOn shadowJar
 tasks.jar.enabled = false
@@ -100,3 +79,19 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
+shadowJar {
+    configurations = [project.configurations.shadow]
+    relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
+    exclude 'META-INF/services/**'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+jar {
+    enabled = false
+    dependsOn shadowJar
+}
+
