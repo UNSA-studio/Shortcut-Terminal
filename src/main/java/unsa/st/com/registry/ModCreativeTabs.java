@@ -21,7 +21,7 @@ public class ModCreativeTabs {
                     .title(Component.translatable("itemGroup.shortcutterminal"))
                     .icon(() -> new ItemStack(Items.COMMAND_BLOCK))
                     .displayItems((params, output) -> {
-//                         output.accept(ModItems.TERMINAL_CORE.get());
+                        output.accept(ModItems.TERMINAL_CORE.get());
                         output.accept(ModItems.TERMINAL_PANEL.get());
                     })
                     .build()

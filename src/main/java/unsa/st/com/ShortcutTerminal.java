@@ -19,10 +19,8 @@ import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.pkg.PackageManager;
 import unsa.st.com.remote.RemoteControlManager;
-import unsa.st.com.cloud.CloudStorageManager;
 import unsa.st.com.terminal.TerminalIdManager;
 import unsa.st.com.remote.RemoteControlManager;
-import unsa.st.com.cloud.CloudStorageManager;
 import unsa.st.com.terminal.TerminalIdManager;
 
 @Mod(ShortcutTerminal.MODID)
@@ -33,7 +31,7 @@ public class ShortcutTerminal {
     public ShortcutTerminal(IEventBus modEventBus) {
         LOGGER.info("Shortcut Terminal Mod initializing...");
 
-        ModItems.ITEMS.register(modEventBus);
+        ModItems.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         
@@ -41,10 +39,8 @@ public class ShortcutTerminal {
         OfflineTeleportManager.init();
         PackageManager.init();
         RemoteControlManager.init();
-        CloudStorageManager.init();
         TerminalIdManager.init();
         RemoteControlManager.init();
-        CloudStorageManager.init();
         TerminalIdManager.init();
 
         NeoForge.EVENT_BUS.register(this);
