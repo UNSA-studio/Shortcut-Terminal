@@ -30,6 +30,10 @@ dependencies {
 
 // ================= Shadow 配置（根治冲突） =================
 shadowJar {
+    dependencies {
+        include(dependency("org.tukaani:xz:.*"))
+        include(dependency("org.apache.commons:commons-compress:.*"))
+    }
     archiveClassifier = ''
 
     // 只处理运行时 classpath，并且排除 NeoForge/MC 运行环境
