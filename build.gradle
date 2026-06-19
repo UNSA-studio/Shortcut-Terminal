@@ -24,40 +24,41 @@ dependencies {
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
     implementation 'org.tukaani:xz:1.9'
-    // 音频相关库暂时禁用
+    // MP3 库暂时禁用
     // implementation 'com.github.umjammer:jlayer:1.0.3'
 }
 
-// ================= Shadow 配置（核心） =================
+// ================= Shadow 配置（关键修复） =================
 shadowJar {
     archiveClassifier = ''
 
-    // ---- 重定位：彻底避免包名冲突 ----
-    // XZ 压缩库
+    // ---- 重定位：彻底隔离我们的第三方库 ----
     relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
-    // NightConfig 配置库（必须重定位整个顶层包）
     relocate 'com.electronwill.nightconfig', 'unsa.st.com.shaded.nightconfig'
 
-    // ---- 排除模块描述符，防止 JPMS 冲突 ----
-    // 排除所有依赖自带的 module-info.class（包括多版本 JAR 中的）
+    // ---- 排除所有外部模块描述符 ----
     exclude '**/module-info.class'
 
+    // ---- 禁止打包 NeoForge / Minecraft 运行环境 ----
+    // 这些包由游戏自身提供，绝对不能打入模组 JAR
+    exclude 'cpw/mods/**'
+    exclude 'net/neoforged/**'
+    exclude 'net/minecraft/**'
+
     // ---- 合并 SPI 服务文件 ----
-    // 让 Shadow 自动重写 META-INF/services 下的文件名（解决反射/SPI 加载问题）
     mergeServiceFiles()
 
-    // ---- 排除签名文件，避免 SecurityException ----
+    // ---- 排除签名文件 ----
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
 
-    // ---- 设置模块名称，防止自动模块名冲突 ----
+    // ---- 指定自动模块名 ----
     manifest {
         attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
     }
 }
 
-// 将 shadowJar 作为最终产物
 tasks.build.dependsOn shadowJar
 tasks.jar.enabled = false
 // =====================================================
