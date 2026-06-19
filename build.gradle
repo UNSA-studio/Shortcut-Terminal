@@ -4,7 +4,7 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
-    id 'com.gradleup.shadow' version '9.0.0-beta4'   // Shadow 插件用于重定位依赖
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
 }
 
 version = '1.0.1(Beta)'
@@ -24,28 +24,31 @@ dependencies {
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
 
-    // XZ 库，通过 Shadow 重定位包名，避免与“地平线”等模组冲突
+    // XZ 库，通过 Shadow 重定位并排除模块描述符
     implementation 'org.tukaani:xz:1.9'
-    // MP3 解码库（暂时禁用）
-    // implementation 'com.github.umjammer:jlayer:1.0.3'
 }
 
-// ================= Shadow 配置 =================
+// ================= Shadow 配置（关键修复） =================
 shadowJar {
-    archiveClassifier = ''                     // 去掉 -shadow 后缀，直接作为最终产物
-    // 核心：将 XZ 的包名重定位到我们的专属命名空间
+    archiveClassifier = ''
     relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
 
-    // 排除重复的签名文件（避免 SecurityException）
+    // 排除所有外部 module-info 类，防止模块系统冲突
+    exclude '**/module-info.class'
+    // 排除签名文件，避免 SecurityException
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
+
+    // 指定我们自己的自动模块名称
+    manifest {
+        attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
+    }
 }
 
-// 确保 shadowJar 在标准 build 任务时执行，并作为最终输出
 tasks.build.dependsOn shadowJar
-tasks.jar.enabled = false                    // 禁用原版 jar，使用 shadowJar 代替
-// ==============================================
+tasks.jar.enabled = false
+// ==========================================================
 
 neoForge {
     version = '21.1.219'
