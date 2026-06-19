@@ -35,3 +35,9 @@ public class ModItems {
         ITEMS.register(eventBus);
     }
 }
+
+    public static final Supplier<Item> CLOUD_CORE = ITEMS.register("cloud_core", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> RECEIVER = ITEMS.register("receiver", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> RADAR = ITEMS.register("radar", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> CLOUD_STORAGE_MANAGER = ITEMS.register("cloud_storage_manager", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> REFINED_IRON = ITEMS.register("refined_iron", () -> new Item(new Item.Properties()));
