@@ -5,7 +5,7 @@ logoFile = "logo.png"
 
 [[mods]]
 modId = "shortcutterminal"
-version = "1.0.0(Beta)"
+version = "1.0.1(Beta)"
 displayName = "Shortcut Terminal"
 authors = "UNSA-STUDIO"
 description = '''
