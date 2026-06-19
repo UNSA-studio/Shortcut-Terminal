@@ -43,6 +43,7 @@ public class PkgManager {
     private static Constructor<?> xzInputStreamConstructor;
     static {
         String[] candidateClassNames = {
+            "unsa.st.com.shaded.xz.XZInputStream",
             "org.tukaani.xz.XZInputStream",
             "unsa.st.com.shaded.org.tukaani.xz.XZInputStream",
             "unsa.st.com.jarjar.org.tukaani.xz.XZInputStream"

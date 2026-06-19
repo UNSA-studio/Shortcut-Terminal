@@ -23,6 +23,8 @@ dependencies {
     jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
         relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
     }
+        relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
+    }
 //     jarJar(implementation('com.github.umjammer:jlayer:1.0.3')) { version { strictly '[1.0.0,)' } }
 }
 neoForge {
