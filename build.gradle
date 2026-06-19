@@ -23,31 +23,51 @@ dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-
-    // XZ 库，通过 Shadow 重定位并排除模块描述符
     implementation 'org.tukaani:xz:1.9'
+    // MP3 库暂时禁用
+    // implementation 'com.github.umjammer:jlayer:1.0.3'
 }
 
-// ================= Shadow 配置（关键修复） =================
+// ================= Shadow 配置（根治冲突） =================
 shadowJar {
     archiveClassifier = ''
-    relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
 
-    // 排除所有外部 module-info 类，防止模块系统冲突
-    exclude '**/module-info.class'
-    // 排除签名文件，避免 SecurityException
+    // 只处理运行时 classpath，并且排除 NeoForge/MC 运行环境
+    configurations = [project.configurations.runtimeClasspath]
+
+    // 禁止打包任何 NeoForge、MC 和模块描述符
+    exclude 'module-info.class'
+    exclude 'META-INF/versions/**/module-info.class'
+    exclude 'cpw/**'
+    exclude 'net/neoforged/**'
+    exclude 'net/minecraft/**'
+
+    // 重定位我们自己的第三方库
+    relocate 'org.tukaani.xz', 'unsa.st.com.shortcutterminal.shadow.xz'
+    relocate 'com.electronwill.nightconfig', 'unsa.st.com.shortcutterminal.shadow.nightconfig'
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
+
+    mergeServiceFiles()
+
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
 
-    // 指定我们自己的自动模块名称
     manifest {
         attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
     }
 }
 
-tasks.build.dependsOn shadowJar
-tasks.jar.enabled = false
+// 把我们的源码也纳入 Shadow
+tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    from sourceSets.main.output
+}
+
+// 让标准 jar 完成后立刻执行 shadowJar，确保 NeoForge 插件拿到的是干净包
+jar.finalizedBy('shadowJar')
+
+// 最终的 assemble 也依赖 shadowJar
+assemble.dependsOn shadowJar
 // ==========================================================
 
 neoForge {
