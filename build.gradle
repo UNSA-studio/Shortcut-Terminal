@@ -39,28 +39,25 @@ dependencies {
 
 // ================= Shadow 配置（核心隔离） =================
 shadowJar {
-    archiveClassifier = ''
+    archiveClassifier = '' 
+    
+    // 1. 彻底清空所有从依赖中带入的服务配置文件 (这是你报错的根源)
+    // 既然你是做模组，不要合并这些服务文件，除非你确定是你自己定义的
+    exclude 'META-INF/services/**'
+    
+    // 2. 强制排除所有可能导致冲突的底层定义
+    exclude 'cpw/**'
+    exclude 'net/neoforged/**'
+    exclude 'net/minecraft/**'
+    exclude 'module-info.class'
+    exclude 'META-INF/versions/**/module-info.class'
 
-    // 1. 关键：只打包 shadowLibrary 配置里的库，绝不包括 NeoForge/Minecraft 环境类
-    configurations = [project.configurations.shadowLibrary]
+    // 3. 严格重定向，确保不留死角
+    relocate 'org.tukaani.xz', 'unsa.st.com.shortcutterminal.shadow.xz'
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
 
-    // 2. 重定位（包名隔离）
-    relocate 'org.apache.commons.compress', 'unsa.st.com.shaded.compress'
-    relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
-
-    // 3. 排除签名文件和模块描述符
-    exclude 'META-INF/*.SF'
-    exclude 'META-INF/*.DSA'
-    exclude 'META-INF/*.RSA'
-    exclude '**/module-info.class'
-
-    // 4. 自动处理 SPI 服务文件
-    mergeServiceFiles()
-
-    // 5. 设置自动模块名
-    manifest {
-        attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
-    }
+    // 4. 【重要】如果你必须使用某些库的 SPI，只能手动包含，不要用 mergeServiceFiles()
+    // mergeServiceFiles() // ← 必须删掉这一行！它会把所有依赖的服务定义全塞进来
 }
 
 tasks.build.dependsOn shadowJar
