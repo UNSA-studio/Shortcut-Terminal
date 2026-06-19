@@ -19,56 +19,53 @@ repositories {
     maven { url = 'https://jitpack.io' }
 }
 
+// ============ 隔离配置：只放需要 Shadow 的第三方库 ============
+configurations {
+    shadowLibrary
+    implementation.extendsFrom shadowLibrary
+}
+
 dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
-    implementation 'org.apache.commons:commons-compress:1.26.0'
-    implementation 'org.tukaani:xz:1.9'
-    // MP3 库暂时禁用
-    // implementation 'com.github.umjammer:jlayer:1.0.3'
+
+    // 原本的 implementation，改成 shadowLibrary
+    shadowLibrary 'org.apache.commons:commons-compress:1.26.0'
+    shadowLibrary 'org.tukaani:xz:1.9'
+
+    // MP3 库（暂未启用）
+    // shadowLibrary 'com.github.umjammer:jlayer:1.0.3'
 }
 
-// ================= Shadow 配置（根治冲突） =================
+// ================= Shadow 配置（核心隔离） =================
 shadowJar {
     archiveClassifier = ''
 
-    // 只处理运行时 classpath，并且排除 NeoForge/MC 运行环境
-    configurations = [project.configurations.runtimeClasspath]
+    // 1. 关键：只打包 shadowLibrary 配置里的库，绝不包括 NeoForge/Minecraft 环境类
+    configurations = [project.configurations.shadowLibrary]
 
-    // 禁止打包任何 NeoForge、MC 和模块描述符
-    exclude 'module-info.class'
-    exclude 'META-INF/versions/**/module-info.class'
-    exclude 'cpw/**'
-    exclude 'net/neoforged/**'
-    exclude 'net/minecraft/**'
+    // 2. 重定位（包名隔离）
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shaded.compress'
+    relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
 
-    // 重定位我们自己的第三方库
-    relocate 'org.tukaani.xz', 'unsa.st.com.shortcutterminal.shadow.xz'
-    relocate 'com.electronwill.nightconfig', 'unsa.st.com.shortcutterminal.shadow.nightconfig'
-    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
-
-    mergeServiceFiles()
-
+    // 3. 排除签名文件和模块描述符
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
+    exclude '**/module-info.class'
 
+    // 4. 自动处理 SPI 服务文件
+    mergeServiceFiles()
+
+    // 5. 设置自动模块名
     manifest {
         attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
     }
 }
 
-// 把我们的源码也纳入 Shadow
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    from sourceSets.main.output
-}
-
-// 让标准 jar 完成后立刻执行 shadowJar，确保 NeoForge 插件拿到的是干净包
-jar.finalizedBy('shadowJar')
-
-// 最终的 assemble 也依赖 shadowJar
-assemble.dependsOn shadowJar
-// ==========================================================
+tasks.build.dependsOn shadowJar
+tasks.jar.enabled = false
+// =============================================================
 
 neoForge {
     version = '21.1.219'
