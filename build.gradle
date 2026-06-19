@@ -19,60 +19,54 @@ repositories {
     maven { url = 'https://jitpack.io' }
 }
 
+// ============ 隔离配置：只放需要 Shadow 的第三方库 ============
+configurations {
+    shadowLibrary
+    implementation.extendsFrom shadowLibrary
+}
+
 dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
-    implementation 'org.apache.commons:commons-compress:1.26.0'
-    implementation 'org.tukaani:xz:1.9'
-    // MP3 库暂时禁用
-    // implementation 'com.github.umjammer:jlayer:1.0.3'
+
+    // 原本的 implementation，改成 shadowLibrary
+    shadowLibrary 'org.apache.commons:commons-compress:1.26.0'
+    shadowLibrary 'org.tukaani:xz:1.9'
+
+    // MP3 库（暂未启用）
+    // shadowLibrary 'com.github.umjammer:jlayer:1.0.3'
 }
 
-// ================= Shadow 配置（根治冲突） =================
+// ================= Shadow 配置（核心隔离） =================
 shadowJar {
     dependencies {
         include(dependency("org.tukaani:xz:.*"))
         include(dependency("org.apache.commons:commons-compress:.*"))
     }
-    archiveClassifier = ''
-
-    // 只处理运行时 classpath，并且排除 NeoForge/MC 运行环境
-    configurations = [project.configurations.runtimeClasspath]
-
-    // 禁止打包任何 NeoForge、MC 和模块描述符
-    exclude 'module-info.class'
-    exclude 'META-INF/versions/**/module-info.class'
+    archiveClassifier = '' 
+    
+    // 1. 彻底清空所有从依赖中带入的服务配置文件 (这是你报错的根源)
+    // 既然你是做模组，不要合并这些服务文件，除非你确定是你自己定义的
+    exclude 'META-INF/services/**'
+    
+    // 2. 强制排除所有可能导致冲突的底层定义
     exclude 'cpw/**'
     exclude 'net/neoforged/**'
     exclude 'net/minecraft/**'
+    exclude 'module-info.class'
+    exclude 'META-INF/versions/**/module-info.class'
 
-    // 重定位我们自己的第三方库
+    // 3. 严格重定向，确保不留死角
     relocate 'org.tukaani.xz', 'unsa.st.com.shortcutterminal.shadow.xz'
-    relocate 'com.electronwill.nightconfig', 'unsa.st.com.shortcutterminal.shadow.nightconfig'
     relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
 
-    mergeServiceFiles()
-
-    exclude 'META-INF/*.SF'
-    exclude 'META-INF/*.DSA'
-    exclude 'META-INF/*.RSA'
-
-    manifest {
-        attributes 'Automatic-Module-Name': 'unsa.st.com.shortcutterminal'
-    }
+    // 4. 【重要】如果你必须使用某些库的 SPI，只能手动包含，不要用 mergeServiceFiles()
+    // mergeServiceFiles() // ← 必须删掉这一行！它会把所有依赖的服务定义全塞进来
 }
 
-// 把我们的源码也纳入 Shadow
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    from sourceSets.main.output
-}
-
-// 让标准 jar 完成后立刻执行 shadowJar，确保 NeoForge 插件拿到的是干净包
-jar.finalizedBy('shadowJar')
-
-// 最终的 assemble 也依赖 shadowJar
-assemble.dependsOn shadowJar
-// ==========================================================
+tasks.build.dependsOn shadowJar
+tasks.jar.enabled = false
+// =============================================================
 
 neoForge {
     version = '21.1.219'
