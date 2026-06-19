@@ -1,4 +1,5 @@
 package unsa.st.com.registry;
+npublic class ModItems {
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -41,3 +42,4 @@ public class ModItems {
     public static final Supplier<Item> RADAR = ITEMS.register("radar", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> CLOUD_STORAGE_MANAGER = ITEMS.register("cloud_storage_manager", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> REFINED_IRON = ITEMS.register("refined_iron", () -> new Item(new Item.Properties()));
+}
