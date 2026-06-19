@@ -95,6 +95,3 @@ jar {
     dependsOn shadowJar
 }
 
-tasks.named('reobfJar') {
-    input = tasks.shadowJar.archiveFile
-}
