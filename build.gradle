@@ -4,7 +4,9 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'   // Shadow 插件用于重定位依赖
 }
+
 version = '1.0.1(Beta)'
 group = 'unsa.st.com'
 base.archivesName = 'shortcutterminal'
@@ -12,21 +14,39 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io' }
     maven { url = 'https://maven.neoforged.net/releases' }
     maven { url = 'https://maven.blamejared.com' }
+    maven { url = 'https://jitpack.io' }
 }
+
 dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
     implementation 'org.apache.commons:commons-compress:1.26.0'
-    jarJar(group: 'org.tukaani', name: 'xz', version: '1.9') {
-        relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
-    }
-        relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
-    }
-//     jarJar(implementation('com.github.umjammer:jlayer:1.0.3')) { version { strictly '[1.0.0,)' } }
+
+    // XZ 库，通过 Shadow 重定位包名，避免与“地平线”等模组冲突
+    implementation 'org.tukaani:xz:1.9'
+    // MP3 解码库（暂时禁用）
+    // implementation 'com.github.umjammer:jlayer:1.0.3'
 }
+
+// ================= Shadow 配置 =================
+shadowJar {
+    archiveClassifier = ''                     // 去掉 -shadow 后缀，直接作为最终产物
+    // 核心：将 XZ 的包名重定位到我们的专属命名空间
+    relocate 'org.tukaani.xz', 'unsa.st.com.shaded.xz'
+
+    // 排除重复的签名文件（避免 SecurityException）
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+// 确保 shadowJar 在标准 build 任务时执行，并作为最终输出
+tasks.build.dependsOn shadowJar
+tasks.jar.enabled = false                    // 禁用原版 jar，使用 shadowJar 代替
+// ==============================================
+
 neoForge {
     version = '21.1.219'
     runs {
@@ -39,6 +59,7 @@ neoForge {
         }
     }
 }
+
 processResources {
     var replaceProperties = [
         minecraft_version      : '1.21.1',
@@ -49,7 +70,7 @@ processResources {
         mod_id                 : 'shortcutterminal',
         mod_name               : 'Shortcut Terminal',
         mod_license            : 'MIT',
-        mod_version            : '1.0.0(Beta)',
+        mod_version            : '1.0.1(Beta)',
         mod_authors            : 'UNSA-STUDIO',
         mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
     ]
@@ -58,6 +79,7 @@ processResources {
         expand replaceProperties
     }
 }
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
