@@ -1,4 +1,8 @@
 {
-  "effect.shortcutterminal.flying": "Show off makes you fly!",
-  "effect.shortcutterminal.digging": "I am a pangolin!"
+  "item.shortcutterminal.terminal_core": "Terminal Core",
+  "item.shortcutterminal.terminal_panel": "Terminal Panel",
+  "item.shortcutterminal.cloud_core": "Cloud Core",
+  "item.shortcutterminal.radar": "Radar",
+  "item.shortcutterminal.receiver": "Receiver",
+  "item.shortcutterminal.cloud_storage_manager": "Cloud Storage Manager"
 }

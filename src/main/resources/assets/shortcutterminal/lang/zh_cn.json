@@ -1,4 +1,8 @@
 {
-  "effect.shortcutterminal.flying": "装逼让你飞起来！",
-  "effect.shortcutterminal.digging": "我是穿山甲！"
+  "item.shortcutterminal.terminal_core": "终端核心",
+  "item.shortcutterminal.terminal_panel": "终端面板",
+  "item.shortcutterminal.cloud_core": "云核心",
+  "item.shortcutterminal.radar": "雷达",
+  "item.shortcutterminal.receiver": "接收器",
+  "item.shortcutterminal.cloud_storage_manager": "云存储管理器"
 }
