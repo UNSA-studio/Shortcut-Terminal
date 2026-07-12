@@ -1,91 +1,32 @@
 plugins {
-    id 'java-library'
-    id 'eclipse'
-    id 'idea'
-    id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.78'
-    id 'com.gradleup.shadow' version '9.0.0-beta4'
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'net.neoforged.gradle.userdev' version '7.0.145'
 }
 
-version = '1.0.1(Beta)'
-group = 'unsa.st.com'
-base.archivesName = 'shortcutterminal'
+base {
+    archivesName = "shortcutterminal"
+    version = "1.0.1(Beta)"
+}
+
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     mavenCentral()
-    maven { url = 'https://maven.neoforged.net/releases' }
-    maven { url = 'https://maven.blamejared.com' }
-    maven { url = 'https://jitpack.io' }
 }
 
-// ============ 隔离配置：只放需要 Shadow 的第三方库 ============
 configurations {
-    shadowLibrary
-    implementation.extendsFrom shadowLibrary
+    shadow
+    implementation.extendsFrom shadow
 }
 
 dependencies {
-    compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
-    runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
-
-    // 原本的 implementation，改成 shadowLibrary
-    shadowLibrary 'org.apache.commons:commons-compress:1.26.0'
-    shadowLibrary 'org.tukaani:xz:1.9'
-
-    // MP3 库（暂未启用）
-    // shadowLibrary 'com.github.umjammer:jlayer:1.0.3'
+    implementation "net.neoforged:neoforge:21.1.228"
+    shadow "org.tukaani:xz:1.9"
+    shadow "org.apache.commons:commons-compress:1.26.0"
+    // 如果你有 jlayer 或其他依赖，按同样方式添加
+    implementation files('libs/jlayer-1.0.1.jar')
 }
-
-// ================= Shadow 配置（核心隔离） =================
-
-tasks.build.dependsOn shadowJar
-tasks.jar.enabled = false
-// =============================================================
-
-neoForge {
-    version = '21.1.219'
-    runs {
-        client { client() }
-        server { server() }
-    }
-    mods {
-        shortcutterminal {
-            sourceSet(sourceSets.main)
-        }
-    }
-}
-
-processResources {
-    var replaceProperties = [
-        minecraft_version      : '1.21.1',
-        minecraft_version_range: "[1.21,1.21.2)",
-        neo_version            : '21.1.219',
-        neo_version_range      : "[21.1,)",
-        loader_version_range   : "[4,)",
-        mod_id                 : 'shortcutterminal',
-        mod_name               : 'Shortcut Terminal',
-        mod_license            : 'MIT',
-        mod_version            : '1.0.1(Beta)',
-        mod_authors            : 'UNSA-STUDIO',
-        mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
-    ]
-    inputs.properties replaceProperties
-    filesMatching(['META-INF/neoforge.mods.toml']) {
-        expand replaceProperties
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-
-jar {
-    enabled = false
-    dependsOn shadowJar
-}
-
 
 shadowJar {
     configurations = [project.configurations.shadow]
@@ -95,9 +36,14 @@ shadowJar {
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
+    // 移除 -all 后缀
+    archiveClassifier.set('')
 }
 
 jar {
     enabled = false
     dependsOn shadowJar
 }
+
+// 如果你之前有 reobf 任务，可保留（但 NeoForge 7.0+ 通常不再需要）
+// 如果没有，忽略
