@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'net.neoforged.gradle.userdev' version '7.0.145'
+    id 'net.neoforged.gradle.userdev' version '7.0.80'
 }
 
 base {
@@ -13,6 +13,10 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     mavenCentral()
+    maven {
+        name = "NeoForge"
+        url = "https://maven.neoforged.net/releases/"
+    }
 }
 
 configurations {
@@ -24,7 +28,6 @@ dependencies {
     implementation "net.neoforged:neoforge:21.1.228"
     shadow "org.tukaani:xz:1.9"
     shadow "org.apache.commons:commons-compress:1.26.0"
-    // 如果你有 jlayer 或其他依赖，按同样方式添加
     implementation files('libs/jlayer-1.0.1.jar')
 }
 
@@ -36,7 +39,6 @@ shadowJar {
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
     exclude 'META-INF/*.RSA'
-    // 移除 -all 后缀
     archiveClassifier.set('')
 }
 
@@ -44,6 +46,3 @@ jar {
     enabled = false
     dependsOn shadowJar
 }
-
-// 如果你之前有 reobf 任务，可保留（但 NeoForge 7.0+ 通常不再需要）
-// 如果没有，忽略
