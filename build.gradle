@@ -1,22 +1,23 @@
 plugins {
-    id 'java'
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.78'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'net.neoforged.gradle.userdev' version '7.0.80'
 }
 
-base {
-    archivesName = "shortcutterminal"
-    version = "1.0.1(Beta)"
-}
+version = '1.0.1(Beta)'
+group = 'unsa.st.com'
+base.archivesName = 'shortcutterminal'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     mavenCentral()
-    maven {
-        name = "NeoForge"
-        url = "https://maven.neoforged.net/releases/"
-    }
+    maven { url 'https://jitpack.io' }
+    maven { url = 'https://maven.neoforged.net/releases' }
+    maven { url = 'https://maven.blamejared.com' }
 }
 
 configurations {
@@ -25,10 +26,12 @@ configurations {
 }
 
 dependencies {
-    implementation "net.neoforged:neoforge:21.1.228"
+    compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
+    runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
+    implementation 'org.apache.commons:commons-compress:1.26.0'
     shadow "org.tukaani:xz:1.9"
-    shadow "org.apache.commons:commons-compress:1.26.0"
-    implementation files('libs/jlayer-1.0.1.jar')
+    shadow "org.apache.commons:commons-compress:1.26.0"  // 确保也打包进 shadow
+    // jarJar 不使用，因为会冲突
 }
 
 shadowJar {
@@ -45,4 +48,41 @@ shadowJar {
 jar {
     enabled = false
     dependsOn shadowJar
+}
+
+neoForge {
+    version = '21.1.219'
+    runs {
+        client { client() }
+        server { server() }
+    }
+    mods {
+        shortcutterminal {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+processResources {
+    var replaceProperties = [
+        minecraft_version      : '1.21.1',
+        minecraft_version_range: "[1.21,1.21.2)",
+        neo_version            : '21.1.219',
+        neo_version_range      : "[21.1,)",
+        loader_version_range   : "[4,)",
+        mod_id                 : 'shortcutterminal',
+        mod_name               : 'Shortcut Terminal',
+        mod_license            : 'MIT',
+        mod_version            : '1.0.0(Beta)',
+        mod_authors            : 'UNSA-STUDIO',
+        mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
 }
