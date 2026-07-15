@@ -78,6 +78,8 @@ shadowJar {
     configurations = [project.configurations.shadowLibrary]
     relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
     relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
+    // 排除 commons-io，避免模块冲突
+    exclude 'org/apache/commons/io/**'
     exclude 'META-INF/services/**'
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
