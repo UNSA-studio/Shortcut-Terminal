@@ -28,7 +28,9 @@ configurations {
 dependencies {
     compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
     runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
-    shadowLibrary 'org.apache.commons:commons-compress:1.26.0'
+    shadowLibrary('org.apache.commons:commons-compress:1.26.0') {
+        transitive = false
+    }
     shadowLibrary 'org.tukaani:xz:1.9'
 }
 
@@ -78,8 +80,8 @@ shadowJar {
     configurations = [project.configurations.shadowLibrary]
     relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
     relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
-    // 排除 commons-io，避免模块冲突
     exclude 'org/apache/commons/io/**'
+    exclude 'org/apache/commons/lang3/**'
     exclude 'META-INF/services/**'
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
