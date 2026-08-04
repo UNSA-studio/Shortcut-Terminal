@@ -82,13 +82,13 @@ public class CloudStorageManager {
     public static void removeItem(UUID uuid, String itemId, int count) {
         CloudRepository repo = getRepository(uuid);
         if (repo == null) return;
-        count = Math.max(0, count);
+        final int removeCount = Math.max(0, count);
         repo.items.removeIf(item -> {
             if (item.itemId.equals(itemId)) {
-                if (item.count <= count) {
+                if (item.count <= removeCount) {
                     return true;
                 } else {
-                    item.count -= count;
+                    item.count -= removeCount;
                     return false;
                 }
             }
