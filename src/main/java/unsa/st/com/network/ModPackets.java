@@ -8,6 +8,7 @@ import net.neoforged.neoforge.network.handling.DirectionalPayloadHandler;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.gui.TerminalScreen;
+import unsa.st.com.core.CoreCommandExecutor;
 
 public class ModPackets {
     private static final String PROTOCOL_VERSION = "1";
@@ -24,7 +25,7 @@ public class ModPackets {
                 new DirectionalPayloadHandler<>(
                         (payload, context) -> context.enqueueWork(() -> {
                             ServerPlayer player = (ServerPlayer) context.player();
-                            String result = unsa.st.com.util.CommandExecutor.executeFromGUI(player, payload.command());
+                            String result = CoreCommandExecutor.executeFromGUI(player, payload.command());
                             PacketDistributor.sendToPlayer(player, new CommandResultPayload(result));
                         }),
                         (payload, context) -> {}

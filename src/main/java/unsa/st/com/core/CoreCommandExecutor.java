@@ -233,6 +233,16 @@ public class CoreCommandExecutor {
     public String getCurrentPath() { return currentPath; }
     public void setCurrentPath(String path) { this.currentPath = path; }
 
+    public static String executeFromGUI(ServerPlayer player, String input) {
+        CoreCommandExecutor exec = new CoreCommandExecutor(false);
+        exec.setPlayer(player);
+        String[] parts = input.trim().split("\\s+");
+        String cmd = parts[0];
+        String[] args = new String[parts.length - 1];
+        System.arraycopy(parts, 1, args, 0, args.length);
+        return exec.execute(cmd, args);
+    }
+
     private String executePwd() { return currentPath.isEmpty() ? "/" : currentPath; }
 
     private String executeCp(String[] args) {
@@ -716,8 +726,16 @@ public class CoreCommandExecutor {
                 if (target != null) return teleportOnline(target, opArgs);
                 return "Player is offline: " + targetName;
             case "transport-Offline":
-                if (opArgs.length == 0) return "Usage: User <player> transport-Offline <x> <y> <z>";
-                return OfflineTeleportManager.scheduleTeleport(targetUuid, targetName, opArgs);
+                if (opArgs.length < 3) return "Usage: User <player> transport-Offline <x> <y> <z>";
+                try {
+                    double x = Double.parseDouble(opArgs[0]);
+                    double y = Double.parseDouble(opArgs[1]);
+                    double z = Double.parseDouble(opArgs[2]);
+                    OfflineTeleportManager.saveCoordTeleport(targetUuid, x, y, z);
+                    return "Offline teleport scheduled for " + targetName + " to " + x + " " + y + " " + z;
+                } catch (NumberFormatException e) {
+                    return "Invalid coordinates.";
+                }
             case "ban":
                 if (target != null) {
                     target.connection.disconnect(Component.literal("You have been banned."));
