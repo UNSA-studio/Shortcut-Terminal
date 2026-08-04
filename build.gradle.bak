@@ -1,0 +1,103 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.78'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
+}
+
+version = '1.0.1(Beta)'
+group = 'unsa.st.com'
+base.archivesName = 'shortcutterminal'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.neoforged.net/releases' }
+    maven { url = 'https://maven.blamejared.com' }
+    maven { url = 'https://jitpack.io' }
+}
+
+// ============ 隔离配置：只放需要 Shadow 的第三方库 ============
+configurations {
+    shadowLibrary
+    implementation.extendsFrom shadowLibrary
+}
+
+dependencies {
+    compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
+    runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
+
+    // 原本的 implementation，改成 shadowLibrary
+    shadowLibrary 'org.apache.commons:commons-compress:1.26.0'
+    shadowLibrary 'org.tukaani:xz:1.9'
+
+    // MP3 库（暂未启用）
+    // shadowLibrary 'com.github.umjammer:jlayer:1.0.3'
+}
+
+// ================= Shadow 配置（核心隔离） =================
+
+tasks.build.dependsOn shadowJar
+tasks.jar.enabled = false
+// =============================================================
+
+neoForge {
+    version = '21.1.219'
+    runs {
+        client { client() }
+        server { server() }
+    }
+    mods {
+        shortcutterminal {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+processResources {
+    var replaceProperties = [
+        minecraft_version      : '1.21.1',
+        minecraft_version_range: "[1.21,1.21.2)",
+        neo_version            : '21.1.219',
+        neo_version_range      : "[21.1,)",
+        loader_version_range   : "[4,)",
+        mod_id                 : 'shortcutterminal',
+        mod_name               : 'Shortcut Terminal',
+        mod_license            : 'MIT',
+        mod_version            : '1.0.1(Beta)',
+        mod_authors            : 'UNSA-STUDIO',
+        mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+
+jar {
+    enabled = false
+    dependsOn shadowJar
+}
+
+
+shadowJar {
+    configurations = [project.configurations.shadow]
+    relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
+    exclude 'META-INF/services/**'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+jar {
+    enabled = false
+    dependsOn shadowJar
+}

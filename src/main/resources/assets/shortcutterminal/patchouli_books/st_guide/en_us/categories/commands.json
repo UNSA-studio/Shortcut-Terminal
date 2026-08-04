@@ -1,0 +1,6 @@
+{
+    "name": "终端命令",
+    "description": "所有可用的终端命令。",
+    "icon": "minecraft:command_block",
+    "sortnum": 1
+}

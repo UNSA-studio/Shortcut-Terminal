@@ -1,0 +1,90 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.78'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
+}
+
+version = '1.0.1(Beta)'
+group = 'unsa.st.com'
+base.archivesName = 'shortcutterminal'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.neoforged.net/releases' }
+    maven { url = 'https://maven.blamejared.com' }
+    maven { url = 'https://jitpack.io' }
+}
+
+configurations {
+    shadowLibrary
+    implementation.extendsFrom shadowLibrary
+}
+
+dependencies {
+    compileOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE:api"
+    runtimeOnly "vazkii.patchouli:Patchouli:1.21.1-93-NEOFORGE"
+    shadowLibrary('org.apache.commons:commons-compress:1.26.0') {
+        transitive = false
+    }
+    shadowLibrary 'org.tukaani:xz:1.9'
+}
+
+neoForge {
+    version = '21.1.219'
+    runs {
+        client { client() }
+        server { server() }
+    }
+    mods {
+        shortcutterminal {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+processResources {
+    var replaceProperties = [
+        minecraft_version      : '1.21.1',
+        minecraft_version_range: "[1.21,1.21.2)",
+        neo_version            : '21.1.219',
+        neo_version_range      : "[21.1,)",
+        loader_version_range   : "[4,)",
+        mod_id                 : 'shortcutterminal',
+        mod_name               : 'Shortcut Terminal',
+        mod_license            : 'MIT',
+        mod_version            : '1.0.1(Beta)',
+        mod_authors            : 'UNSA-STUDIO',
+        mod_description        : 'Shortcut Terminal - Linux commands in Minecraft!'
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    enabled = false
+    dependsOn shadowJar
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowLibrary]
+    relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
+    relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
+    exclude 'org/apache/commons/io/**'
+    exclude 'org/apache/commons/lang3/**'
+    exclude 'META-INF/services/**'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    archiveClassifier.set('')
+}

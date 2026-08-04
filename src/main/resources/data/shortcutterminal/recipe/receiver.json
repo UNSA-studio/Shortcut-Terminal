@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " L ",
+    " O ",
+    " R "
+  ],
+  "key": {
+    "L": { "item": "minecraft:lightning_rod" },
+    "O": { "item": "minecraft:observer" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "shortcutterminal:receiver",
+    "count": 1
+  }
+}

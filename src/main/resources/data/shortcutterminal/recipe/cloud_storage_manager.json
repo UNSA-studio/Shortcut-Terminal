@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ER",
+    "TX",
+    "C "
+  ],
+  "key": {
+    "E": { "item": "minecraft:ender_pearl" },
+    "R": { "item": "minecraft:redstone" },
+    "T": { "item": "minecraft:redstone_torch" },
+    "X": { "item": "minecraft:repeater" },
+    "C": { "item": "shortcutterminal:cloud_core" }
+  },
+  "result": {
+    "id": "shortcutterminal:cloud_storage_manager",
+    "count": 1
+  }
+}
