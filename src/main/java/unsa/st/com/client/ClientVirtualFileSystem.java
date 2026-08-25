@@ -142,7 +142,9 @@ public class ClientVirtualFileSystem {
     public static Map<String, String> getFileSystemSnapshot(String uuid) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         Map<String, String> snap = new HashMap<>();
-        fs.forEach((k,v) -> snap.put(k, v.isDirectory ? "<DIR>" : v.content));
+        fs.forEach((k,v) -> {
+            if (!v.isDirectory) snap.put(k, v.content == null ? "" : v.content);
+        });
         return snap;
     }
 

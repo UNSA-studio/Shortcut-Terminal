@@ -81,7 +81,6 @@ shadowJar {
     relocate 'org.tukaani', 'unsa.st.com.shortcutterminal.shadow.xz'
     relocate 'org.apache.commons.compress', 'unsa.st.com.shortcutterminal.shadow.compress'
     exclude 'org/apache/commons/io/**'
-    exclude 'org/apache/commons/lang3/**'
     exclude 'META-INF/services/**'
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'

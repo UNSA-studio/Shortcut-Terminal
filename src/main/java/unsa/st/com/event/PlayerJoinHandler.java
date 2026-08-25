@@ -32,9 +32,13 @@ public class PlayerJoinHandler {
             // 1. 发放帕秋莉指南书（终身只发一本）
             giveGuideBook(player);
 
-            // 2. 启动定时同步（每 5 分钟本地→服务端）
+            // 2. 启动定时同步（每 5 分钟本地→服务端，带大小限制防踢线）
             ScheduledFuture<?> task = syncScheduler.scheduleAtFixedRate(() -> {
-                PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
+                try {
+                    PacketDistributor.sendToPlayer(player, new TriggerSyncPayload(true));
+                } catch (Exception e) {
+                    ShortcutTerminal.LOGGER.warn("Periodic sync failed for {}: {}", player.getName().getString(), e.getMessage());
+                }
             }, SYNC_INTERVAL_MINUTES, SYNC_INTERVAL_MINUTES, TimeUnit.MINUTES);
 
             playerSyncTasks.put(player.getUUID(), task);

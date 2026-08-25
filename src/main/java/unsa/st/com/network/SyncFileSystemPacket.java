@@ -47,24 +47,39 @@ public record SyncFileSystemPacket(String uuid, Map<String, String> files) imple
 
     public static void handleServer(final SyncFileSystemPacket packet, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            UUID uuid = UUID.fromString(packet.uuid());
-            ServerPlayer player = context.player().getServer().getPlayerList().getPlayer(uuid);
-            if (player == null) return;
-            
+            if (!(context.player() instanceof ServerPlayer player)) return;
+            // Security: only allow players to sync their own filesystem
+            UUID senderUuid = player.getUUID();
+            UUID packetUuid;
+            try {
+                packetUuid = UUID.fromString(packet.uuid());
+            } catch (IllegalArgumentException e) {
+                ShortcutTerminal.LOGGER.warn("Rejected sync packet with malformed uuid from {}", senderUuid);
+                return;
+            }
+            if (!senderUuid.equals(packetUuid)) {
+                ShortcutTerminal.LOGGER.warn("Player {} attempted to sync another player's files ({})", senderUuid, packetUuid);
+                return;
+            }
+
             int success = 0;
             for (Map.Entry<String, String> entry : packet.files().entrySet()) {
                 String fullPath = entry.getKey();
                 String content = entry.getValue();
-                
-                int lastSlash = fullPath.lastIndexOf('/');
-                String dirPath = lastSlash > 0 ? fullPath.substring(0, lastSlash + 1) : "/";
-                String fileName = fullPath.substring(lastSlash + 1);
-                
-                // writeFile 返回 void，直接调用无法判断成功与否
-                UserFileSystem.writeFile(uuid, dirPath, fileName, content);
+
+                // Skip directory markers - directories are created implicitly on write
+                if ("<DIR>".equals(content)) continue;
+
+                String normalized = fullPath.startsWith("/") ? fullPath.substring(1) : fullPath;
+                int lastSlash = normalized.lastIndexOf('/');
+                String dirPath = lastSlash > 0 ? normalized.substring(0, lastSlash) : "";
+                String fileName = normalized.substring(lastSlash + 1);
+                if (fileName.isEmpty()) continue;
+
+                UserFileSystem.writeFile(senderUuid, dirPath, fileName, content);
                 success++;
             }
-            
+
             player.sendSystemMessage(Component.literal("§a[Sync] " + success + " files synced from client to server."));
         });
     }

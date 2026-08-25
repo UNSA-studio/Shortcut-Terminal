@@ -7,10 +7,11 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.core.CoreCommandExecutor;
-import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.network.TriggerSyncPayload;
 import unsa.st.com.pkg.PkgManager;
@@ -20,6 +21,14 @@ import java.util.*;
 
 public class ModCommands {
     private static final Map<UUID, CoreCommandExecutor> playerExecutors = new HashMap<>();
+
+    /** Clear cached executor when player logs out to prevent unbounded memory growth. */
+    @SubscribeEvent
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer) {
+            playerExecutors.remove(event.getEntity().getUUID());
+        }
+    }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         var root = Commands.literal("ST");
@@ -175,34 +184,13 @@ public class ModCommands {
 
         // ========== 3. run 系列命令 ==========
         root.then(Commands.literal("run")
-            .then(Commands.literal("strongloading")
-                .then(Commands.argument("distance", StringArgumentType.word())
-                    .executes(ctx -> {
-                        ServerPlayer player = ctx.getSource().getPlayer();
-                        if (player == null) return 0;
-                        String distance = StringArgumentType.getString(ctx, "distance");
-                        CoreCommandExecutor executor = new CoreCommandExecutor(false);
-                        executor.setPlayer(player);
-                        String result = executor.execute("run", new String[]{"strongloading", distance});
-                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
-                        return 1;
-                    })
-                )
-            )
             .then(Commands.literal("macro")
                 .then(Commands.argument("action", StringArgumentType.word())
                     .then(Commands.argument("interval_ms", StringArgumentType.word())
                         .executes(ctx -> {
-                            String action = StringArgumentType.getString(ctx, "action");
-                            String interval = StringArgumentType.getString(ctx, "interval_ms");
-                            try {
-                                long ms = Long.parseLong(interval);
-                                PlayerMacroManager.startMacro(action, ms);
-                                ctx.getSource().sendSuccess(() -> Component.literal("Macro started: " + action + " every " + ms + "ms"), true);
-                            } catch (NumberFormatException e) {
-                                ctx.getSource().sendFailure(Component.literal("Invalid interval"));
-                            }
-                            return 1;
+                            // Client-only feature: never touch client classes on dedicated server
+                            ctx.getSource().sendFailure(Component.literal("macro is a client-side terminal panel command. Use it in the GUI terminal."));
+                            return 0;
                         })
                     )
                 )
@@ -392,6 +380,7 @@ public class ModCommands {
 
         // ========== 4. 远程控制命令 ==========
         root.then(Commands.literal("RID")
+            .requires(src -> src.hasPermission(2))
             .executes(ctx -> {
                 String rid = RemoteControlManager.getRID();
                 ctx.getSource().sendSuccess(() -> Component.literal(rid), false);
@@ -401,6 +390,11 @@ public class ModCommands {
         root.then(Commands.literal("RCID")
             .then(Commands.argument("rcid", StringArgumentType.word())
                 .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player == null || !player.hasPermissions(2)) {
+                        ctx.getSource().sendFailure(Component.literal("You must be an operator."));
+                        return 0;
+                    }
                     String rcid = StringArgumentType.getString(ctx, "rcid");
                     String result = RemoteControlManager.authenticateRCID(rcid);
                     ctx.getSource().sendSuccess(() -> Component.literal(result), false);
@@ -438,8 +432,14 @@ public class ModCommands {
         root.then(Commands.literal("pkg")
             .then(Commands.literal("update")
                 .executes(ctx -> {
-                    String result = PkgManager.updateIndex(false, true);
-                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    ctx.getSource().sendSuccess(() -> Component.literal("Updating package index in background..."), false);
+                    java.util.concurrent.CompletableFuture.supplyAsync(() -> PkgManager.updateIndex(false, true))
+                        .thenAccept(result -> {
+                            if (player != null && player.connection != null) {
+                                player.sendSystemMessage(Component.literal(result));
+                            }
+                        });
                     return 1;
                 })
             )
@@ -450,9 +450,19 @@ public class ModCommands {
                         return builder.buildFuture();
                     })
                     .executes(ctx -> {
-                        String pkg = StringArgumentType.getString(ctx, "package");
-                        String result = PkgManager.install(pkg, false);
-                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        String pkgName = StringArgumentType.getString(ctx, "package");
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (!PkgManager.listAvailable().contains(pkgName)) {
+                            ctx.getSource().sendFailure(Component.literal("Package not found: " + pkgName + ". Run /ST pkg update first."));
+                            return 0;
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal("Installing " + pkgName + " in background..."), false);
+                        java.util.concurrent.CompletableFuture.supplyAsync(() -> PkgManager.install(pkgName, false))
+                            .thenAccept(result -> {
+                                if (player != null && player.connection != null) {
+                                    player.sendSystemMessage(Component.literal(result));
+                                }
+                            });
                         return 1;
                     })
                 )

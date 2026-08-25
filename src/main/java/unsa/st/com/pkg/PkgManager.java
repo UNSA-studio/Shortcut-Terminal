@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.apache.commons.compress.archivers.ar.ArArchiveEntry;
 import org.apache.commons.compress.archivers.ar.ArArchiveInputStream;
@@ -43,9 +44,9 @@ public class PkgManager {
     private static Constructor<?> xzInputStreamConstructor;
     static {
         String[] candidateClassNames = {
-            "unsa.st.com.shaded.xz.XZInputStream",
+            "unsa.st.com.shortcutterminal.shadow.xz.XZInputStream",
             "org.tukaani.xz.XZInputStream",
-            "unsa.st.com.shaded.org.tukaani.xz.XZInputStream",
+            "unsa.st.com.shaded.xz.XZInputStream",
             "unsa.st.com.jarjar.org.tukaani.xz.XZInputStream"
         };
         for (String className : candidateClassNames) {
@@ -243,7 +244,9 @@ public class PkgManager {
     }
 
     public static String updateIndex() {
-        return updateIndex(false, false);
+        // Detect side: use client dir when running on the physical client
+        boolean isClient = FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT;
+        return updateIndex(isClient, false);
     }
 
     private static void fallbackIndex() {

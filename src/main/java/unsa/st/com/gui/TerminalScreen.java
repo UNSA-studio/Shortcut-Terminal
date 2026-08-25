@@ -12,7 +12,7 @@ import unsa.st.com.client.ClientCommandExecutor;
 import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.client.TerminalSessionManager;
 import unsa.st.com.client.TerminalSessionManager.SessionData;
-import unsa.st.com.network.ExecuteCommandPacket;
+import unsa.st.com.network.ExecuteCommandPayload;
 import unsa.st.com.network.RequestServerSyncPayload;
 import unsa.st.com.network.SyncFileSystemPacket;
 
@@ -364,7 +364,7 @@ public class TerminalScreen extends Screen {
         }
         
         if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
-            PacketDistributor.sendToServer(new ExecuteCommandPacket(command));
+            PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
         } else {
             if (executor.hasPendingChanges()) {
                 syncFileSystemToServer();
@@ -437,6 +437,15 @@ public class TerminalScreen extends Screen {
 
     @Override public boolean isPauseScreen() { return false; }
     @Override public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
+    @Override
+    public void removed() {
+        super.removed();
+        if (instance == this) instance = null;
+    }
     @Override public boolean shouldCloseOnEsc() { saveCurrentSession(); return true; }
-    @Override public void onClose() { saveCurrentSession(); super.onClose(); }
+    @Override
+    public void onClose() {
+        saveCurrentSession();
+        super.onClose();
+    }
 }

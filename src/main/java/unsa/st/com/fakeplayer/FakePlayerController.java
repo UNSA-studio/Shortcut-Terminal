@@ -30,7 +30,8 @@ public class FakePlayerController {
                 stopAutoWalk();
                 return;
             }
-            moveForward(fp, speed);
+            // Entity operations MUST happen on the main server thread
+            fp.level().getServer().execute(() -> moveForward(fp, speed));
         }, 0, 50, TimeUnit.MILLISECONDS);
     }
 

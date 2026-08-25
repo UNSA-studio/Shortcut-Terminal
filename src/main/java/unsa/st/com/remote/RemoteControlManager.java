@@ -118,11 +118,23 @@ public class RemoteControlManager {
             httpServer.createContext("/st/execute", new ExecuteHandler());
             httpServer.setExecutor(null);
             httpServer.start();
+            // Periodic cleanup of expired sessions to prevent memory leak
+            scheduler.scheduleAtFixedRate(() -> {
+                long now = System.currentTimeMillis();
+                sessions.entrySet().removeIf(e -> e.getValue().expiresAt < now);
+            }, 10, 10, TimeUnit.MINUTES);
             ShortcutTerminal.LOGGER.info("Remote HTTP server started on port {}", HTTP_PORT);
         } catch (IOException e) {
             ShortcutTerminal.LOGGER.error("Failed to start HTTP server", e);
         }
     }
+
+    private static final java.util.concurrent.ScheduledExecutorService scheduler =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "ST-RemoteControl-Cleanup");
+                t.setDaemon(true);
+                return t;
+            });
 
     private static String generateRandomString(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

@@ -31,6 +31,7 @@ public class CloudStorageManager {
 
     public static void createRepository(UUID uuid) {
         if (cloudBasePath == null) init();
+        if (cloudBasePath == null) return;
         Path repoFile = cloudBasePath.resolve(uuid.toString() + ".stcr");
         CloudRepository repo = new CloudRepository();
         repo.ownerUUID = uuid;
@@ -43,6 +44,7 @@ public class CloudStorageManager {
 
     public static boolean hasRepository(UUID uuid) {
         if (cloudBasePath == null) init();
+        if (cloudBasePath == null) return false; // client side: no server dir available
         Path repoFile = cloudBasePath.resolve(uuid.toString() + ".stcr");
         return Files.exists(repoFile);
     }
@@ -121,6 +123,7 @@ public class CloudStorageManager {
 
     public static void saveRepository(UUID uuid) {
         if (cloudBasePath == null) init();
+        if (cloudBasePath == null) return;
         CloudRepository repo = repositories.get(uuid);
         if (repo == null) return;
         try {
@@ -133,6 +136,7 @@ public class CloudStorageManager {
 
     public static void loadRepository(UUID uuid) {
         if (cloudBasePath == null) init();
+        if (cloudBasePath == null) return;
         Path repoFile = cloudBasePath.resolve(uuid.toString() + ".stcr");
         if (!Files.exists(repoFile)) return;
         try {

@@ -47,16 +47,14 @@ public record ScreenshotPayload(int angleOfView) implements CustomPacketPayload 
             
             // 截屏
             String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            String fileName = "screenshot_" + timestamp + ".png";
-            
-            // 保存到本地 Program/screenshots/
             Path screenshotDir = mc.gameDirectory.toPath().resolve("Program").resolve("screenshots");
             try {
                 java.nio.file.Files.createDirectories(screenshotDir);
-                File screenshotFile = screenshotDir.resolve(fileName).toFile();
+                // grabPanoramixScreenshot writes panorama_0.png ... panorama_5.png into the target dir
                 mc.grabPanoramixScreenshot(screenshotDir.toFile(), 1024, 1024);
                 mc.player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal("§a[Screenshot] Saved as " + fileName), false);
+                    net.minecraft.network.chat.Component.literal(
+                        "§a[Screenshot] Saved panorama files in Program/screenshots (session " + timestamp + ")"), false);
             } catch (Exception e) {
                 ShortcutTerminal.LOGGER.error("Screenshot failed", e);
             }

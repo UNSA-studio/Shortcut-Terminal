@@ -34,11 +34,14 @@ public record RequestServerSyncPayload(String uuid) implements CustomPacketPaylo
 
     public static void handleServer(final RequestServerSyncPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            UUID uuid = UUID.fromString(payload.uuid());
-            ServerPlayer player = context.player().getServer().getPlayerList().getPlayer(uuid);
-            if (player == null) return;
-            
-            Map<String, String> allFiles = UserFileSystem.getFileSystemSnapshot(uuid);
+            if (!(context.player() instanceof ServerPlayer player)) return;
+            // Security: only allow requesting your own filesystem
+            if (!player.getUUID().toString().equals(payload.uuid())) {
+                ShortcutTerminal.LOGGER.warn("Player {} attempted to request another player's files ({})", player.getUUID(), payload.uuid());
+                return;
+            }
+
+            Map<String, String> allFiles = UserFileSystem.getFileSystemSnapshot(player.getUUID());
             ModNetwork.sendToPlayer(player, new ServerSyncDataPayload(allFiles));
         });
     }

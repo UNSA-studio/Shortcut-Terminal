@@ -22,15 +22,65 @@ public class UserFileSystem {
     }
     public static Path getUserPath(UUID u) { return getBasePath().resolve(u.toString()); }
     public static void createUserDirectory(UUID u) { try { Files.createDirectories(getUserPath(u)); } catch (IOException e) {} }
-    public static boolean isPathValid(UUID u, String rel) { return getUserPath(u).resolve(rel).normalize().startsWith(getUserPath(u)); }
+
+    public static boolean isNameSafe(String name) {
+        if (name == null || name.isEmpty()) return false;
+        if (name.contains("/") || name.contains("\\") || name.contains("..") || name.contains("\0")) return false;
+        if (name.equals(".") || name.equals("~")) return false;
+        return true;
+    }
+
+    private static boolean isRelSafe(String rel) {
+        if (rel == null) return true;
+        for (String seg : rel.split("/")) {
+            if (!seg.isEmpty() && !isNameSafe(seg)) return false;
+        }
+        return true;
+    }
+
+    private static Path safeResolve(UUID u, String rel, String name) {
+        if (!isNameSafe(name)) return null;
+        if (!isRelSafe(rel)) return null;
+        Path root = getUserPath(u).toAbsolutePath().normalize();
+        try { Files.createDirectories(root); } catch (IOException e) { return null; }
+        Path target = root;
+        if (rel != null && !rel.isEmpty()) {
+            for (String seg : rel.split("/")) {
+                if (seg.isEmpty()) continue;
+                target = target.resolve(seg);
+            }
+        }
+        target = target.resolve(name).normalize();
+        if (!target.startsWith(root)) return null;
+        return target;
+    }
+
+    private static Path safeResolveDirOnly(UUID u, String rel) {
+        if (!isRelSafe(rel)) return null;
+        Path root = getUserPath(u).toAbsolutePath().normalize();
+        try { Files.createDirectories(root); } catch (IOException e) { return null; }
+        Path target = root;
+        if (rel != null && !rel.isEmpty()) {
+            for (String seg : rel.split("/")) {
+                if (seg.isEmpty()) continue;
+                target = target.resolve(seg);
+            }
+        }
+        target = target.normalize();
+        if (!target.startsWith(root)) return null;
+        return target;
+    }
+
+    public static boolean isPathValid(UUID u, String rel) { return safeResolveDirOnly(u, rel) != null; }
+
     public static String normalizePath(String cur, String tgt) {
         if (tgt.isEmpty() || tgt.equals(".")) return cur;
         if (tgt.equals("..")) { int i = cur.lastIndexOf('/'); return i > 0 ? cur.substring(0, i) : ""; }
         return cur.isEmpty() ? tgt : cur + "/" + tgt;
     }
     public static List<String> listDirectory(UUID u, String rel) {
-        Path p = getUserPath(u).resolve(rel);
-        if (!Files.isDirectory(p)) return null;
+        Path p = safeResolveDirOnly(u, rel);
+        if (p == null || !Files.isDirectory(p)) return null;
         try (DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
             List<String> l = new ArrayList<>();
             for (Path e : ds) l.add(e.getFileName() + (Files.isDirectory(e) ? "/" : ""));
@@ -38,16 +88,18 @@ public class UserFileSystem {
         } catch (IOException e) { return null; }
     }
     public static boolean createDirectory(UUID u, String rel, String name) {
-        if (!isPathValid(u, rel)) return false;
-        try { Files.createDirectory(getUserPath(u).resolve(rel).resolve(name)); return true; } catch (IOException e) { return false; }
+        Path t = safeResolve(u, rel, name);
+        if (t == null) return false;
+        try { Files.createDirectories(t); return true; } catch (IOException e) { return false; }
     }
     public static boolean createFile(UUID u, String rel, String name) {
-        if (!isPathValid(u, rel)) return false;
-        try { Files.createFile(getUserPath(u).resolve(rel).resolve(name)); return true; } catch (IOException e) { return false; }
+        Path t = safeResolve(u, rel, name);
+        if (t == null) return false;
+        try { if (Files.exists(t)) return false; Files.createFile(t); return true; } catch (IOException e) { return false; }
     }
     public static boolean delete(UUID u, String rel, String name, boolean rec) {
-        if (!isPathValid(u, rel)) return false;
-        Path t = getUserPath(u).resolve(rel).resolve(name);
+        Path t = safeResolve(u, rel, name);
+        if (t == null) return false;
         try {
             if (rec && Files.isDirectory(t)) Files.walk(t).sorted(Comparator.reverseOrder()).forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
             else Files.delete(t);
@@ -55,59 +107,68 @@ public class UserFileSystem {
         } catch (IOException e) { return false; }
     }
     public static String readFile(UUID u, String rel, String name) {
-        if (!isPathValid(u, rel)) return null;
-        Path f = getUserPath(u).resolve(rel).resolve(name);
-        if (!Files.isRegularFile(f)) return null;
+        Path f = safeResolve(u, rel, name);
+        if (f == null || !Files.isRegularFile(f)) return null;
         try { return Files.readString(f); } catch (IOException e) { return null; }
     }
     public static void writeFile(UUID u, String rel, String name, String content) {
-        if (!isPathValid(u, rel)) return;
-        try { Files.writeString(getUserPath(u).resolve(rel).resolve(name), content); } catch (IOException e) {}
+        Path f = safeResolve(u, rel, name);
+        if (f == null) return;
+        try {
+            Files.createDirectories(f.getParent());
+            Files.writeString(f, content);
+        } catch (IOException e) {}
     }
     public static void writeFileFromStream(UUID u, String rel, String name, InputStream in) throws IOException {
-        if (!isPathValid(u, rel)) return;
-        Files.copy(in, getUserPath(u).resolve(rel).resolve(name), StandardCopyOption.REPLACE_EXISTING);
+        Path f = safeResolve(u, rel, name);
+        if (f == null) return;
+        Files.createDirectories(f.getParent());
+        Files.copy(in, f, StandardCopyOption.REPLACE_EXISTING);
     }
     public static boolean setExecutable(UUID u, String rel, String name, boolean exec) {
-        if (!isPathValid(u, rel)) return false;
-        return getUserPath(u).resolve(rel).resolve(name).toFile().setExecutable(exec);
+        Path f = safeResolve(u, rel, name);
+        if (f == null) return false;
+        return f.toFile().setExecutable(exec);
     }
     public static boolean directoryExists(UUID u, String cur, String tgt) {
         if (tgt.isEmpty() || tgt.equals(".")) return true;
-        Path p = getUserPath(u).resolve(normalizePath(cur, tgt));
-        return Files.isDirectory(p);
+        Path p = safeResolveDirOnly(u, normalizePath(cur, tgt));
+        return p != null && Files.isDirectory(p);
     }
     public static boolean copy(UUID u, String cur, String src, String dst, boolean rec) {
-        if (!isPathValid(u, cur)) return false;
-        Path s = getUserPath(u).resolve(cur).resolve(src), d = getUserPath(u).resolve(cur).resolve(dst);
+        Path s = safeResolve(u, cur, src), d = safeResolve(u, cur, dst);
+        if (s == null || d == null) return false;
         try {
             if (rec && Files.isDirectory(s)) Files.walk(s).forEach(p -> {
-                try { Path t = d.resolve(s.relativize(p)); if (Files.isDirectory(p)) Files.createDirectories(t); else Files.copy(p, t, StandardCopyOption.REPLACE_EXISTING); } catch (IOException ignored) {}
+                try { Path t = d.resolve(s.relativize(p)); if (Files.isDirectory(p)) Files.createDirectories(t); else { Files.createDirectories(t.getParent()); Files.copy(p, t, StandardCopyOption.REPLACE_EXISTING); } } catch (IOException ignored) {}
             });
-            else Files.copy(s, d, StandardCopyOption.REPLACE_EXISTING);
+            else { Files.createDirectories(d.getParent()); Files.copy(s, d, StandardCopyOption.REPLACE_EXISTING); }
             return true;
         } catch (IOException e) { return false; }
     }
     public static boolean move(UUID u, String cur, String src, String dst) {
         return copy(u, cur, src, dst, true) && delete(u, cur, src, true);
     }
-    public static Path resolvePath(UUID u, String cur, String tgt) { return getUserPath(u).resolve(normalizePath(cur, tgt)); }
+    public static Path resolvePath(UUID u, String cur, String tgt) {
+        Path p = safeResolveDirOnly(u, normalizePath(cur, tgt));
+        return p != null ? p : getUserPath(u);
+    }
     public static Map<String, String> getFileSystemSnapshot(UUID uuid) {
-    Map<String, String> snapshot = new HashMap<>();
-    Path userRoot = getUserPath(uuid);
-    if (!Files.exists(userRoot)) return snapshot;
-    
-    try {
-        Files.walk(userRoot)
-                .filter(Files::isRegularFile)
-                .forEach(file -> {
-                    try {
-                        String relativePath = "/" + userRoot.relativize(file).toString().replace('\\', '/');
-                        String content = Files.readString(file);
-                        snapshot.put(relativePath, content);
-                    } catch (IOException ignored) {}
-                });
-    } catch (IOException ignored) {}
-    return snapshot;
-}
+        Map<String, String> snapshot = new HashMap<>();
+        Path userRoot = getUserPath(uuid);
+        if (!Files.exists(userRoot)) return snapshot;
+
+        try {
+            Files.walk(userRoot)
+                    .filter(Files::isRegularFile)
+                    .forEach(file -> {
+                        try {
+                            String relativePath = userRoot.relativize(file).toString().replace('\\', '/');
+                            String content = Files.readString(file);
+                            snapshot.put(relativePath, content);
+                        } catch (IOException ignored) {}
+                    });
+        } catch (IOException ignored) {}
+        return snapshot;
+    }
 }

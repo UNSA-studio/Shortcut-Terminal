@@ -19,21 +19,27 @@ import java.util.Base64;
 
 public class FakePlayerManager {
     private static final Map<UUID, FakePlayerEntity> fakePlayers = new ConcurrentHashMap<>();
-    private static final UUID FAKE_UUID = UUID.fromString("f8c0d6e8-6d8e-4a2e-8d6e-8d6e8d6e8d6e");
 
     public static FakePlayerEntity createFakePlayer(String name, ServerLevel level, BlockPos pos) {
         try {
             MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-            GameProfile profile = new GameProfile(FAKE_UUID, name);
-            
-            // 从模组资源加载皮肤并应用到 GameProfile
+            // Generate a unique UUID per fake player (deterministic from name to survive restarts)
+            UUID fakeUuid = UUID.nameUUIDFromBytes(("shortcutterminal-fakeplayer:" + name).getBytes(StandardCharsets.UTF_8));
+            GameProfile profile = new GameProfile(fakeUuid, name);
+
             applySkinFromResources(profile);
-            
-            FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
+
+            final FakePlayerEntity fakePlayer = new FakePlayerEntity(level, profile);
             fakePlayer.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-            
-            level.addNewPlayer(fakePlayer);
-            fakePlayers.put(profile.getId(), fakePlayer);
+
+            level.getServer().execute(() -> {
+                try {
+                    level.addNewPlayer(fakePlayer);
+                    fakePlayers.put(profile.getId(), fakePlayer);
+                } catch (Exception e) {
+                    ShortcutTerminal.LOGGER.error("Failed to spawn fake player on server thread", e);
+                }
+            });
             return fakePlayer;
         } catch (Exception e) {
             ShortcutTerminal.LOGGER.error("Failed to create fake player", e);

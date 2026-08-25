@@ -593,8 +593,11 @@ public class CoreCommandExecutor {
         if (fi != null) {
             String[] parts = fi.split("-");
             if (parts.length == 2) {
-                int count = Integer.parseInt(parts[0]);
-                long interval = parseTimeMs(parts[1], 0);
+                int count; long interval;
+                try {
+                    count = Integer.parseInt(parts[0]);
+                    interval = parseTimeMs(parts[1], 0);
+                } catch (NumberFormatException e) { return "Invalid fi format. Use <count>-<interval>."; }
                 float dmg = getFloatParam(p, "injure", 5);
                 for (int i = 0; i < count; i++) {
                     scheduler.schedule(() -> {
@@ -650,10 +653,15 @@ public class CoreCommandExecutor {
         Vec3 dest = t.position().add(0, height, 0);
         if (p.containsKey("coordinates")) {
             String[] parts = p.get("coordinates").split(",");
-            dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+            try {
+                dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+            } catch (NumberFormatException e) { return "Invalid coordinates. Use x,y,z."; }
         }
-        t.teleportTo(dest.x, dest.y, dest.z);
-        if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
+        final double fx = dest.x, fy = dest.y, fz = dest.z;
+        t.server.execute(() -> {
+            t.teleportTo(fx, fy, fz);
+            if ("no".equalsIgnoreCase(p.get("injure"))) t.fallDistance = 0;
+        });
         return "Flyup done.";
     }
 
@@ -668,17 +676,35 @@ public class CoreCommandExecutor {
         Vec3 dest = t.position().add(0, -depth, 0);
         if (p.containsKey("coordinates")) {
             String[] parts = p.get("coordinates").split(",");
-            dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+            try {
+                dest = new Vec3(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+            } catch (NumberFormatException e) { return "Invalid coordinates. Use x,y,z."; }
         }
-        t.teleportTo(dest.x, dest.y, dest.z);
-        if ("yes".equalsIgnoreCase(p.get("injure"))) t.hurt(t.damageSources().inWall(), 2);
+        final double fx = dest.x, fy = dest.y, fz = dest.z;
+        final boolean injure = "yes".equalsIgnoreCase(p.get("injure"));
+        t.server.execute(() -> {
+            t.teleportTo(fx, fy, fz);
+            if (injure) t.hurt(t.damageSources().inWall(), 2);
+        });
         return "EvasiveGround done.";
     }
 
     private String spoofStop(ServerPlayer t, Map<String, String> p) {
         String ts = p.get("time"); if (ts == null) return "Missing time";
         long ms = parseTimeMs(ts, 0); Vec3 pos = t.position(); float yr = t.getYRot(), xr = t.getXRot();
-        java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> { t.teleportTo(pos.x, pos.y, pos.z); t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0); }, 0, 50, TimeUnit.MILLISECONDS);
+        java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> {
+            // Auto-cancel if the target logged out or changed dimension
+            if (!t.isAlive() || !t.isOnline() || t.level().getServer() == null) {
+                stopFuture.cancel(false);
+                return;
+            }
+            t.server.execute(() -> {
+                if (t.isAlive()) {
+                    t.teleportTo(pos.x, pos.y, pos.z);
+                    t.setYRot(yr); t.setXRot(xr); t.setDeltaMovement(0,0,0);
+                }
+            });
+        }, 0, 50, TimeUnit.MILLISECONDS);
         scheduler.schedule(() -> stopFuture.cancel(true), ms, TimeUnit.MILLISECONDS);
         return "Stop done.";
     }
