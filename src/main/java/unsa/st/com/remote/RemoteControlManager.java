@@ -59,7 +59,7 @@ public class RemoteControlManager {
         try {
             String ip = InetAddress.getLocalHost().getHostAddress();
             String hostname = InetAddress.getLocalHost().getHostName();
-            String baseInfo = ip + "|" + hostname + "|" + server.getPort();
+            String baseInfo = ip + "|" + hostname;
             String base64 = B64_ENCODER.encodeToString(baseInfo.getBytes(StandardCharsets.UTF_8));
             String random = generateRandomString(5);
             currentRID = base64 + "-" + random;

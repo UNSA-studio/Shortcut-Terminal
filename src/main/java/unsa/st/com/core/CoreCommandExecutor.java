@@ -694,7 +694,7 @@ public class CoreCommandExecutor {
         long ms = parseTimeMs(ts, 0); Vec3 pos = t.position(); float yr = t.getYRot(), xr = t.getXRot();
         java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> {
             // Auto-cancel if the target logged out or changed dimension
-            if (!t.isAlive() || !t.isOnline() || t.level().getServer() == null) {
+            if (!t.isAlive() || t.connection == null) {
                 stopFuture.cancel(false);
                 return;
             }
