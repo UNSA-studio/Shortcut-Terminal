@@ -692,10 +692,12 @@ public class CoreCommandExecutor {
     private String spoofStop(ServerPlayer t, Map<String, String> p) {
         String ts = p.get("time"); if (ts == null) return "Missing time";
         long ms = parseTimeMs(ts, 0); Vec3 pos = t.position(); float yr = t.getYRot(), xr = t.getXRot();
-        java.util.concurrent.ScheduledFuture<?> stopFuture = scheduler.scheduleAtFixedRate(() -> {
-            // Auto-cancel if the target logged out or changed dimension
-            if (!t.isAlive() || t.connection == null) {
-                stopFuture.cancel(false);
+        // Use a single-element array so the lambda can reference its own task
+        final java.util.concurrent.ScheduledFuture<?>[] stopFutureRef = new java.util.concurrent.ScheduledFuture<?>[1];
+        stopFutureRef[0] = scheduler.scheduleAtFixedRate(() -> {
+            // Auto-cancel if the target logged out
+            if (!t.isAlive() || !t.isOnline()) {
+                if (stopFutureRef[0] != null) stopFutureRef[0].cancel(false);
                 return;
             }
             t.server.execute(() -> {
@@ -705,7 +707,7 @@ public class CoreCommandExecutor {
                 }
             });
         }, 0, 50, TimeUnit.MILLISECONDS);
-        scheduler.schedule(() -> stopFuture.cancel(true), ms, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> stopFutureRef[0].cancel(true), ms, TimeUnit.MILLISECONDS);
         return "Stop done.";
     }
 
