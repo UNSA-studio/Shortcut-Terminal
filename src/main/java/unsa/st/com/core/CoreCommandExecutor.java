@@ -696,7 +696,7 @@ public class CoreCommandExecutor {
         final java.util.concurrent.ScheduledFuture<?>[] stopFutureRef = new java.util.concurrent.ScheduledFuture<?>[1];
         stopFutureRef[0] = scheduler.scheduleAtFixedRate(() -> {
             // Auto-cancel if the target logged out
-            if (!t.isAlive() || !t.isOnline()) {
+            if (!t.isAlive() || t.hasDisconnected()) {
                 if (stopFutureRef[0] != null) stopFutureRef[0].cancel(false);
                 return;
             }
