@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SAS",
+    "CAC",
+    "SAS"
+  ],
+  "key": {
+    "S": { "item": "shortcutterminal:silicon_wafer" },
+    "A": { "item": "shortcutterminal:advanced_circuit" },
+    "C": { "item": "shortcutterminal:copper_wire" }
+  },
+  "result": { "id": "shortcutterminal:processing_unit", "count": 1 }
+}

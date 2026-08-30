@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SPS",
+    "PMP",
+    "SPS"
+  ],
+  "key": {
+    "S": { "item": "shortcutterminal:silicon_wafer" },
+    "P": { "item": "shortcutterminal:copper_wire" },
+    "M": { "item": "shortcutterminal:logic_chip" }
+  },
+  "result": { "id": "shortcutterminal:memory_bank", "count": 1 }
+}

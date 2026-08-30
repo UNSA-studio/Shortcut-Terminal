@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:smelting",
+  "ingredient": { "item": "minecraft:iron_ingot" },
+  "result": { "id": "shortcutterminal:refined_iron" },
+  "experience": 0.3,
+  "cookingtime": 200
+}

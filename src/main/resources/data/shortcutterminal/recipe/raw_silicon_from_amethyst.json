@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:smelting",
+  "ingredient": { "item": "minecraft:amethyst_shard" },
+  "result": { "id": "shortcutterminal:raw_silicon" },
+  "experience": 0.2,
+  "cookingtime": 200
+}

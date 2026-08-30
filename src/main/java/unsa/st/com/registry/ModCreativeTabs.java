@@ -4,7 +4,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import unsa.st.com.ShortcutTerminal;
@@ -19,8 +18,23 @@ public class ModCreativeTabs {
             "shortcut_terminal_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.shortcutterminal"))
-                    .icon(() -> new ItemStack(Items.COMMAND_BLOCK))
+                    .icon(() -> new ItemStack(ModItems.TERMINAL_PANEL.get()))
                     .displayItems((params, output) -> {
+                        // Tier 0: raw materials
+                        output.accept(ModItems.RAW_SILICON.get());
+                        output.accept(ModItems.SILICON_WAFER.get());
+                        output.accept(ModItems.LOGIC_WAFER.get());
+                        output.accept(ModItems.LOGIC_CHIP.get());
+                        output.accept(ModItems.REFINED_IRON.get());
+                        output.accept(ModItems.COPPER_WIRE.get());
+                        // Tier 1: components
+                        output.accept(ModItems.CIRCUIT_BOARD.get());
+                        output.accept(ModItems.ADVANCED_CIRCUIT.get());
+                        output.accept(ModItems.PROCESSING_UNIT.get());
+                        output.accept(ModItems.MEMORY_BANK.get());
+                        output.accept(ModItems.DISPLAY_SCREEN.get());
+                        output.accept(ModItems.POWER_COIL.get());
+                        // Final products
                         output.accept(ModItems.TERMINAL_CORE.get());
                         output.accept(ModItems.TERMINAL_PANEL.get());
                     })

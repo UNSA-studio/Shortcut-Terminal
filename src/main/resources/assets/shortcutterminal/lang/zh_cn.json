@@ -1,8 +1,16 @@
 {
+  "item.shortcutterminal.raw_silicon": "粗硅",
+  "item.shortcutterminal.silicon_wafer": "硅晶圆",
+  "item.shortcutterminal.logic_wafer": "逻辑晶圆",
+  "item.shortcutterminal.logic_chip": "逻辑芯片",
+  "item.shortcutterminal.refined_iron": "精炼铁板",
+  "item.shortcutterminal.copper_wire": "铜线",
+  "item.shortcutterminal.circuit_board": "电路板",
+  "item.shortcutterminal.advanced_circuit": "高级电路",
+  "item.shortcutterminal.processing_unit": "处理器",
+  "item.shortcutterminal.memory_bank": "存储体",
+  "item.shortcutterminal.display_screen": "显示屏幕",
+  "item.shortcutterminal.power_coil": "供能线圈",
   "item.shortcutterminal.terminal_core": "终端核心",
-  "item.shortcutterminal.terminal_panel": "终端面板",
-  "item.shortcutterminal.cloud_core": "云核心",
-  "item.shortcutterminal.radar": "雷达",
-  "item.shortcutterminal.receiver": "接收器",
-  "item.shortcutterminal.cloud_storage_manager": "云存储管理器"
+  "item.shortcutterminal.terminal_panel": "终端面板"
 }

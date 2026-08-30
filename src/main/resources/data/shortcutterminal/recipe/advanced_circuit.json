@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RRR",
+    "CBC",
+    "RRR"
+  ],
+  "key": {
+    "R": { "item": "minecraft:redstone" },
+    "C": { "item": "shortcutterminal:logic_chip" },
+    "B": { "item": "shortcutterminal:circuit_board" }
+  },
+  "result": { "id": "shortcutterminal:advanced_circuit", "count": 1 }
+}

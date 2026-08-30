@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RWR",
+    "WSW",
+    "RWR"
+  ],
+  "key": {
+    "R": { "item": "minecraft:redstone" },
+    "W": { "item": "shortcutterminal:copper_wire" },
+    "S": { "item": "shortcutterminal:silicon_wafer" }
+  },
+  "result": { "id": "shortcutterminal:logic_wafer", "count": 1 }
+}

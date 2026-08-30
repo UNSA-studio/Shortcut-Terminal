@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "shortcutterminal:logic_wafer" },
+    { "item": "minecraft:shears" }
+  ],
+  "result": { "id": "shortcutterminal:logic_chip", "count": 4 }
+}

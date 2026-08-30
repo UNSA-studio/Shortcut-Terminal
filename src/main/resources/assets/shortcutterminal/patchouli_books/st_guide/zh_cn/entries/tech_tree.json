@@ -1,0 +1,18 @@
+{
+    "name": "科技树总览",
+    "category": "shortcutterminal:items",
+    "icon": "shortcutterminal:terminal_panel",
+    "read_by_default": true,
+    "sortnum": 0,
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "要造出一台终端，你必须从最原始的材料开始。$(br2)整条生产线是：$(br)$(item)粗硅$() → $(item)硅晶圆$() → $(item)逻辑晶圆$() → $(item)逻辑芯片$() → $(item)电路板$() → $(item)高级电路$() → $(item)处理器$() → $(item)终端核心$() → $(item)终端面板$()"
+        },
+        {
+            "type": "patchouli:spotlight",
+            "item": "shortcutterminal:raw_silicon",
+            "text": "一切的起点：在熔炉中烧炼 $(item)紫水晶碎片$() 或 $(item)石英$() 获得 $(item)粗硅$()。"
+        }
+    ]
+}

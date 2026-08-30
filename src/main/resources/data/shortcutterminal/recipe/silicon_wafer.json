@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "shortcutterminal:raw_silicon" },
+    { "item": "shortcutterminal:raw_silicon" },
+    { "item": "minecraft:iron_nugget" }
+  ],
+  "result": { "id": "shortcutterminal:silicon_wafer", "count": 1 }
+}

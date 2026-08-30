@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "WPW",
+    "PCP",
+    "WPW"
+  ],
+  "key": {
+    "W": { "item": "shortcutterminal:copper_wire" },
+    "P": { "item": "minecraft:paper" },
+    "C": { "item": "shortcutterminal:logic_chip" }
+  },
+  "result": { "id": "shortcutterminal:circuit_board", "count": 1 }
+}

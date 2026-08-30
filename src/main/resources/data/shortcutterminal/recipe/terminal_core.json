@@ -1,19 +1,14 @@
 {
-    "type": "minecraft:crafting_shaped",
-    "pattern": [
-        "R R",
-        "SBL",
-        " G "
-    ],
-    "key": {
-        "R": { "item": "minecraft:redstone" },
-        "S": { "item": "minecraft:stone_button" },
-        "B": { "item": "minecraft:repeater" },
-        "L": { "item": "minecraft:redstone_lamp" },
-        "G": { "item": "minecraft:glass" }
-    },
-    "result": {
-        "id": "shortcutterminal:terminal_core",
-        "count": 1
-    }
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RPR",
+    "PCP",
+    "RPR"
+  ],
+  "key": {
+    "R": { "item": "shortcutterminal:refined_iron" },
+    "P": { "item": "shortcutterminal:power_coil" },
+    "C": { "item": "shortcutterminal:circuit_board" }
+  },
+  "result": { "id": "shortcutterminal:terminal_core", "count": 1 }
 }

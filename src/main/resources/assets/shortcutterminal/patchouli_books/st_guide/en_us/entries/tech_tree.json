@@ -1,0 +1,18 @@
+{
+    "name": "Tech Tree Overview",
+    "category": "shortcutterminal:items",
+    "icon": "shortcutterminal:terminal_panel",
+    "read_by_default": true,
+    "sortnum": 0,
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "To build a terminal you must start from raw materials. $(br2)The production line is: $(item)Raw Silicon$() > $(item)Silicon Wafer$() > $(item)Logic Wafer$() > $(item)Logic Chip$() > $(item)Circuit Board$() > $(item)Advanced Circuit$() > $(item)Processing Unit$() > $(item)Terminal Core$() > $(item)Terminal Panel$()"
+        },
+        {
+            "type": "patchouli:spotlight",
+            "item": "shortcutterminal:raw_silicon",
+            "text": "The very beginning: smelt $(item)Amethyst Shard$() or $(item)Quartz$() in a furnace to get $(item)Raw Silicon$()."
+        }
+    ]
+}
