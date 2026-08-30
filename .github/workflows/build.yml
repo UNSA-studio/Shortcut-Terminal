@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +28,22 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: |
+          set +e
+          ./gradlew build --stacktrace --no-daemon 2>&1 | tee build-output.log
+          code=${PIPESTATUS[0]}
+          exit $code
+
+      - name: Commit build log on failure
+        if: failure()
+        run: |
+          git config user.name "UNSA-STUDIO"
+          git config user.email "UNSA-studio@outlook.com"
+          { echo "# Build failure log"; echo; echo '```text'; cat build-output.log; echo '```'; } > BUILD_FAILURE_LOG.md
+          git add BUILD_FAILURE_LOG.md
+          git commit -m "ci: archive failing build log [skip ci]" || echo "nothing to commit"
+          git pull --rebase origin main || true
+          git push origin main || true
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
