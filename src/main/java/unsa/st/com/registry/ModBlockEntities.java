@@ -17,11 +17,12 @@ public class ModBlockEntities {
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(Registries.MENU, ShortcutTerminal.MODID);
 
-    /** 光刻机方块实体。Neo: public (BlockEntitySupplier, Block...) convenience constructor。 */
+    /** 光刻机方块实体。 */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LithographyMachineBlockEntity>> LITHOGRAPHY_MACHINE =
             BLOCK_ENTITIES.register("lithography_machine",
-                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
-                            ModBlocks.LITHOGRAPHY_MACHINE.get()));
+                    () -> net.minecraft.world.level.block.entity.BlockEntityType.Builder
+                            .of(LithographyMachineBlockEntity::new, ModBlocks.LITHOGRAPHY_MACHINE.get())
+                            .build(null));
 
     /** 光刻机菜单。 */
     public static final DeferredHolder<MenuType<?>, MenuType<LithographyMachineMenu>> LITHOGRAPHY_MACHINE_MENU =

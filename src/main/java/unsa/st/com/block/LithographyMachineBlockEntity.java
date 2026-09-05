@@ -185,7 +185,7 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
+        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items, registries);
         tag.putInt("Progress", progress);
         tag.putBoolean("Working", working);
         tag.putInt("TargetLevel", targetLevel);
@@ -194,7 +194,7 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
+        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items, registries);
         progress = tag.getInt("Progress");
         working = tag.getBoolean("Working");
         targetLevel = tag.getInt("TargetLevel");
