@@ -25,9 +25,7 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("lithography_machine",
                     () -> new BlockEntityType<>(
                             LithographyMachineBlockEntity::new,
-                            net.minecraft.world.level.block.entity.BlockEntityType.Builder.of(
-                                    LithographyMachineBlockEntity::new,
-                                    ModBlocks.LITHOGRAPHY_MACHINE.get()).build(null)));
+                            java.util.Set.of(ModBlocks.LITHOGRAPHY_MACHINE.get())));
 
     /** 光刻机菜单。 */
     public static final DeferredHolder<MenuType<?>, MenuType<LithographyMachineMenu>> LITHOGRAPHY_MACHINE_MENU =

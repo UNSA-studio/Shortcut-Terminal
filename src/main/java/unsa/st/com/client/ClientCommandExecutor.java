@@ -89,7 +89,7 @@ public class ClientCommandExecutor {
     private int stosLevel() {
         var mc = Minecraft.getInstance();
         if (mc.player == null) return 0;
-        for (ItemStack held : mc.player.getHandSlots()) {
+        for (net.minecraft.world.item.ItemStack held : mc.player.getHandSlots()) {
             if (held.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
                 return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(held);
             }

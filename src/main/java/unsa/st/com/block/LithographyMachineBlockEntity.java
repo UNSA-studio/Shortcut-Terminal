@@ -140,7 +140,7 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     }
 
     @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv, Player player) {
+    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv) {
         return new LithographyMachineMenu(windowId, playerInv, worldPosition);
     }
 
