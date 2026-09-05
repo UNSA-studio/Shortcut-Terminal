@@ -8,6 +8,8 @@ import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import unsa.st.com.api.ShortcutTerminalAPI;
+import unsa.st.com.core.CoreToolCommands;
 import unsa.st.com.gui.TerminalScreen;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.ShortcutTerminal;
@@ -54,6 +56,15 @@ public class ClientCommandExecutor {
     public String execute(String command, String[] args) {
         String result = executeBuiltInCommand(command, args);
         if (result != null) return result;
+        // 附属命令兜底：处理器抛异常不能拖垮终端
+        String addon;
+        try {
+            addon = ShortcutTerminalAPI.dispatchCommand(command, args);
+        } catch (Throwable t) {
+            ShortcutTerminal.LOGGER.error("Addon command '{}' threw", command, t);
+            addon = "Error: addon command '" + command + "' threw " + t.getClass().getSimpleName();
+        }
+        if (addon != null) return addon;
         Path ext = findExecutableInPath(command);
         if (ext != null) return executeExternalProgram(ext, args);
         return "Error: Unknown command. Type 'help' for available commands.";
@@ -73,6 +84,7 @@ public class ClientCommandExecutor {
             case "clear": return "";
             case "pkg": return executePkg(args);
             case "winget": return executeWinget(args);
+            case "addons": return CoreToolCommands.addons();
             case "run": return executeRun(args);
             default: return null;
         }
@@ -98,7 +110,15 @@ public class ClientCommandExecutor {
     }
 
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, run spoof";
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, addons, run spoof");
+        Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
+        if (!addon.isEmpty()) {
+            sb.append("\nAddon commands:");
+            for (Map.Entry<String, String> e : addon.entrySet()) {
+                sb.append("\n  ").append(e.getKey()).append(e.getValue().isEmpty() ? "" : " - " + e.getValue());
+            }
+        }
+        return sb.toString();
     }
 
     private String executeLs() {
@@ -317,7 +337,17 @@ public class ClientCommandExecutor {
         String[] moduleArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (module) {
             case "spoof": return executeSpoof(moduleArgs);
-            default: return "Unknown run module: " + module;
+            default: {
+                // 附属 run 模块兜底
+                String r;
+                try {
+                    r = ShortcutTerminalAPI.dispatchModule(module, moduleArgs);
+                } catch (Throwable t) {
+                    ShortcutTerminal.LOGGER.error("Addon module '{}' threw", module, t);
+                    r = "Error: addon module '" + module + "' threw " + t.getClass().getSimpleName();
+                }
+                return r != null ? r : "Unknown run module: " + module;
+            }
         }
     }
 

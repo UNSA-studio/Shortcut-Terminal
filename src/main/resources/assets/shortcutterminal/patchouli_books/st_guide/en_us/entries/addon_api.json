@@ -1,0 +1,23 @@
+{
+    "name": "Addon Development (Addon API)",
+    "category": "shortcutterminal:commands",
+    "icon": "minecraft:anvil",
+    "read_by_default": true,
+    "sortnum": 3,
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "Shortcut Terminal exposes a public API so any mod can add its own commands to the terminal.$(br2)In your mod's $(o)FMLCommonSetupEvent$():$(br2)$(c)ShortcutTerminalAPI.registerCommand(\"hello\", $(br)(cmd, args) -> \"Hello!\", \"Says hello\");$(0)$(br2)Then run $(c)hello$(0) in the terminal.$(br2)Type $(c)addons$(0) to list all registered addon commands."
+        },
+        {
+            "type": "patchouli:text",
+            "title": "API Reference",
+            "text": "$(li)registerCommand(name, handler, info) - register a command$(br)$(li)registerModule(name, handler, info) - register a run module$(br)$(li)unregisterCommand / unregisterModule - remove$(br)$(li)hasCommand / hasModule - query$(br)$(li)getRegisteredCommands - list all$(br2)Reserved names (help/ls/pkg/run etc.) cannot be overridden; registration will be rejected and logged."
+        },
+        {
+            "type": "patchouli:text",
+            "title": "Dependency Setup",
+            "text": "Add to your $(o)build.gradle$():$(br)$(c)implementation \"unsa.st.com:shortcutterminal:1.0.1\"$(0) (or a local jar)$(br2)In $(o)neoforge.mods.toml$():$(br)$(c)[[dependencies.yourmodid]]$(br)modId=\"shortcutterminal\"$(br)type=\"required\"$(br)ordering=\"AFTER\"$(0)$(br2)This ensures the API is ready when your registration code runs."
+        }
+    ]
+}

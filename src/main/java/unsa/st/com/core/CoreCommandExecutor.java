@@ -17,6 +17,7 @@ import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.api.ShortcutTerminalAPI;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
@@ -71,6 +72,15 @@ public class CoreCommandExecutor {
     public String execute(String command, String[] args) {
         String builtInResult = executeBuiltInCommand(command, args);
         if (builtInResult != null) return builtInResult;
+        // 附属命令兜底：处理器抛异常不能拖垮终端
+        String addonResult;
+        try {
+            addonResult = ShortcutTerminalAPI.dispatchCommand(command, args);
+        } catch (Throwable t) {
+            ShortcutTerminal.LOGGER.error("Addon command '{}' threw", command, t);
+            addonResult = "Error: addon command '" + command + "' threw " + t.getClass().getSimpleName();
+        }
+        if (addonResult != null) return addonResult;
         Path ext = findExecutableInPath(command);
         if (ext != null) return executeExternalProgram(ext, args);
         return "Error: Unknown command. Type 'help' for available commands.";
@@ -101,6 +111,13 @@ public class CoreCommandExecutor {
             case "free": return executeFree(args);
             case "ps": return executePs(args);
             case "du": return executeDu(args);
+            case "uptime": return CoreToolCommands.uptime();
+            case "who": return CoreToolCommands.who();
+            case "env": return CoreToolCommands.env();
+            case "hostname": return CoreToolCommands.hostname();
+            case "lscpu": return CoreToolCommands.lscpu();
+            case "top": return CoreToolCommands.top();
+            case "addons": return CoreToolCommands.addons();
             case "ping": return executePing(args);
             case "curl": return executeCurl(args);
             case "wget": return executeWget(args);
@@ -139,7 +156,15 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, macro, run, stop macro, User (admin)";
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, env, hostname, lscpu, top, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)");
+        Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
+        if (!addon.isEmpty()) {
+            sb.append("\nAddon commands:");
+            for (Map.Entry<String, String> e : addon.entrySet()) {
+                sb.append("\n  ").append(e.getKey()).append(e.getValue().isEmpty() ? "" : " - " + e.getValue());
+            }
+        }
+        return sb.toString();
     }
 
     private boolean isValidUserPath(String relPath) {
@@ -504,7 +529,17 @@ public class CoreCommandExecutor {
             case "spoof": return executeSpoof(moduleArgs);
             case "screenshot": return executeScreenshot(moduleArgs);
             case "id": return executeId(moduleArgs);
-            default: return "Unknown run module: " + module;
+            default: {
+                // 附属 run 模块兜底
+                String r;
+                try {
+                    r = ShortcutTerminalAPI.dispatchModule(module, moduleArgs);
+                } catch (Throwable t) {
+                    ShortcutTerminal.LOGGER.error("Addon module '{}' threw", module, t);
+                    r = "Error: addon module '" + module + "' threw " + t.getClass().getSimpleName();
+                }
+                return r != null ? r : "Unknown run module: " + module;
+            }
         }
     }
 

@@ -1,0 +1,23 @@
+{
+    "name": "附属开发 (Addon API)",
+    "category": "shortcutterminal:commands",
+    "icon": "minecraft:anvil",
+    "read_by_default": true,
+    "sortnum": 3,
+    "pages": [
+        {
+            "type": "patchouli:text",
+            "text": "Shortcut Terminal 提供公开 API，任何模组都能为终端添加自己的命令。$(br2)在模组的 $(o)FMLCommonSetupEvent$() 中调用：$(br2)$(c)ShortcutTerminalAPI.registerCommand(\"hello\", $(br)(cmd, args) -> \"Hello!\", \"打招呼\");$(0)$(br2)之后终端里就能执行 $(c)hello$(0)。$(br2)输入 $(c)addons$(0) 可查看当前已注册的全部附属命令。"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "API 一览",
+            "text": "$(li)registerCommand(名字, 处理器, 简介) - 注册终端命令$(br)$(li)registerModule(名字, 处理器, 简介) - 注册 run 模块$(br)$(li)unregisterCommand / unregisterModule - 注销$(br)$(li)hasCommand / hasModule - 查询$(br)$(li)getRegisteredCommands - 列出全部$(br2)保留名（help/ls/pkg/run 等）不可覆盖，注册会被拒绝并记入日志。"
+        },
+        {
+            "type": "patchouli:text",
+            "title": "依赖配置",
+            "text": "附属的 $(o)build.gradle$() 需要加入：$(br)$(c)implementation \"unsa.st.com:shortcutterminal:1.0.1\"$(0)（或本地 jar）$(br2)$(o)neoforge.mods.toml$() 中添加：$(br)$(c)[[dependencies.你的modid]]$(br)modId=\"shortcutterminal\"$(br)type=\"required\"$(br)ordering=\"AFTER\"$(0)$(br2)这样能保证加载顺序正确，附属注册时 API 已就绪。"
+        }
+    ]
+}
