@@ -70,20 +70,6 @@ public final class CoreToolCommands {
                 System.getProperty("os.name", "unknown"));
     }
 
-    /** top：JVM 内存与线程概览（非宿主机进程表） */
-    public static String top() {
-        Runtime rt = Runtime.getRuntime();
-        long total = rt.totalMemory(), free = rt.freeMemory(), max = rt.maxMemory();
-        long used = total - free;
-        ThreadMXBean tm = ManagementFactory.getThreadMXBean();
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Tasks: %d thread(s) registered\n", tm.getThreadCount()));
-        sb.append(String.format("%%Cpu(s): JVM heap %.1f%% of %s\n", total > 0 ? used * 100.0 / max : 0, fmt(max)));
-        sb.append(String.format("MiB Mem : %s total, %s free, %s used\n", fmt(total), fmt(free), fmt(used)));
-        sb.append("  (JVM-level view; host process table unavailable in mod sandbox)");
-        return sb.toString();
-    }
-
     /** date：服务器世界内日期与实际时间 */
     public static String date() {
         MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
