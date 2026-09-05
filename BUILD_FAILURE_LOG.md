@@ -8,14 +8,14 @@ Daemon will be stopped at the end of the build
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadServer[0m[0m
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
+[1m*** Started working on [4mdownloadClient[0m[0m
+[1m*** Started working on [4mdownloadServer[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -39,28 +39,68 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
 [1m*** Started working on [4mtransformSources[0m[0m
  [1m[92m♻[0m Used cache of [4mtransformSources[0m in 0.00s
 [1m*** Started working on [4mrecompile[0m[0m
- [1m[92m♻[0m Used cache of [4mrecompile[0m in 0.00s
+ [1m[92m♻[0m Used cache of [4mrecompile[0m in 0.01s
 [1m*** Started working on [4msourcesWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesWithNeoForge[0m in 0.00s
 [1m*** Started working on [4mcompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.51s
+Total runtime: 1.98s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
-    public static String top() {
-                         ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:27: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
+       ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
+        for (ItemStack held : mc.player.getHandSlots()) {
+             ^
+  symbol:   class ItemStack
+  location: class ClientCommandExecutor
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:100: error: cannot find symbol
+            ItemStack s = inv.items.get(i);
+            ^
+  symbol:   class ItemStack
+  location: class ClientCommandExecutor
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] bus() in EventBusSubscriber has been deprecated and marked for removal
+@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                         ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] Bus in EventBusSubscriber has been deprecated and marked for removal
+@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                                                 ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/ShortcutTerminal.java:33: error: cannot find symbol
+        ModBlockEntities.register(modEventBus);
+        ^
+  symbol:   variable ModBlockEntities
+  location: class ShortcutTerminal
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:20: error: LithographyMachineBlock is not abstract and does not override abstract method codec() in BaseEntityBlock
+public class LithographyMachineBlock extends BaseEntityBlock {
+       ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:41: error: package ModBlockEntities does not exist
+        return createTickerHelper(type, ModBlockEntities.LITHOGRAPHY_MACHINE.get(),
+                                                        ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:24: error: cannot infer type arguments for BlockEntityType<>
+                    () -> new BlockEntityType<>(
+                          ^
+  reason: cannot infer type-variable(s) T
+    (actual and formal argument lists differ in length)
+  where T is a type-variable:
+    T extends BlockEntity declared in class BlockEntityType
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:33: error: cannot find symbol
+                    () -> IMenuTypeExtension.create(LithographyMachineMenu::new));
+                          ^
+  symbol:   variable IMenuTypeExtension
+  location: class ModBlockEntities
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
-1 error
+8 errors
+2 warnings
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788604112208.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788615211200.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -70,13 +110,53 @@ FAILURE: Build failed with an exception.
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
   Note: Recompile with -Xlint:deprecation for details.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:27: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+  public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
+         ^
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:20: error: LithographyMachineBlock is not abstract and does not override abstract method codec() in BaseEntityBlock
+  public class LithographyMachineBlock extends BaseEntityBlock {
+         ^
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
+          for (ItemStack held : mc.player.getHandSlots()) {
+               ^
+    symbol:   class ItemStack
+    location: class ClientCommandExecutor
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:100: error: cannot find symbol
+              ItemStack s = inv.items.get(i);
+              ^
+    symbol:   class ItemStack
+    location: class ClientCommandExecutor
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/ShortcutTerminal.java:33: error: cannot find symbol
+          ModBlockEntities.register(modEventBus);
+          ^
+    symbol:   variable ModBlockEntities
+    location: class ShortcutTerminal
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:33: error: cannot find symbol
+                      () -> IMenuTypeExtension.create(LithographyMachineMenu::new));
+                            ^
+    symbol:   variable IMenuTypeExtension
+    location: class ModBlockEntities
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
-      public static String top() {
-                           ^
-  1 error
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] bus() in EventBusSubscriber has been deprecated and marked for removal
+  @EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                           ^
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] Bus in EventBusSubscriber has been deprecated and marked for removal
+  @EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                                                   ^
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:24: error: cannot infer type arguments for BlockEntityType<>
+                      () -> new BlockEntityType<>(
+                            ^
+    reason: cannot infer type-variable(s) T
+      (actual and formal argument lists differ in length)
+    where T is a type-variable:
+      T extends BlockEntity declared in class BlockEntityType
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:41: error: package ModBlockEntities does not exist
+          return createTickerHelper(type, ModBlockEntities.LITHOGRAPHY_MACHINE.get(),
+                                                          ^
+  8 errors
+  2 warnings
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -119,13 +199,53 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
 Note: Recompile with -Xlint:deprecation for details.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:27: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
+       ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:20: error: LithographyMachineBlock is not abstract and does not override abstract method codec() in BaseEntityBlock
+public class LithographyMachineBlock extends BaseEntityBlock {
+       ^
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
+        for (ItemStack held : mc.player.getHandSlots()) {
+             ^
+  symbol:   class ItemStack
+  location: class ClientCommandExecutor
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:100: error: cannot find symbol
+            ItemStack s = inv.items.get(i);
+            ^
+  symbol:   class ItemStack
+  location: class ClientCommandExecutor
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/ShortcutTerminal.java:33: error: cannot find symbol
+        ModBlockEntities.register(modEventBus);
+        ^
+  symbol:   variable ModBlockEntities
+  location: class ShortcutTerminal
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:33: error: cannot find symbol
+                    () -> IMenuTypeExtension.create(LithographyMachineMenu::new));
+                          ^
+  symbol:   variable IMenuTypeExtension
+  location: class ModBlockEntities
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
-    public static String top() {
-                         ^
-1 error
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] bus() in EventBusSubscriber has been deprecated and marked for removal
+@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                         ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/event/ClientGuiHandler.java:11: warning: [removal] Bus in EventBusSubscriber has been deprecated and marked for removal
+@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+                                                                                                 ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:24: error: cannot infer type arguments for BlockEntityType<>
+                    () -> new BlockEntityType<>(
+                          ^
+  reason: cannot infer type-variable(s) T
+    (actual and formal argument lists differ in length)
+  where T is a type-variable:
+    T extends BlockEntity declared in class BlockEntityType
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlock.java:41: error: package ModBlockEntities does not exist
+        return createTickerHelper(type, ModBlockEntities.LITHOGRAPHY_MACHINE.get(),
+                                                        ^
+8 errors
+2 warnings
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -249,6 +369,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 20s
+BUILD FAILED in 24s
 2 actionable tasks: 2 executed
 ```
