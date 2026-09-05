@@ -201,7 +201,7 @@ public class CoreCommandExecutor {
     }
 
     private String executeLs() {
-        // /proc 挂载点：列出虚拟内核文件
+        // /proc 挂载点：列出内核信息文件
         if (UserFileSystem.normalizePath(currentPath, "").equals("/proc")) {
             return "cpuinfo  loadavg  meminfo  mods  mspt  net.dev  threads  uptime  version";
         }
@@ -245,7 +245,7 @@ public class CoreCommandExecutor {
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
         if (!isValidUserPath(currentPath)) return "Error: Access denied.";
-        // /proc 挂载点：动态生成的内核虚拟文件
+        // /proc 挂载点：读取时从内核数据层动态生成
         String procCandidate = UserFileSystem.normalizePath(currentPath, args[0]);
         String procContent = ProcFS.read(procCandidate);
         if (procContent != null) return procContent;
@@ -265,7 +265,7 @@ public class CoreCommandExecutor {
         // Join remaining args so paths containing spaces survive split(" ")
         String target = String.join(" ", args).trim();
         String newPath = UserFileSystem.normalizePath(currentPath, target);
-        // /proc 是虚拟挂载点：允许 cd /proc
+        // /proc 是内核信息挂载点：允许 cd /proc
         if (newPath.equals("/proc") || newPath.startsWith("/proc/")) {
             currentPath = newPath;
             cdSuccessful = true;

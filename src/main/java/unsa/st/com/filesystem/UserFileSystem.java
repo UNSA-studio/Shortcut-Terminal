@@ -8,6 +8,12 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 
+/**
+ * 服务端真实文件系统：玩家终端文件的磁盘存储。
+ * 根目录为服务器目录下的 "Terminal File/&lt;uuid&gt;/"，所有读写都是真实文件 IO，
+ * 服务器重启后依然存在。含路径穿越防护（safeResolve 白名单式校验）。
+ * 客户端 GUI 终端持有的是其内存副本（ClientVirtualFileSystem），经 synchrony 同步。
+ */
 public class UserFileSystem {
     private static final String BASE_FOLDER = "Terminal File";
     private static Path basePath;

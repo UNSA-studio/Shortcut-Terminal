@@ -6,14 +6,15 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import java.util.List;
 
 /**
- * /proc 虚拟文件系统：把内核数据暴露为只读虚拟文件。
- * 文件在读取时动态生成内容（真实数据，零存储）。
- * 挂载点：每个用户根目录下的 /proc/。
+ * /proc 内核信息挂载点：把内核数据以文件形式暴露（cat /proc/xxx 可读）。
+ * 文件内容在读取时从内核数据层动态生成——没有磁盘存储，
+ * 但暴露的全是真实数据（真实 MSPT/线程/模组清单），与 Linux /proc 同构。
+ * 挂载位置：服务端终端路径树的 /proc/。
  */
 public final class ProcFS {
     private ProcFS() {}
 
-    /** 虚拟 proc 文件清单。 */
+    /** proc 文件清单。 */
     public static final String[] FILES = {
             "/proc/uptime", "/proc/loadavg", "/proc/meminfo",
             "/proc/version", "/proc/cpuinfo", "/proc/mods",
@@ -28,7 +29,7 @@ public final class ProcFS {
         return p.equals("/proc");
     }
 
-    /** 读取 proc 文件内容（动态生成）。 */
+    /** 读取 proc 文件内容（读取时从内核数据层动态生成）。 */
     public static String read(String fullPath) {
         if (fullPath == null) return null;
         String p = fullPath.startsWith("/") ? fullPath : "/" + fullPath;

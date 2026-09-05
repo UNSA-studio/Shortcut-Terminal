@@ -4,6 +4,14 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 客户端内存文件层：玩家在 GUI 终端里的工作副本（ConcurrentHashMap 存储）。
+ *
+ * <p>这不是独立文件系统——它是服务端真实文件（UserFileSystem 写到服务器磁盘的
+ * "Terminal File/&lt;uuid&gt;/" 目录）的内存镜像。通过 {@code run synchrony -local/-server}
+ * 与服务端真实文件双向同步；终端会话的历史与路径另存为 JSON
+ * （gameDir/terminal_sessions/&lt;player&gt;_sessions.json）。</p>
+ */
 public class ClientVirtualFileSystem {
     private static final Map<String, Map<String, VirtualFile>> playerFileSystems = new ConcurrentHashMap<>();
 
