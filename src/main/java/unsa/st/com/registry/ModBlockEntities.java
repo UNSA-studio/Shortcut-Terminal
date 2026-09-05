@@ -6,12 +6,9 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.network.IContainerFactory;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.block.LithographyMachineBlockEntity;
 import unsa.st.com.menu.LithographyMachineMenu;
-
-// NOTE: IMenuTypeExtension referenced fully-qualified to avoid import ordering issues.
 
 public class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
@@ -20,12 +17,11 @@ public class ModBlockEntities {
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(Registries.MENU, ShortcutTerminal.MODID);
 
-    /** 光刻机方块实体。 */
+    /** 光刻机方块实体。Neo: public (BlockEntitySupplier, Block...) convenience constructor。 */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LithographyMachineBlockEntity>> LITHOGRAPHY_MACHINE =
             BLOCK_ENTITIES.register("lithography_machine",
-                    () -> new BlockEntityType<>(
-                            LithographyMachineBlockEntity::new,
-                            java.util.Set.of(ModBlocks.LITHOGRAPHY_MACHINE.get())));
+                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
+                            ModBlocks.LITHOGRAPHY_MACHINE.get()));
 
     /** 光刻机菜单。 */
     public static final DeferredHolder<MenuType<?>, MenuType<LithographyMachineMenu>> LITHOGRAPHY_MACHINE_MENU =

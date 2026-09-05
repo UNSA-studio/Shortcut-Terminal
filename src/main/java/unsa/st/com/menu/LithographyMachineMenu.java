@@ -35,10 +35,11 @@ public class LithographyMachineMenu extends AbstractContainerMenu {
         this.machine = be instanceof LithographyMachineBlockEntity m ? m : null;
 
         if (machine != null) {
-            addSlot(new Slot(machine.getContainer(), 0, 44, 35));  // wafer
-            addSlot(new Slot(machine.getContainer(), 1, 80, 35));  // mask
-            addSlot(new Slot(machine.getContainer(), 2, 116, 35)); // power coil
-            addSlot(new Slot(machine.getContainer(), 3, 152, 35) { // output (extract only)
+            // BE 自身实现 Container（getContainerSize/getItem/...），Slot 直接持有
+            addSlot(new Slot(machine, 0, 44, 35) { @Override public boolean mayPlace(ItemStack s){ return s.is(ModItems.LOGIC_WAFER.get()); } });  // wafer
+            addSlot(new Slot(machine, 1, 80, 35) { @Override public boolean mayPlace(ItemStack s){ return s.getItem().toString().contains("lithography_mask_l"); } });  // mask
+            addSlot(new Slot(machine, 2, 116, 35) { @Override public boolean mayPlace(ItemStack s){ return s.is(ModItems.POWER_COIL.get()); } }); // power coil
+            addSlot(new Slot(machine, 3, 152, 35) { // output (extract only)
                 @Override public boolean mayPlace(ItemStack stack) { return false; }
                 @Override public boolean mayPickup(Player player) { return true; }
             });

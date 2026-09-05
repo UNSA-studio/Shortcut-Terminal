@@ -35,9 +35,8 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     private boolean working = false;
     private final Random random = new Random();
 
-    private final SimpleContainer container = new SimpleContainer(4) {
-        @Override public void setChanged() { LithographyMachineBlockEntity.this.setChanged(); }
-    };
+    /** 方块实体直接持有 NonNullList（BaseContainerBlockEntity 约定 getItems/setItems 抽象）。 */
+    private final net.minecraft.core.NonNullList<ItemStack> items = net.minecraft.core.NonNullList.withSize(4, ItemStack.EMPTY);
 
     public LithographyMachineBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.LITHOGRAPHY_MACHINE.get(), pos, state);
@@ -73,9 +72,9 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     }
 
     private void tryStart() {
-        if (container.getItem(0).is(ModItems.LOGIC_WAFER.get())
-                && container.getItem(2).is(ModItems.POWER_COIL.get())) {
-            int maskLevel = maskLevelFromItem(container.getItem(1));
+        if (this.items.get(0).is(ModItems.LOGIC_WAFER.get())
+                && this.items.get(2).is(ModItems.POWER_COIL.get())) {
+            int maskLevel = maskLevelFromItem(this.items.get(1));
             if (maskLevel >= 1) {
                 targetLevel = maskLevel;
                 working = true;
@@ -86,14 +85,14 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
 
     private void finishBatch(Level lvl, BlockPos pos) {
         // 消耗 1 晶圆 + 1 线圈（1 线圈 = 2 批能量：偶数批耗线圈）
-        container.removeItem(0, 1);
-        if (progress / PROCESS_TICKS % 2 == 0) container.removeItem(2, 1);
+        this.items.set(0, splitDecrement(this.items.get(0), 1));
+        if (progress / PROCESS_TICKS % 2 == 0) this.items.set(2, splitDecrement(this.items.get(2), 1));
         // 产出
         List<ItemStack> batch = ProcessorCapability.produceBatch(targetLevel, random);
-        ItemStack out = container.getItem(3);
+        ItemStack out = this.items.get(3);
         for (ItemStack produced : batch) {
             // 输出槽尽量塞
-            if (out.isEmpty()) { container.setItem(3, produced); out = container.getItem(3); }
+            if (out.isEmpty()) { this.items.set(3, produced); out = this.items.get(3); }
             else if (ItemStack.isSameItemSameComponents(out, produced) && out.getCount() + produced.getCount() <= out.getMaxStackSize()) {
                 out.grow(produced.getCount());
             } else {
@@ -123,17 +122,54 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
 
     // ==================== Container 实现 ====================
 
-    @Override public int getContainerSize() { return container.getContainerSize(); }
-    @Override public boolean isEmpty() { return container.isEmpty(); }
-    @Override public ItemStack getItem(int slot) { return container.getItem(slot); }
-    @Override public ItemStack removeItem(int slot, int amount) { return container.removeItem(slot, amount); }
-    @Override public ItemStack removeItemNoUpdate(int slot) { return container.removeItemNoUpdate(slot); }
-    @Override public void setItem(int slot, ItemStack stack) { container.setItem(slot, stack); }
+    @Override public int getContainerSize() { return this.items.size(); }
+    @Override public boolean isEmpty() {
+        for (ItemStack s : this.items) if (!s.isEmpty()) return false;
+        return true;
+    }
+    @Override public ItemStack getItem(int slot) { return this.items.get(slot); }
+    @Override public ItemStack removeItem(int slot, int amount) {
+        ItemStack taken = net.minecraft.world.ContainerHelper.removeItem(this.items, slot, amount);
+        if (!taken.isEmpty()) this.setChanged();
+        return taken;
+    }
+    @Override public ItemStack removeItemNoUpdate(int slot) {
+        return net.minecraft.world.ContainerHelper.takeItem(this.items, slot);
+    }
+    @Override public void setItem(int slot, ItemStack stack) {
+        this.items.set(slot, stack);
+        this.setChanged();
+    }
     @Override public boolean stillValid(Player player) {
         return level != null && level.getBlockEntity(worldPosition) == this
                 && player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
     }
-    @Override public void clearContent() { container.clearContent(); }
+    @Override public void clearContent() { fillEmpty(); }
+
+    /** 清空所有槽位。 */
+    private void fillEmpty() {
+        for (int i = 0; i < this.items.size(); i++) this.items.set(i, ItemStack.EMPTY);
+        this.setChanged();
+    }
+
+    /** 槽位减 amount（单堆内扣，耗尽返回 EMPTY）。 */
+    private static ItemStack splitDecrement(ItemStack stack, int amount) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+        stack.shrink(amount);
+        return stack.isEmpty() ? ItemStack.EMPTY : stack;
+    }
+
+    /** BaseContainerBlockEntity 抽象：暴露内部 NonNullList。 */
+    @Override
+    protected net.minecraft.core.NonNullList<ItemStack> getItems() { return this.items; }
+
+    /** BaseContainerBlockEntity 抽象：读档时整体替换。 */
+    @Override
+    protected void setItems(net.minecraft.core.NonNullList<ItemStack> newItems) {
+        for (int i = 0; i < this.items.size(); i++) {
+            this.items.set(i, i < newItems.size() ? newItems.get(i) : ItemStack.EMPTY);
+        }
+    }
 
     @Override protected Component getDefaultName() {
         return Component.translatable("block.shortcutterminal.lithography_machine");
@@ -149,7 +185,7 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        tag.put("Inventory", container.createTag(registries));
+        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
         tag.putInt("Progress", progress);
         tag.putBoolean("Working", working);
         tag.putInt("TargetLevel", targetLevel);
@@ -158,7 +194,7 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        if (tag.contains("Inventory")) container.fromTag(tag.getList("Inventory", 10), registries);
+        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
         progress = tag.getInt("Progress");
         working = tag.getBoolean("Working");
         targetLevel = tag.getInt("TargetLevel");
@@ -169,5 +205,5 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity impl
     public int getProgress() { return progress; }
     public int getProcessTicks() { return PROCESS_TICKS; }
     public int getTargetLevel() { return targetLevel; }
-    public SimpleContainer getContainer() { return container; }
+    public net.minecraft.core.NonNullList<ItemStack> getMachineItems() { return this.items; }
 }
