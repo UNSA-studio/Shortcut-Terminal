@@ -84,6 +84,65 @@ public final class CoreToolCommands {
         return sb.toString();
     }
 
+    /** date：服务器世界内日期与实际时间 */
+    public static String date() {
+        MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+        StringBuilder sb = new StringBuilder(new java.util.Date().toString());
+        if (s != null) {
+            var ow = s.overworld();
+            if (ow != null) {
+                long dayTime = ow.getDayTime();
+                long day = dayTime / 24000L + 1;
+                long t = dayTime % 24000L;
+                long mcH = (t / 1000 + 6) % 24;
+                long mcM = (t % 1000) * 60 / 1000;
+                sb.append(String.format("\nWorld day %d, %02d:%02d (MC time)", day, mcH, mcM));
+                sb.append(ow.isRaining() ? "\nWeather: raining" : "\nWeather: clear");
+            }
+        }
+        return sb.toString();
+    }
+
+    /** hostname：详细系统信息 */
+    public static String unameAll() {
+        return String.format("%s %s %s %s %s",
+                System.getProperty("os.name", "?"),
+                System.getProperty("os.arch", "?"),
+                System.getProperty("os.version", "?"),
+                "MC", System.getProperty("java.version", "?"));
+    }
+
+    /** init：系统启动时间与版本横幅 */
+    public static String initInfo() {
+        MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+        long upMs = ManagementFactory.getRuntimeMXBean().getUptime();
+        long sec = upMs / 1000;
+        return String.format("JVM uptime: %dd %dh %dm %ds\nServer: %s",
+                sec / 86400, (sec % 86400) / 3600, (sec % 3600) / 60, sec % 60,
+                s != null ? s.getServerModName() : "unknown");
+    }
+
+    /** kill：终止（占位：显示如何正确停止服务器） */
+    public static String killInfo(String[] args) {
+        if (args.length == 0) return "Usage: kill <pid>  (server-side, use /stop to shut down the server)";
+        return "kill: only the dedicated server console may terminate the JVM. Use /stop instead.";
+    }
+
+    /** sleep：批处理脚本中的等待命令 */
+    public static String sleep(String[] args) {
+        if (args.length == 0) return "Usage: sleep <seconds>";
+        try {
+            long ms = (long) (Double.parseDouble(args[0]) * 1000);
+            Thread.sleep(Math.min(ms, 10000)); // max 10s in scripts to avoid runaway scripts
+            return "";
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return "sleep interrupted";
+        } catch (NumberFormatException e) {
+            return "sleep: invalid number: " + args[0];
+        }
+    }
+
     private static String fmt(long b) {
         if (b < 1024) return b + "B";
         if (b < 1048576) return String.format("%.1fK", b / 1024.0);

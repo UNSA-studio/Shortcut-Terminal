@@ -36,8 +36,9 @@ public class ModCommands {
         // ========== 1. 所有内置命令（带状态持久化） ==========
         String[] builtinCommands = {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
-            "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "df",
-            "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
+            "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "uptime",
+            "who", "env", "hostname", "lscpu", "top", "addons",
+            "df", "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
             "chmod", "sh", "refresh", "stop", "help"
         };
 

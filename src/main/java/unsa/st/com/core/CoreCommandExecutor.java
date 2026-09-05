@@ -50,14 +50,16 @@ public class CoreCommandExecutor {
     public void setPlayer(ServerPlayer player) {
         this.playerUuid = player.getUUID();
         this.playerName = player.getName().getString();
-        this.currentPath = "";
+        // Path is intentionally NOT reset here: ModCommands re-calls setPlayer
+        // before every /ST invocation, and resetting would snap the working
+        // directory back home after every single command (cd felt dead-bound).
         ensureHomeDirectory();
     }
 
     public void setPlayer(String playerName, String uuid) {
         this.playerName = playerName;
         this.playerUuid = UUID.fromString(uuid);
-        this.currentPath = "";
+        // Same as above: preserve any previously set currentPath.
         ensureHomeDirectory();
     }
 
@@ -118,6 +120,9 @@ public class CoreCommandExecutor {
             case "lscpu": return CoreToolCommands.lscpu();
             case "top": return CoreToolCommands.top();
             case "addons": return CoreToolCommands.addons();
+            case "init": return CoreToolCommands.initInfo();
+            case "kill": return CoreToolCommands.killInfo(args);
+            case "sleep": return CoreToolCommands.sleep(args);
             case "ping": return executePing(args);
             case "curl": return executeCurl(args);
             case "wget": return executeWget(args);
@@ -156,7 +161,7 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, env, hostname, lscpu, top, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, env, hostname, lscpu, top, init, kill, sleep, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");
@@ -236,12 +241,15 @@ public class CoreCommandExecutor {
     private String executeEcho(String[] args) { return String.join(" ", args); }
 
     private String executeCd(String[] args) {
-        if (args.length == 0 || args[0].trim().isEmpty() || args[0].equals(".") || args[0].equals("./")) {
+        // No argument (or bare "cd ~") → go home. Any real path must win over this.
+        if (args.length == 0 || args[0].trim().isEmpty() || args[0].trim().equals("~")) {
             currentPath = "";
             cdSuccessful = true;
-            return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
+            return "Changed directory to: /";
         }
-        String newPath = UserFileSystem.normalizePath(currentPath, args[0]);
+        // Join remaining args so paths containing spaces survive split(" ")
+        String target = String.join(" ", args).trim();
+        String newPath = UserFileSystem.normalizePath(currentPath, target);
         List<String> test = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, newPath) :
                 UserFileSystem.listDirectory(playerUuid, newPath);

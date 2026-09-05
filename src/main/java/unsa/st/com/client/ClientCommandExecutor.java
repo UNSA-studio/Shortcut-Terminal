@@ -157,7 +157,11 @@ public class ClientCommandExecutor {
     private String executeEcho(String[] args) { return String.join(" ", args); }
 
     private String executeCd(String[] args) {
-        if (args.length == 0) return "Usage: cd <path>";
+        // No argument (or bare "cd ~") → go home. Any real path must win over this.
+        if (args.length == 0 || args[0].trim().isEmpty() || args[0].trim().equals("~")) {
+            currentPath = "/";
+            return "Changed directory to: /";
+        }
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, args[0]);
         if (ClientVirtualFileSystem.listDirectory(playerName, newPath) != null) {
             currentPath = newPath;
