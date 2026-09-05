@@ -22,6 +22,7 @@ public class LithographyMachineMenu extends AbstractContainerMenu {
     private final ContainerLevelAccess access;
 
     /** 客户端工厂（IContainerFactory）。 */
+    /** 客户端工厂（IContainerFactory）。 */
     public LithographyMachineMenu(int windowId, Inventory playerInv, net.minecraft.network.RegistryFriendlyByteBuf buf) {
         this(windowId, playerInv, BlockPos.STREAM_CODEC.decode(buf));
     }

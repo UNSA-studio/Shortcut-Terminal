@@ -1,5 +1,6 @@
 package unsa.st.com.block;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
+import unsa.st.com.registry.ModBlockEntities;
 
 /**
  * 光刻机控制器：3×3 平放（自身 + 8 外壳）成型后右键打开 GUI。
@@ -19,8 +21,15 @@ import org.jetbrains.annotations.Nullable;
  */
 public class LithographyMachineBlock extends BaseEntityBlock {
 
+    public static final MapCodec<LithographyMachineBlock> CODEC = simpleCodec(LithographyMachineBlock::new);
+
     public LithographyMachineBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    protected MapCodec<? extends BaseEntityBlock> codec() {
+        return CODEC;
     }
 
     @Override

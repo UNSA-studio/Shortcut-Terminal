@@ -4,15 +4,18 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import unsa.st.com.compute.ProcessorCapability;
 import unsa.st.com.compute.YieldTable;
+import unsa.st.com.menu.LithographyMachineMenu;
 import unsa.st.com.registry.ModBlockEntities;
 import unsa.st.com.registry.ModItems;
 
@@ -24,7 +27,7 @@ import java.util.Random;
  * 槽位：0=逻辑晶圆（输入）、1=掩膜（决定目标等级，不消耗）、2=电源线圈（燃料）、3=输出。
  * 加工 20s（400 ticks）一片晶圆 → 一批 10 颗 CPU（良品率掷骰）。
  */
-public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
+public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
     public static final int PROCESS_TICKS = 400;
     /** 掩膜等级 = 目标等级。 */
     private int targetLevel = 0;
@@ -134,6 +137,11 @@ public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
 
     @Override protected Component getDefaultName() {
         return Component.translatable("block.shortcutterminal.lithography_machine");
+    }
+
+    @Override
+    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv, Player player) {
+        return new LithographyMachineMenu(windowId, playerInv, worldPosition);
     }
 
     // ==================== NBT ====================

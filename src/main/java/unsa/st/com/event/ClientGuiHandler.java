@@ -8,7 +8,7 @@ import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.client.LithographyMachineScreen;
 
 /** 客户端 GUI 注册。 */
-@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT)
 public class ClientGuiHandler {
     @SubscribeEvent
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {

@@ -97,7 +97,7 @@ public class ClientCommandExecutor {
         // 也扫描主背包 36 格（面板可能没拿在手上）
         var inv = mc.player.getInventory();
         for (int i = 0; i < inv.items.size(); i++) {
-            ItemStack s = inv.items.get(i);
+            net.minecraft.world.item.ItemStack s = inv.items.get(i);
             if (s.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
                 return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(s);
             }

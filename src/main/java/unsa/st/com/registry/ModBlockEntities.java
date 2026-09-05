@@ -11,6 +11,8 @@ import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.block.LithographyMachineBlockEntity;
 import unsa.st.com.menu.LithographyMachineMenu;
 
+// NOTE: IMenuTypeExtension referenced fully-qualified to avoid import ordering issues.
+
 public class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ShortcutTerminal.MODID);
@@ -25,12 +27,12 @@ public class ModBlockEntities {
                             LithographyMachineBlockEntity::new,
                             net.minecraft.world.level.block.entity.BlockEntityType.Builder.of(
                                     LithographyMachineBlockEntity::new,
-                                    ModBlocks.LITHOGRAPHY_MACHINE.get())));
+                                    ModBlocks.LITHOGRAPHY_MACHINE.get()).build(null)));
 
     /** 光刻机菜单。 */
     public static final DeferredHolder<MenuType<?>, MenuType<LithographyMachineMenu>> LITHOGRAPHY_MACHINE_MENU =
             MENUS.register("lithography_machine",
-                    () -> IMenuTypeExtension.create(LithographyMachineMenu::new));
+                    () -> net.neoforged.neoforge.common.extensions.IMenuTypeExtension.create(LithographyMachineMenu::new));
 
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITIES.register(eventBus);
