@@ -9,13 +9,13 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
 [1m*** Started working on [4mdownloadServer[0m[0m
-[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
+[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
- [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.01s
+ [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -46,15 +46,25 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.96s
+Total runtime: 1.34s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
-public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
-       ^
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
-                    () -> new BlockEntityType<>(
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
+        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
+                                           ^
+    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
+      (actual and formal argument lists differ in length)
+    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
+      (actual and formal argument lists differ in length)
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
+        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
+                                           ^
+  required: CompoundTag,NonNullList<ItemStack>,Provider
+  found:    CompoundTag,NonNullList<ItemStack>
+  reason: actual and formal argument lists differ in length
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
+                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
                           ^
   reason: cannot infer type-variable(s) T
     (actual and formal argument lists differ in length)
@@ -64,10 +74,10 @@ Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
-2 errors
+3 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788617791765.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788618275218.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -76,21 +86,31 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
+          net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
+                                             ^
+    required: CompoundTag,NonNullList<ItemStack>,Provider
+    found:    CompoundTag,NonNullList<ItemStack>
+    reason: actual and formal argument lists differ in length
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
+          net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
+                                             ^
+      method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
+        (actual and formal argument lists differ in length)
+      method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
+        (actual and formal argument lists differ in length)
   Note: Recompile with -Xlint:deprecation for details.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
-  public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
-         ^
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
-                      () -> new BlockEntityType<>(
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
+                      () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
                             ^
     reason: cannot infer type-variable(s) T
       (actual and formal argument lists differ in length)
     where T is a type-variable:
       T extends BlockEntity declared in class BlockEntityType
-  2 errors
+  3 errors
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -129,55 +149,34 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:328)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:146)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:131)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:45)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withLocksAcquired$0(DefaultWorkerLeaseService.java:269)
-	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStatistics.java:42)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(DefaultWorkerLeaseService.java:267)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:259)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:84)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
+        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
+                                           ^
+  required: CompoundTag,NonNullList<ItemStack>,Provider
+  found:    CompoundTag,NonNullList<ItemStack>
+  reason: actual and formal argument lists differ in length
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
+        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
+                                           ^
+    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
+      (actual and formal argument lists differ in length)
+    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
+      (actual and formal argument lists differ in length)
 Note: Recompile with -Xlint:deprecation for details.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
-public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
-       ^
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
-                    () -> new BlockEntityType<>(
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
+                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
                           ^
   reason: cannot infer type-variable(s) T
     (actual and formal argument lists differ in length)
   where T is a type-variable:
     T extends BlockEntity declared in class BlockEntityType
-2 errors
+3 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -298,9 +297,9 @@ Note: Some input files use or override a deprecated API.
 	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:31)
 	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:64)
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:132)
-	... 61 more
+	... 30 more
 
 
-BUILD FAILED in 25s
+BUILD FAILED in 12s
 2 actionable tasks: 2 executed
 ```
