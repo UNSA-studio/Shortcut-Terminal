@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CSC",
+    "DAP",
+    "CLC"
+  ],
+  "key": {
+    "C": "shortcutterminal:machine_casing",
+    "S": "shortcutterminal:display_screen",
+    "D": "shortcutterminal:advanced_circuit",
+    "A": "shortcutterminal:advanced_circuit",
+    "P": "shortcutterminal:power_coil",
+    "L": "shortcutterminal:logic_chip"
+  },
+  "result": {
+    "id": "shortcutterminal:lithography_machine",
+    "count": 1
+  }
+}

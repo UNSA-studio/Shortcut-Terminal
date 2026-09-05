@@ -34,7 +34,7 @@ public class ModItems {
     /** Advanced board with redstone signal processing. */
     public static final DeferredItem<Item> ADVANCED_CIRCUIT = ITEMS.register("advanced_circuit",
             () -> new Item(new Item.Properties()));
-    /** Processing unit: the brain of a terminal. */
+    /** Processing unit (legacy tier item; superseded by processor_l1-l9 ladder). */
     public static final DeferredItem<Item> PROCESSING_UNIT = ITEMS.register("processing_unit",
             () -> new Item(new Item.Properties()));
     /** Data storage cell. */
@@ -47,9 +47,32 @@ public class ModItems {
     public static final DeferredItem<Item> POWER_COIL = ITEMS.register("power_coil",
             () -> new Item(new Item.Properties()));
 
-    // ===== Final products =====
-    public static final DeferredItem<Item> TERMINAL_CORE = ITEMS.register("terminal_core",
+    // ===== Processor L1-L9 (produce by lithography machine only) =====
+    /** Ladder of processors produced by the lithography machine, shared texture. */
+    public static final java.util.Map<Integer, DeferredItem<Item>> PROCESSORS = new java.util.HashMap<>();
+    static {
+        for (int l = 1; l <= 9; l++) {
+            final int lvl = l;
+            PROCESSORS.put(l, ITEMS.register("processor_l" + lvl,
+                    () -> new Item(new Item.Properties())));
+        }
+    }
+
+    // ===== Lithography masks L1-L9 (permanent blueprints, shared texture) =====
+    public static final java.util.Map<Integer, DeferredItem<Item>> LITHO_MASKS = new java.util.HashMap<>();
+    static {
+        for (int l = 1; l <= 9; l++) {
+            final int lvl = l;
+            LITHO_MASKS.put(l, ITEMS.register("lithography_mask_l" + lvl,
+                    () -> new Item(new Item.Properties())));
+        }
+    }
+
+    // ===== Terminal motherboard (replaces terminal_core) =====
+    public static final DeferredItem<Item> TERMINAL_MOTHERBOARD = ITEMS.register("terminal_motherboard",
             () -> new Item(new Item.Properties()));
+
+    // ===== Final products =====
     public static final DeferredItem<Item> TERMINAL_PANEL = ITEMS.register("terminal_panel",
             () -> new TerminalPanelItem(new Item.Properties()));
 }

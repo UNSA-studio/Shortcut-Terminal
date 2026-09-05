@@ -30,6 +30,7 @@ public class ShortcutTerminal {
 
         ModItems.ITEMS.register(modEventBus);
         ModBlocks.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         
         BinaryPluginManager.init();

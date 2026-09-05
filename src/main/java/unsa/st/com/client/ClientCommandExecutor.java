@@ -9,6 +9,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import unsa.st.com.api.ShortcutTerminalAPI;
+import unsa.st.com.compute.ComputePolicy;
 import unsa.st.com.core.CoreToolCommands;
 import unsa.st.com.gui.TerminalScreen;
 import unsa.st.com.pkg.PkgManager;
@@ -54,6 +55,20 @@ public class ClientCommandExecutor {
     public String getPlayerName() { return playerName; }
 
     public String execute(String command, String[] args) {
+        // ===== STOS 算力门槛：面板等级不足时拒绝并冷却 =====
+        int installedLevel = stosLevel();
+        if (ComputePolicy.isGated(command, installedLevel)) {
+            long now = System.currentTimeMillis();
+            if (now - lastGateRejectMs < ComputePolicy.GATE_COOLDOWN_MS) {
+                return "STOS: compute unit cooling down...";
+            }
+            lastGateRejectMs = now;
+            String panic = ComputePolicy.maybePanic(installedLevel, command, new java.util.Random());
+            String gate = "STOS: compute insufficient (needs L" + ComputePolicy.requiredLevel(command)
+                    + ", installed " + (installedLevel <= 0 ? "none" : "L" + installedLevel) + ")";
+            return panic != null ? panic + "\n" + gate : gate;
+        }
+
         String result = executeBuiltInCommand(command, args);
         if (result != null) return result;
         // 附属命令兜底：处理器抛异常不能拖垮终端
@@ -69,6 +84,28 @@ public class ClientCommandExecutor {
         if (ext != null) return executeExternalProgram(ext, args);
         return "Error: Unknown command. Type 'help' for available commands.";
     }
+
+    /** 当前面板的处理器等级（从打开终端的玩家主手/副手查找面板）。 */
+    private int stosLevel() {
+        var mc = Minecraft.getInstance();
+        if (mc.player == null) return 0;
+        for (ItemStack held : mc.player.getHandSlots()) {
+            if (held.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
+                return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(held);
+            }
+        }
+        // 也扫描主背包 36 格（面板可能没拿在手上）
+        var inv = mc.player.getInventory();
+        for (int i = 0; i < inv.items.size(); i++) {
+            ItemStack s = inv.items.get(i);
+            if (s.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
+                return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(s);
+            }
+        }
+        return 0;
+    }
+
+    private long lastGateRejectMs = 0;
 
     private String executeBuiltInCommand(String command, String[] args) {
         switch (command.toLowerCase(Locale.ROOT)) {

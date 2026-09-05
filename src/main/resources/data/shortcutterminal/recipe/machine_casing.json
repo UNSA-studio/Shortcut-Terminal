@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RI",
+    "IR"
+  ],
+  "key": {
+    "R": "shortcutterminal:refined_iron",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "shortcutterminal:machine_casing",
+    "count": 1
+  }
+}

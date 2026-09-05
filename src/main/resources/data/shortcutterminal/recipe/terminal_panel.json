@@ -1,13 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
   "pattern": [
     "MMM",
     "MDM",
     "MMM"
   ],
   "key": {
-    "M": { "item": "shortcutterminal:memory_bank" },
-    "D": { "item": "shortcutterminal:display_screen" }
+    "M": "shortcutterminal:memory_bank",
+    "D": "shortcutterminal:terminal_motherboard"
   },
-  "result": { "id": "shortcutterminal:terminal_panel", "count": 1 }
+  "result": {
+    "id": "shortcutterminal:terminal_panel",
+    "count": 1
+  }
 }

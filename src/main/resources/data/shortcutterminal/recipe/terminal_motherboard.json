@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RIR",
+    "CAC",
+    "RWR"
+  ],
+  "key": {
+    "R": "shortcutterminal:refined_iron",
+    "I": "minecraft:iron_ingot",
+    "C": "shortcutterminal:logic_chip",
+    "A": "shortcutterminal:advanced_circuit",
+    "W": "shortcutterminal:copper_wire"
+  },
+  "result": {
+    "id": "shortcutterminal:terminal_motherboard",
+    "count": 1
+  }
+}

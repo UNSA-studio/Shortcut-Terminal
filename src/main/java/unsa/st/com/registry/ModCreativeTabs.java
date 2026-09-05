@@ -30,12 +30,17 @@ public class ModCreativeTabs {
                         // Tier 1: components
                         output.accept(ModItems.CIRCUIT_BOARD.get());
                         output.accept(ModItems.ADVANCED_CIRCUIT.get());
-                        output.accept(ModItems.PROCESSING_UNIT.get());
                         output.accept(ModItems.MEMORY_BANK.get());
                         output.accept(ModItems.DISPLAY_SCREEN.get());
                         output.accept(ModItems.POWER_COIL.get());
+                        // Lithography machine
+                        output.accept(ModBlocks.MACHINE_CASING.get());
+                        output.accept(ModBlocks.LITHOGRAPHY_MACHINE.get());
+                        for (int l = 1; l <= 9; l++) output.accept(ModItems.LITHO_MASKS.get(l).get());
+                        // Processors L1-L9
+                        for (int l = 1; l <= 9; l++) output.accept(ModItems.PROCESSORS.get(l).get());
                         // Final products
-                        output.accept(ModItems.TERMINAL_CORE.get());
+                        output.accept(ModItems.TERMINAL_MOTHERBOARD.get());
                         output.accept(ModItems.TERMINAL_PANEL.get());
                     })
                     .build()

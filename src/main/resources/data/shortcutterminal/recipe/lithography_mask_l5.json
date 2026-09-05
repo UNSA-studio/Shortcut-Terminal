@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PCP",
+    "CCP",
+    "CCP"
+  ],
+  "key": {
+    "P": "minecraft:paper",
+    "A": "minecraft:amethyst_shard",
+    "C": "shortcutterminal:logic_chip"
+  },
+  "result": {
+    "id": "shortcutterminal:lithography_mask_l5",
+    "count": 1
+  }
+}

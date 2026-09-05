@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CQC",
+    "CCQ",
+    "CCR"
+  ],
+  "key": {
+    "C": "shortcutterminal:logic_chip",
+    "Q": "minecraft:quartz",
+    "P": "minecraft:paper",
+    "R": "shortcutterminal:refined_iron"
+  },
+  "result": {
+    "id": "shortcutterminal:lithography_mask_l9",
+    "count": 1
+  }
+}
