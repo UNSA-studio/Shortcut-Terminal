@@ -8,14 +8,14 @@ Daemon will be stopped at the end of the build
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadServer[0m[0m
+[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -46,21 +46,23 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.92s
+Total runtime: 1.65s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:61: error: cannot find symbol
-        return String.format("%s:%d", s.getMotd().getString(), s.getPort());
-                                                 ^
-  symbol:   method getString()
-  location: class String
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:61: error: package ShortcutTerminal does not exist
-            ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Command '{}' overridden by a later registration", key);
-                            ^
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:85: error: package ShortcutTerminal does not exist
-            ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Module '{}' overridden by a later registration", key);
-                            ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelEventHandler.java:17: error: cannot find symbol
+@Mod.EventBusSubscriber(modid = "shortcutterminal")
+    ^
+  symbol:   class EventBusSubscriber
+  location: @interface Mod
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
+    public static String top() {
+                         ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelCommands.java:94: error: cannot find symbol
+                    p.getTickCount()));
+                     ^
+  symbol:   method getTickCount()
+  location: variable p of type ServerPlayer
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
@@ -68,7 +70,7 @@ Note: Recompile with -Xlint:unchecked for details.
 3 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788600462475.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788603750065.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -79,19 +81,21 @@ Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
   Note: Recompile with -Xlint:deprecation for details.
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelEventHandler.java:17: error: cannot find symbol
+  @Mod.EventBusSubscriber(modid = "shortcutterminal")
+      ^
+    symbol:   class EventBusSubscriber
+    location: @interface Mod
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:61: error: package ShortcutTerminal does not exist
-              ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Command '{}' overridden by a later registration", key);
-                              ^
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:85: error: package ShortcutTerminal does not exist
-              ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Module '{}' overridden by a later registration", key);
-                              ^
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:61: error: cannot find symbol
-          return String.format("%s:%d", s.getMotd().getString(), s.getPort());
-                                                   ^
-    symbol:   method getString()
-    location: class String
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelCommands.java:94: error: cannot find symbol
+                      p.getTickCount()));
+                       ^
+    symbol:   method getTickCount()
+    location: variable p of type ServerPlayer
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
+      public static String top() {
+                           ^
   3 errors
 
 * Try:
@@ -136,19 +140,21 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelEventHandler.java:17: error: cannot find symbol
+@Mod.EventBusSubscriber(modid = "shortcutterminal")
+    ^
+  symbol:   class EventBusSubscriber
+  location: @interface Mod
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:61: error: package ShortcutTerminal does not exist
-            ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Command '{}' overridden by a later registration", key);
-                            ^
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/api/ShortcutTerminalAPI.java:85: error: package ShortcutTerminal does not exist
-            ShortcutTerminal.LOGGER.info("[ShortcutTerminal API] Module '{}' overridden by a later registration", key);
-                            ^
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:61: error: cannot find symbol
-        return String.format("%s:%d", s.getMotd().getString(), s.getPort());
-                                                 ^
-  symbol:   method getString()
-  location: class String
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/KernelCommands.java:94: error: cannot find symbol
+                    p.getTickCount()));
+                     ^
+  symbol:   method getTickCount()
+  location: variable p of type ServerPlayer
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/core/CoreToolCommands.java:174: error: method top() is already defined in class CoreToolCommands
+    public static String top() {
+                         ^
 3 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
@@ -273,6 +279,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 22s
+BUILD FAILED in 23s
 2 actionable tasks: 2 executed
 ```
