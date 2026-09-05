@@ -58,7 +58,7 @@ public final class CoreToolCommands {
     public static String hostname() {
         MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
         if (s == null) return "(no server)";
-        return String.format("%s:%d", s.getMotd().getString(), s.getPort());
+        return String.format("%s:%d", s.getMotd(), s.getPort());
     }
 
     /** lscpu：CPU 核心数与架构（JVM 视角） */

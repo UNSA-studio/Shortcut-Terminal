@@ -1,5 +1,7 @@
 package unsa.st.com.api;
 
+import unsa.st.com.ShortcutTerminal;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
