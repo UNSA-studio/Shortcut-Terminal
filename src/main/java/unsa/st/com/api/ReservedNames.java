@@ -17,7 +17,7 @@ final class ReservedNames {
             "ping", "curl", "wget", "clear", "date", "which", "chmod",
             "sh", "refresh", "pkg", "macro", "run", "user", "stop", "winget",
             "uptime", "who", "env", "hostname", "lscpu", "top", "addons",
-            "init", "kill", "sleep"
+            "init", "kill", "sleep", "dmesg", "tps", "lsmod", "modinfo", "w"
     );
 
     /** 不可被附属 run 模块覆盖的内置模块名。 */

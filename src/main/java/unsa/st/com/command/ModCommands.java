@@ -37,7 +37,8 @@ public class ModCommands {
         String[] builtinCommands = {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "uptime",
-            "who", "env", "hostname", "lscpu", "top", "addons",
+            "who", "w", "env", "hostname", "lscpu", "top", "addons",
+            "dmesg", "tps", "lsmod", "modinfo",
             "df", "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
             "chmod", "sh", "refresh", "stop", "help"
         };

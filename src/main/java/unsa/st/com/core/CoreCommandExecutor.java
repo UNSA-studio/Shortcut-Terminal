@@ -18,6 +18,8 @@ import unsa.st.com.plugin.BinaryPluginManager;
 import unsa.st.com.dummy.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.api.ShortcutTerminalAPI;
+import unsa.st.com.kernel.KernelCommands;
+import unsa.st.com.kernel.ProcFS;
 import unsa.st.com.util.OfflineTeleportManager;
 import unsa.st.com.network.ModNetwork;
 import unsa.st.com.network.BlackScreenPayload;
@@ -118,11 +120,16 @@ public class CoreCommandExecutor {
             case "env": return CoreToolCommands.env();
             case "hostname": return CoreToolCommands.hostname();
             case "lscpu": return CoreToolCommands.lscpu();
-            case "top": return CoreToolCommands.top();
+            case "top": return KernelCommands.psTop();
             case "addons": return CoreToolCommands.addons();
             case "init": return CoreToolCommands.initInfo();
             case "kill": return CoreToolCommands.killInfo(args);
             case "sleep": return CoreToolCommands.sleep(args);
+            case "dmesg": return KernelCommands.dmesg(args);
+            case "tps": return KernelCommands.tps();
+            case "lsmod": return KernelCommands.lsmod();
+            case "modinfo": return KernelCommands.modinfo(args);
+            case "w": return KernelCommands.w();
             case "ping": return executePing(args);
             case "curl": return executeCurl(args);
             case "wget": return executeWget(args);
@@ -161,7 +168,7 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, env, hostname, lscpu, top, init, kill, sleep, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");
@@ -194,6 +201,10 @@ public class CoreCommandExecutor {
     }
 
     private String executeLs() {
+        // /proc 挂载点：列出虚拟内核文件
+        if (UserFileSystem.normalizePath(currentPath, "").equals("/proc")) {
+            return "cpuinfo  loadavg  meminfo  mods  mspt  net.dev  threads  uptime  version";
+        }
         List<String> files = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, currentPath) :
                 UserFileSystem.listDirectory(playerUuid, currentPath);
@@ -234,6 +245,10 @@ public class CoreCommandExecutor {
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
         if (!isValidUserPath(currentPath)) return "Error: Access denied.";
+        // /proc 挂载点：动态生成的内核虚拟文件
+        String procCandidate = UserFileSystem.normalizePath(currentPath, args[0]);
+        String procContent = ProcFS.read(procCandidate);
+        if (procContent != null) return procContent;
         String content = readFileSafe(args[0]);
         return content != null ? content : "Error: File not found.";
     }
@@ -250,6 +265,12 @@ public class CoreCommandExecutor {
         // Join remaining args so paths containing spaces survive split(" ")
         String target = String.join(" ", args).trim();
         String newPath = UserFileSystem.normalizePath(currentPath, target);
+        // /proc 是虚拟挂载点：允许 cd /proc
+        if (newPath.equals("/proc") || newPath.startsWith("/proc/")) {
+            currentPath = newPath;
+            cdSuccessful = true;
+            return "Changed directory to: " + currentPath;
+        }
         List<String> test = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, newPath) :
                 UserFileSystem.listDirectory(playerUuid, newPath);

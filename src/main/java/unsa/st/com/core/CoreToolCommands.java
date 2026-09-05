@@ -169,4 +169,21 @@ public final class CoreToolCommands {
         }
         return sb.toString().trim();
     }
+
+    /** 内核层不再直接使用此类的 top 实现（已由 KernelCommands.psTop 替代）。 */
+    public static String top() {
+        return KernelBridge.topView();
+    }
+
+    /** 内核桥接：避免 CoreToolCommands 反向依赖 kernel 包时产生循环（供 GUI 客户端复用）。 */
+    private static final class KernelBridge {
+        static String topView() {
+            try {
+                return Class.forName("unsa.st.com.kernel.KernelCommands")
+                        .getDeclaredMethod("psTop").invoke(null).toString();
+            } catch (Throwable t) {
+                return "kernel data unavailable";
+            }
+        }
+    }
 }
