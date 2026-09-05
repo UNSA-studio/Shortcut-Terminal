@@ -86,12 +86,11 @@ public final class KernelCommands {
         sb.append("-".repeat(70)).append('\n');
         for (ServerPlayer p : players) {
             String mode = p.gameMode.getGameModeForPlayer().getName();
-            sb.append(String.format("%-16s %5dms %-8s %-22s %d\n",
+            sb.append(String.format("%-16s %5dms %-8s %-22s\n",
                     p.getGameProfile().getName(),
                     p.connection.latency(),
                     mode,
-                    (int) p.getX() + "," + (int) p.getY() + "," + (int) p.getZ(),
-                    p.getTickCount()));
+                    (int) p.getX() + "," + (int) p.getY() + "," + (int) p.getZ()));
         }
         return sb.toString();
     }

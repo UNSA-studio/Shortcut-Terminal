@@ -1,20 +1,20 @@
 package unsa.st.com.kernel;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import unsa.st.com.ShortcutTerminal;
 
 import static unsa.st.com.kernel.TerminalKernel.klog;
 
 /**
  * 内核事件泵：把 NeoForge 服务器事件转译为内核状态变化 + dmesg 日志。
- * 由主类注册到 NeoForge.EVENT_BUS。
+ * 自动注册到 NeoForge.EVENT_BUS。
  */
-@Mod.EventBusSubscriber(modid = "shortcutterminal")
+@EventBusSubscriber(modid = ShortcutTerminal.MODID)
 public final class KernelEventHandler {
 
     @SubscribeEvent
