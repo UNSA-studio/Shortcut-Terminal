@@ -9,13 +9,13 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
 [1m*** Started working on [4mdownloadServer[0m[0m
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
-[1m*** Started working on [4mlistLibraries[0m[0m
- [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+[1m*** Started working on [4mdownloadClient[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
  [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
+[1m*** Started working on [4mlistLibraries[0m[0m
+ [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.01s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -46,18 +46,13 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.06s
+Total runtime: 1.96s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
 public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
        ^
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
-        for (ItemStack held : mc.player.getHandSlots()) {
-             ^
-  symbol:   class ItemStack
-  location: class ClientCommandExecutor
 /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
                     () -> new BlockEntityType<>(
                           ^
@@ -69,10 +64,10 @@ Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
-3 errors
+2 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788615797778.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788617791765.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -82,15 +77,10 @@ FAILURE: Build failed with an exception.
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
   Note: Recompile with -Xlint:deprecation for details.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
   public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
          ^
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
-          for (ItemStack held : mc.player.getHandSlots()) {
-               ^
-    symbol:   class ItemStack
-    location: class ClientCommandExecutor
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
   /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
@@ -100,7 +90,7 @@ Execution failed for task ':compileJava'.
       (actual and formal argument lists differ in length)
     where T is a type-variable:
       T extends BlockEntity declared in class BlockEntityType
-  3 errors
+  2 errors
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -174,15 +164,10 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
 Note: Recompile with -Xlint:deprecation for details.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method createMenu(int,Inventory) in BaseContainerBlockEntity
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:30: error: LithographyMachineBlockEntity is not abstract and does not override abstract method setItems(NonNullList<ItemStack>) in BaseContainerBlockEntity
 public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
        ^
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/ClientCommandExecutor.java:92: error: cannot find symbol
-        for (ItemStack held : mc.player.getHandSlots()) {
-             ^
-  symbol:   class ItemStack
-  location: class ClientCommandExecutor
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
 /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:26: error: cannot infer type arguments for BlockEntityType<>
@@ -192,7 +177,7 @@ Note: Some input files use or override a deprecated API.
     (actual and formal argument lists differ in length)
   where T is a type-variable:
     T extends BlockEntity declared in class BlockEntityType
-3 errors
+2 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -316,6 +301,6 @@ Note: Some input files use or override a deprecated API.
 	... 61 more
 
 
-BUILD FAILED in 13s
+BUILD FAILED in 25s
 2 actionable tasks: 2 executed
 ```
