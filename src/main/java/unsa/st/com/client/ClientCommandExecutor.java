@@ -8,6 +8,7 @@ import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import unsa.st.com.gui.TerminalScreen;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.network.ModNetwork;
@@ -16,6 +17,7 @@ import unsa.st.com.network.BlackScreenPayload;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -30,6 +32,7 @@ public class ClientCommandExecutor {
     private final List<String> outputBuffer = new ArrayList<>();
     private List<String> commandHistory = new ArrayList<>();
     private boolean pendingChanges = false;
+    private volatile boolean wingetRunning = false;
 
     public ClientCommandExecutor(String playerName) {
         this.playerName = playerName;
@@ -69,6 +72,7 @@ public class ClientCommandExecutor {
             case "pwd": return executePwd();
             case "clear": return "";
             case "pkg": return executePkg(args);
+            case "winget": return executeWinget(args);
             case "run": return executeRun(args);
             default: return null;
         }
@@ -94,7 +98,7 @@ public class ClientCommandExecutor {
     }
 
     private String getHelp() {
-        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, run spoof";
+        return "Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, run spoof";
     }
 
     private String executeLs() {
@@ -155,6 +159,155 @@ public class ClientCommandExecutor {
             case "show": return args.length > 1 ? PkgManager.showInfo(args[1]) : "Usage: pkg show <package>";
             default: return "Unknown pkg command.";
         }
+    }
+
+    // ========== WINGET (real winget.exe passthrough) ==========
+    private String executeWinget(String[] args) {
+        if (!isRealWindows()) {
+            return "Error: winget is not available on this host (" + detectHostOS() + ").\n" +
+                   "winget passthrough directly invokes the host's winget.exe (Windows 10 1809+ / Windows 11 with App Installer).";
+        }
+        if (wingetRunning) return "Error: another winget process is already running.";
+        if (args.length == 0) {
+            return "Usage: winget <command> [args...]\n" +
+                   "Passthrough to the host's real winget.exe. Examples:\n" +
+                   "  winget search <query>    - search for apps\n" +
+                   "  winget install <pkg>     - install an app\n" +
+                   "  winget uninstall <pkg>   - uninstall an app\n" +
+                   "  winget list              - list installed apps\n" +
+                   "  winget show <pkg>        - show app details\n" +
+                   "  winget upgrade [pkg]     - upgrade app(s)\n" +
+                   "  winget --info            - winget info";
+        }
+        // Do not block the render thread: winget install can run for minutes.
+        wingetRunning = true;
+        final List<String> cmd = buildWingetCommand(args);
+        Thread worker = new Thread(() -> {
+            String output;
+            try {
+                output = runWingetProcess(cmd);
+            } catch (Exception e) {
+                ShortcutTerminal.LOGGER.error("winget passthrough failed", e);
+                output = "Error: " + e.getMessage();
+            }
+            final String result = output;
+            wingetRunning = false;
+            Minecraft.getInstance().execute(() -> {
+                TerminalScreen screen = TerminalScreen.getInstance();
+                if (screen != null) screen.addOutputLine(result);
+            });
+        }, "ShortcutTerminal-Winget");
+        worker.setDaemon(true);
+        worker.start();
+        return "winget is running in background (" + cmd.get(1) + ")... output will appear here when finished.";
+    }
+
+    private boolean isRealWindows() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        return os.contains("win");
+    }
+
+    private String detectHostOS() {
+        return System.getProperty("os.name", "unknown") + " " + System.getProperty("os.arch", "");
+    }
+
+    private List<String> buildWingetCommand(String[] args) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add("winget.exe");
+        for (String a : args) cmd.add(a);
+        // Non-interactive install/upgrade/uninstall: auto-accept agreements so the
+        // passthrough never blocks on the agreement prompt (stdin is closed in a GUI env).
+        String sub = args[0].toLowerCase(Locale.ROOT);
+        boolean mutating = sub.equals("install") || sub.equals("upgrade") || sub.equals("uninstall") || sub.equals("add");
+        if (mutating) {
+            boolean hasAccept = false, hasSrcAccept = false;
+            for (String a : args) {
+                String l = a.toLowerCase(Locale.ROOT);
+                if (l.startsWith("--accept-package-agreements")) hasAccept = true;
+                if (l.startsWith("--accept-source-agreements")) hasSrcAccept = true;
+            }
+            if (!hasAccept) cmd.add("--accept-package-agreements");
+            if (!hasSrcAccept) cmd.add("--accept-source-agreements");
+        }
+        return cmd;
+    }
+
+    private String runWingetProcess(List<String> cmd) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        try { proc.getOutputStream().close(); } catch (IOException ignored) {} // stdin EOF: no interactive prompt hang
+
+        // Charset: winget pipes out in the host console codepage (GBK on zh-CN Windows).
+        // Override with -Dst.winget.charset=UTF-8 if needed.
+        Charset cs;
+        String override = System.getProperty("st.winget.charset");
+        if (override != null && !override.isEmpty()) {
+            try { cs = Charset.forName(override); } catch (Exception e) { cs = Charset.defaultCharset(); }
+        } else {
+            cs = Charset.defaultCharset();
+        }
+
+        // Watchdog: if winget hangs (e.g. blocked on a UAC prompt), the reader thread
+        // would block on readLine() forever and the wingetRunning flag would deadlock
+        // every future winget call. Kill the process after the timeout so readLine()
+        // gets EOF and the worker always terminates. (proc is effectively final,
+        // so the watchdog lambda can capture it directly.)
+        final java.util.concurrent.atomic.AtomicBoolean timedOut = new java.util.concurrent.atomic.AtomicBoolean(false);
+        Thread watchdog = new Thread(() -> {
+            try {
+                if (!proc.waitFor(10, TimeUnit.MINUTES)) {
+                    proc.destroyForcibly();
+                    timedOut.set(true);
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+        }, "ShortcutTerminal-Winget-Watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
+
+        List<String> lines = new ArrayList<>();
+        String pendingProgress = null;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isProgressNoise(line)) {
+                    pendingProgress = line; // collapse progress-bar spam, keep only the last frame
+                    continue;
+                }
+                if (pendingProgress != null) { lines.add(pendingProgress); pendingProgress = null; }
+                lines.add(line);
+                if (lines.size() > 800) { lines.add("...[output truncated]"); break; }
+            }
+        }
+        if (pendingProgress != null) lines.add(pendingProgress);
+
+        // Read EOF reached: process exited (or was killed by the watchdog). Use
+        // waitFor() instead of exitValue() - exitValue() throws
+        // IllegalThreadStateException if the process is somehow not yet dead.
+        proc.waitFor();
+        int code = proc.exitValue();
+        StringBuilder out = new StringBuilder();
+        if (timedOut.get()) out.append("Error: winget timed out after 10 minutes and was killed.\n");
+        out.append("[winget exit code: ").append(code).append(']');
+        for (String l : lines) out.append('\n').append(l);
+        return out.toString();
+    }
+
+    /** Progress-bar frames like "\  ▒▒▒░░ 45%" — charset is only box/percent/spinner chars. */
+    private boolean isProgressNoise(String line) {
+        if (line == null || line.isEmpty()) return false;
+        boolean hasProgressChar = false;
+        for (char c : line.toCharArray()) {
+            if (Character.isWhitespace(c)) continue;
+            if ("-\\|/─━═0123456789%.: ".indexOf(c) >= 0 || c >= 0x2580 && c <= 0x259F || c >= 0x2596 && c <= 0x259F) {
+                hasProgressChar = true;
+                continue;
+            }
+            return false; // any real letter/CJK char means it's a content line
+        }
+        return hasProgressChar;
     }
 
     // ========== RUN ==========
