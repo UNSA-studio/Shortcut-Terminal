@@ -5,17 +5,24 @@ To honour the JVM settings for this build a single-use Daemon process will be fo
 Daemon will be stopped at the end of the build 
 
 > Task :createMinecraftArtifacts
+Performing periodic cache maintenance on /home/runner/.gradle/caches/neoformruntime
+Cleaning intermediate results cache in /home/runner/.gradle/caches/neoformruntime/intermediate_results
+ Maximum age: 744h
+ Maximum cache size: 1 GiB
+ [0;2;3m37 files found[0m
+ [0;2;3m210 MiB overall size[0m
+ [0;2;3m0 expired keys found[0m
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
- [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
+ [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.01s
+[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mdownloadServer[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
-[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.05s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.05s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -46,38 +53,28 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.34s
+Total runtime: 1.12s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
-        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
-                                           ^
-    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
-      (actual and formal argument lists differ in length)
-    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
-      (actual and formal argument lists differ in length)
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
-        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
-                                           ^
-  required: CompoundTag,NonNullList<ItemStack>,Provider
-  found:    CompoundTag,NonNullList<ItemStack>
-  reason: actual and formal argument lists differ in length
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
-                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
-                          ^
-  reason: cannot infer type-variable(s) T
-    (actual and formal argument lists differ in length)
-  where T is a type-variable:
-    T extends BlockEntity declared in class BlockEntityType
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
+    public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
+                        ^
+  symbol:   class DeferredItem
+  location: class ModBlocks
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
+    public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
+                        ^
+  symbol:   class DeferredItem
+  location: class ModBlocks
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
-3 errors
+2 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788618275218.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788701581814.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -86,31 +83,21 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
-          net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
-                                             ^
-    required: CompoundTag,NonNullList<ItemStack>,Provider
-    found:    CompoundTag,NonNullList<ItemStack>
-    reason: actual and formal argument lists differ in length
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
-          net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
-                                             ^
-      method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
-        (actual and formal argument lists differ in length)
-      method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
-        (actual and formal argument lists differ in length)
   Note: Recompile with -Xlint:deprecation for details.
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
+      public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
+                          ^
+    symbol:   class DeferredItem
+    location: class ModBlocks
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
+      public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
+                          ^
+    symbol:   class DeferredItem
+    location: class ModBlocks
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
-                      () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
-                            ^
-    reason: cannot infer type-variable(s) T
-      (actual and formal argument lists differ in length)
-    where T is a type-variable:
-      T extends BlockEntity declared in class BlockEntityType
-  3 errors
+  2 errors
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -152,31 +139,21 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:197: error: method loadAllItems in class ContainerHelper cannot be applied to given types;
-        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items);
-                                           ^
-  required: CompoundTag,NonNullList<ItemStack>,Provider
-  found:    CompoundTag,NonNullList<ItemStack>
-  reason: actual and formal argument lists differ in length
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/block/LithographyMachineBlockEntity.java:188: error: no suitable method found for saveAllItems(CompoundTag,NonNullList<ItemStack>)
-        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items);
-                                           ^
-    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,Provider) is not applicable
-      (actual and formal argument lists differ in length)
-    method ContainerHelper.saveAllItems(CompoundTag,NonNullList<ItemStack>,boolean,Provider) is not applicable
-      (actual and formal argument lists differ in length)
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
+    public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
+                        ^
+  symbol:   class DeferredItem
+  location: class ModBlocks
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
+    public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
+                        ^
+  symbol:   class DeferredItem
+  location: class ModBlocks
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlockEntities.java:23: error: cannot infer type arguments for BlockEntityType<>
-                    () -> new BlockEntityType<>(LithographyMachineBlockEntity::new,
-                          ^
-  reason: cannot infer type-variable(s) T
-    (actual and formal argument lists differ in length)
-  where T is a type-variable:
-    T extends BlockEntity declared in class BlockEntityType
-3 errors
+2 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -300,6 +277,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 12s
+BUILD FAILED in 16s
 2 actionable tasks: 2 executed
 ```
