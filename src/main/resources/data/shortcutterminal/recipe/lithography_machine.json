@@ -7,12 +7,24 @@
     "CLC"
   ],
   "key": {
-    "C": "shortcutterminal:machine_casing",
-    "S": "shortcutterminal:display_screen",
-    "D": "shortcutterminal:advanced_circuit",
-    "A": "shortcutterminal:advanced_circuit",
-    "P": "shortcutterminal:power_coil",
-    "L": "shortcutterminal:logic_chip"
+    "C": {
+      "item": "shortcutterminal:machine_casing"
+    },
+    "S": {
+      "item": "shortcutterminal:display_screen"
+    },
+    "D": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "P": {
+      "item": "shortcutterminal:power_coil"
+    },
+    "L": {
+      "item": "shortcutterminal:logic_chip"
+    }
   },
   "result": {
     "id": "shortcutterminal:lithography_machine",

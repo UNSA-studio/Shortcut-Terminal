@@ -1,5 +1,7 @@
 package unsa.st.com.registry;
 
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -27,7 +29,18 @@ public class ModBlocks {
                             BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
                                     .strength(3.0f, 6.0f).requiresCorrectToolForDrops()));
 
+    public static final DeferredRegister.Items BLOCK_ITEMS = DeferredRegister.createItems(ShortcutTerminal.MODID);
+
+    /** 方块的物品形态（缺失会导致创造栏 asItem()==AIR 崩溃）。 */
+    public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
+            BLOCK_ITEMS.register("lithography_machine",
+                    () -> new BlockItem(LITHOGRAPHY_MACHINE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
+            BLOCK_ITEMS.register("machine_casing",
+                    () -> new BlockItem(MACHINE_CASING.get(), new Item.Properties()));
+
     public static void register(IEventBus eventBus) {
         BLOCKS.register(eventBus);
+        BLOCK_ITEMS.register(eventBus);
     }
 }

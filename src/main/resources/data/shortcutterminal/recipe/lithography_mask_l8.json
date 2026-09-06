@@ -7,10 +7,18 @@
     "CCR"
   ],
   "key": {
-    "C": "shortcutterminal:logic_chip",
-    "Q": "minecraft:quartz",
-    "P": "minecraft:paper",
-    "R": "shortcutterminal:refined_iron"
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    },
+    "Q": {
+      "item": "minecraft:quartz"
+    },
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    }
   },
   "result": {
     "id": "shortcutterminal:lithography_mask_l8",

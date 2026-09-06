@@ -7,9 +7,15 @@
     "PPP"
   ],
   "key": {
-    "P": "minecraft:paper",
-    "A": "minecraft:amethyst_shard",
-    "C": "shortcutterminal:logic_chip"
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    }
   },
   "result": {
     "id": "shortcutterminal:lithography_mask_l1",

@@ -7,8 +7,12 @@
     "MMM"
   ],
   "key": {
-    "M": "shortcutterminal:memory_bank",
-    "D": "shortcutterminal:terminal_motherboard"
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "D": {
+      "item": "shortcutterminal:terminal_motherboard"
+    }
   },
   "result": {
     "id": "shortcutterminal:terminal_panel",

@@ -7,11 +7,21 @@
     "RWR"
   ],
   "key": {
-    "R": "shortcutterminal:refined_iron",
-    "I": "minecraft:iron_ingot",
-    "C": "shortcutterminal:logic_chip",
-    "A": "shortcutterminal:advanced_circuit",
-    "W": "shortcutterminal:copper_wire"
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "W": {
+      "item": "shortcutterminal:copper_wire"
+    }
   },
   "result": {
     "id": "shortcutterminal:terminal_motherboard",
