@@ -38,7 +38,7 @@ public class ModCommands {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "uptime",
             "who", "w", "env", "hostname", "lscpu", "top", "addons",
-            "dmesg", "tps", "lsmod", "modinfo",
+            "dmesg", "tps", "lsmod", "modinfo", "winget",
             "df", "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
             "chmod", "sh", "refresh", "stop", "help"
         };
@@ -497,6 +497,22 @@ public class ModCommands {
                         return 1;
                     })
                 )
+            )
+            .then(Commands.literal("source")
+                .then(Commands.argument("args", StringArgumentType.greedyString())
+                    .executes(ctx -> {
+                        String argsStr = StringArgumentType.getString(ctx, "args");
+                        String[] parts = ("source " + argsStr).trim().split(" ");
+                        String result = PkgManager.sourceCommand(parts, false);
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+                .executes(ctx -> {
+                    String result = PkgManager.sourceCommand(new String[]{"source"}, false);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
             )
         );
 

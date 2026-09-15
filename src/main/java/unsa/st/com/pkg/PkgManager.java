@@ -24,12 +24,7 @@ import java.util.stream.Collectors;
 
 public class PkgManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final String[] MIRRORS = {
-        "https://mirrors.tuna.tsinghua.edu.cn/debian",
-        "https://mirrors.ustc.edu.cn/debian",
-        "https://deb.debian.org/debian"
-    };
-    private static final String DEBIAN_VERSION = "bookworm";
+    // 镜像与发行版配置迁移至 PkgSources（支持运行时切换）
     private static Map<String, PackageInfo> remoteIndex = new HashMap<>();
     private static boolean indexLoaded = false;
 
@@ -75,7 +70,7 @@ public class PkgManager {
                 (androidRoot != null && !androidRoot.isEmpty()) || (androidData != null && !androidData.isEmpty()));
     }
 
-    private static Path getGameDir(boolean isClient) {
+    public static Path getGameDir(boolean isClient) {
         if (isClient) {
             return Minecraft.getInstance().gameDirectory.toPath();
         } else {
@@ -196,9 +191,10 @@ public class PkgManager {
         }
 
         String arch = System.getProperty("os.arch").toLowerCase().contains("arm") ? "arm64" : "amd64";
+        PkgSources.Config cfg = PkgSources.load(isClient);
         List<String> errors = new ArrayList<>();
-        for (String mirror : MIRRORS) {
-            String base = mirror + "/dists/" + DEBIAN_VERSION + "/main/binary-" + arch;
+        for (PkgSources.Mirror mirror : PkgSources.fallbackOrder(cfg)) {
+            String base = mirror.baseUrl + "/dists/" + cfg.release + "/main/binary-" + arch;
             for (String suffix : new String[]{"/Packages.gz", "/Packages.xz"}) {
                 String urlStr = base + suffix;
                 try {
@@ -230,7 +226,8 @@ public class PkgManager {
                     }
                     indexLoaded = true;
                     saveIndexCache(isClient);
-                    return "Index updated from " + mirror + " (" + remoteIndex.size() + " packages).";
+                    return "Index updated from " + mirror.label + " (" + mirror.baseUrl + ", " + cfg.distro + "/" + cfg.release
+                            + ", " + remoteIndex.size() + " packages).";
                 } catch (Exception e) {
                     errors.add(urlStr + " -> " + e.getMessage());
                 }
@@ -295,19 +292,31 @@ public class PkgManager {
         }
 
         PackageInfo pkg = remoteIndex.get(packageName);
-        String baseUrl = MIRRORS[0];
-        String debUrl = baseUrl + "/" + pkg.filename;
 
         Path tmpDeb = null, extractDir = null;
         try {
             tmpDeb = Files.createTempFile("pkg_", ".deb");
-            HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
-            conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(30000);
-            try (InputStream in = conn.getInputStream()) {
-                Files.copy(in, tmpDeb, StandardCopyOption.REPLACE_EXISTING);
+            // 按配置镜像优先顺序尝试下载 .deb
+            PkgSources.Config cfg = PkgSources.load(isClient);
+            Exception lastError = null;
+            boolean downloaded = false;
+            for (PkgSources.Mirror mirror : PkgSources.fallbackOrder(cfg)) {
+                String debUrl = mirror.baseUrl + "/" + pkg.filename;
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
+                    conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(30000);
+                    try (InputStream in = conn.getInputStream()) {
+                        Files.copy(in, tmpDeb, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    downloaded = true;
+                    break;
+                } catch (Exception e) {
+                    lastError = e;
+                }
             }
+            if (!downloaded) throw new IOException("All mirrors failed: " + (lastError != null ? lastError.getMessage() : "unknown"));
 
             extractDir = Files.createTempDirectory("pkg_extract");
             extractDeb(tmpDeb, extractDir);
@@ -454,7 +463,84 @@ public class PkgManager {
                "pkg install <pkg> - install a package\n" +
                "pkg remove <pkg> - remove a package\n" +
                "pkg list - list installed\n" +
-               "pkg show <pkg> - show package details";
+               "pkg show <pkg> - show package details\n" +
+               "pkg source - show current source config\n" +
+               "pkg source list - list available mirrors\n" +
+               "pkg source set <id> - switch mirror\n" +
+               "pkg source distro <debian|ubuntu> - switch distribution\n" +
+               "pkg source release <name> - switch release (e.g. bookworm)";
+    }
+
+    // ==================== 源管理（pkg source ...） ====================
+
+    /** 处理 `pkg source` 系列子命令，返回可直接显示的文本。 */
+    public static String sourceCommand(String[] args, boolean isClient) {
+        // args: ["source", <sub>, ...]
+        PkgSources.Config cfg = PkgSources.load(isClient);
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "show";
+        switch (sub) {
+            case "list": {
+                StringBuilder sb = new StringBuilder("Mirrors for " + cfg.distro + ":");
+                for (PkgSources.Mirror m : PkgSources.mirrorsFor(cfg.distro)) {
+                    sb.append("\n  ").append(m.id.equals(cfg.mirror) ? "* " : "  ")
+                      .append(m.id).append("  -  ").append(m.label)
+                      .append("  (").append(m.baseUrl).append(")");
+                }
+                sb.append("\nReleases: ").append(String.join(", ", PkgSources.releasesFor(cfg.distro)));
+                sb.append("\nUse: pkg source set <id> / pkg source distro <name> / pkg source release <name>");
+                return sb.toString();
+            }
+            case "set": {
+                if (args.length < 3) return "Usage: pkg source set <id> (see 'pkg source list')";
+                String id = args[2].toLowerCase(Locale.ROOT);
+                for (PkgSources.Mirror m : PkgSources.mirrorsFor(cfg.distro)) {
+                    if (m.id.equals(id)) {
+                        cfg.mirror = id;
+                        PkgSources.save(isClient, cfg);
+                        invalidateIndex();
+                        return "Mirror switched to " + m.label + " (" + m.baseUrl + "). Run 'pkg update force' to refresh.";
+                    }
+                }
+                return "Unknown mirror id: " + id + " (see 'pkg source list')";
+            }
+            case "distro": {
+                if (args.length < 3) return "Usage: pkg source distro <debian|ubuntu>";
+                String d = args[2].toLowerCase(Locale.ROOT);
+                if (!PkgSources.isValidDistro(d)) return "Unknown distro: " + d + " (supported: debian, ubuntu)";
+                cfg.distro = d;
+                cfg.release = PkgSources.releasesFor(d)[0];
+                // 该发行版默认首个镜像（tuna）
+                cfg.mirror = PkgSources.mirrorsFor(d).get(0).id;
+                PkgSources.save(isClient, cfg);
+                invalidateIndex();
+                return "Distribution switched to " + d + "/" + cfg.release + ". Run 'pkg update force' to refresh.";
+            }
+            case "release": {
+                if (args.length < 3) return "Usage: pkg source release <name> (available: "
+                        + String.join(", ", PkgSources.releasesFor(cfg.distro)) + ")";
+                String r = args[2].toLowerCase(Locale.ROOT);
+                boolean valid = false;
+                for (String cand : PkgSources.releasesFor(cfg.distro)) if (cand.equals(r)) valid = true;
+                if (!valid) return "Unknown release: " + r + " (available: "
+                        + String.join(", ", PkgSources.releasesFor(cfg.distro)) + ")";
+                cfg.release = r;
+                PkgSources.save(isClient, cfg);
+                invalidateIndex();
+                return "Release switched to " + cfg.distro + "/" + r + ". Run 'pkg update force' to refresh.";
+            }
+            case "show":
+            default: {
+                PkgSources.Mirror cur = PkgSources.resolve(cfg);
+                return "Distribution: " + cfg.distro + "\nRelease: " + cfg.release
+                        + "\nMirror: " + cur.id + " - " + cur.label + " (" + cur.baseUrl + ")\n"
+                        + "Commands: pkg source list / set <id> / distro <name> / release <name>";
+            }
+        }
+    }
+
+    /** 切换源后使索引失效，下次 update 重新拉取。 */
+    private static void invalidateIndex() {
+        indexLoaded = false;
     }
 
     public static List<String> listAvailable() {

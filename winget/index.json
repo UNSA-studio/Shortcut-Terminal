@@ -1,0 +1,20 @@
+[
+  {
+    "installer": "stosfetch-1.0.0.stpkg",
+    "sha256": "0af1de7696992d9a397b4bf7f7df70f4541dcc18e607aaf3e710d6de1582759d",
+    "size": 747,
+    "id": "stosfetch",
+    "name": "StosFetch",
+    "version": "1.0.0",
+    "description": "Display STOS system information (kernel, uptime, memory)"
+  },
+  {
+    "installer": "stoscalc-1.0.0.stpkg",
+    "sha256": "1271bc3e9108a7b57d02ebd9439e0ac0c2e41f120ea942acbc2e33622d4f4c19",
+    "size": 643,
+    "id": "stoscalc",
+    "name": "StosCalc",
+    "version": "1.0.0",
+    "description": "A tiny calculator application"
+  }
+]

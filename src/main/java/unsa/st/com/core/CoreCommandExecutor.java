@@ -140,6 +140,7 @@ public class CoreCommandExecutor {
             case "sh": return executeSh(args);
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
+            case "winget": return unsa.st.com.winget.WingetManager.dispatch(args, isClient);
             case "macro": return executeMacro(args);
             case "run": return executeRun(args);
             case "User": return executeUser(args);
@@ -168,7 +169,7 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, winget, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");
@@ -528,6 +529,7 @@ public class CoreCommandExecutor {
             case "list": return String.join("\n", PkgManager.listInstalled(isClient));
             case "search": return args.length > 1 ? String.join("\n", PkgManager.search(args[1])) : "Usage: pkg search <keyword>";
             case "show": return args.length > 1 ? PkgManager.showInfo(args[1]) : "Usage: pkg show <package>";
+            case "source": return PkgManager.sourceCommand(args, isClient);
             default: return "Unknown pkg command.";
         }
     }

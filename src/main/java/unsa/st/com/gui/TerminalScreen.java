@@ -97,6 +97,12 @@ public class TerminalScreen extends Screen {
         SessionData data = sessions.get(index);
         this.executor = data.createExecutor();
         this.outputLines = new ArrayList<>(data.outputLines);
+        // 新会话首次显示 STOS 启动横幅（-|/\ 字符拼成的艺术字）
+        if (this.outputLines.isEmpty()) {
+            for (String line : unsa.st.com.compute.ComputePolicy.stosBanner(executor.stosLevel()).split("\n")) {
+                this.outputLines.add(line);
+            }
+        }
         this.commandHistory = new ArrayList<>(data.commandHistory);
         this.historyIndex = commandHistory.size();
         updatePrompt();

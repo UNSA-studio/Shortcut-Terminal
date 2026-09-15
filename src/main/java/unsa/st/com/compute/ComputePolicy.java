@@ -78,15 +78,24 @@ public final class ComputePolicy {
         return Math.min(ms, 4000);
     }
 
-    /** STOS 横幅：版本 + 等级 + 算力。 */
+    /** STOS 横幅：ASCII 艺术字 + 版本 + 等级 + 算力。 */
+    public static final String ASCII_LOGO =
+            "  ____  _____  ___  ____  \n" +
+            " / ___||_   _|/ _ \\/ ___| \n" +
+            " \\___ \\  | | | | | \\___ \\ \n" +
+            "  ___) | | | | |_| |___) |\n" +
+            " |____/  |_|  \\___/|____/ \n";
+
     public static String stosBanner(int level) {
         if (level <= 0) {
-            return "STOS 1.0 [bare terminal program]\n"
+            return ASCII_LOGO
+                 + "            [bare terminal program]\n"
                  + "No processor installed - install a Processor (L1-L9) to boot the full system.\n"
                  + "Type 'help' for basic commands.";
         }
-        return String.format(Locale.ROOT,
-                "STOS 1.0 [L%d] compute=%d chars/s", level, charsPerSecond(level));
+        return ASCII_LOGO
+             + String.format(Locale.ROOT, "        version 1.0 [L%d]  compute=%d chars/s\n%s",
+                    level, charsPerSecond(level), kernelVersion(level));
     }
 
     /** 骗过管理员眼睛的内核版本号（等级越高版本号越大）。 */
