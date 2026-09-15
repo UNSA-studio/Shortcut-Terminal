@@ -57,7 +57,7 @@ public class WingetManager {
         public String id;
         public String name;
         public String version;
-        public String dir;         // 安装目录名（相对 WindowsApps）
+        public String path;        // 安装位置（相对游戏目录，如 Program/WindowsApps/StosFetch）
         public long installedAt;
     }
 
@@ -70,7 +70,8 @@ public class WingetManager {
 
     private static final List<Source> DEFAULT_SOURCES = List.of(
             new Source("jsdelivr", "jsDelivr 国内CDN", "https://cdn.jsdelivr.net/gh/UNSA-studio/Shortcut-Terminal@main/winget"),
-            new Source("gitmirror", "GitMirror 国内镜像", "https://raw.gitmirror.com/UNSA-studio/Shortcut-Terminal/main/winget"),
+            new Source("ghproxy", "GHProxy 国内加速", "https://ghproxy.net/https://raw.githubusercontent.com/UNSA-studio/Shortcut-Terminal/main/winget"),
+            new Source("gh-proxy", "GH-Proxy 国内加速", "https://gh-proxy.com/https://raw.githubusercontent.com/UNSA-studio/Shortcut-Terminal/main/winget"),
             new Source("github", "GitHub 直连", "https://raw.githubusercontent.com/UNSA-studio/Shortcut-Terminal/main/winget")
     );
 
@@ -98,7 +99,7 @@ public class WingetManager {
     public static String dispatch(String[] args, boolean isClient) {
         if (args.length == 0) return getHelp();
         switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "install":   return args.length > 1 ? install(args[1], isClient) : "Usage: winget install <id>";
+            case "install":   return install(args, isClient);
             case "uninstall":
             case "remove":    return args.length > 1 ? uninstall(args[1], isClient) : "Usage: winget uninstall <id>";
             case "list":      return listInstalled(isClient);
@@ -112,7 +113,12 @@ public class WingetManager {
     }
 
     public static String getHelp() {
-        return "winget install <id>    - install an application\n" +
+        return "winget install <id> [options]\n" +
+               "    --location <dir> / -l   custom install directory (inside game dir)\n" +
+               "    --scope user|machine    install scope (user needs no elevation)\n" +
+               "    --force / -f            reinstall even if present\n" +
+               "    --silent / --disable-interactivity / --accept-*-agreements\n" +
+               "                            unattended install (engine default; no clicks)\n" +
                "winget uninstall <id>  - uninstall an application\n" +
                "winget list            - list installed applications\n" +
                "winget search <kw>     - search the source catalog\n" +
@@ -229,7 +235,42 @@ public class WingetManager {
 
     // ==================== 安装 ====================
 
-    private static String install(String appId, boolean isClient) {
+    /**
+     * 安装命令，支持 winget 风格参数：
+     *   --location/-l <dir>   指定安装目录（须位于游戏目录内）
+     *   --scope user|machine  安装范围（machine 模拟提权自动通过）
+     *   --force/-f            已安装时强制重装
+     *   --silent/-h, --disable-interactivity, --accept-*-agreements
+     *                         静默自动化安装（引擎默认行为：全程无点击）
+     */
+    private static String install(String[] args, boolean isClient) {
+        if (args.length < 2) return "Usage: winget install <id> [--location <dir>] [--scope user|machine] [--force]";
+        String appId = args[1];
+        String location = null;
+        String scope = "user";
+        boolean force = false;
+        for (int i = 2; i < args.length; i++) {
+            String a = args[i].toLowerCase(Locale.ROOT);
+            switch (a) {
+                case "--location": case "-l":
+                    if (i + 1 < args.length) location = args[++i];
+                    break;
+                case "--scope":
+                    if (i + 1 < args.length) scope = args[++i].toLowerCase(Locale.ROOT);
+                    break;
+                case "--force": case "-f":
+                    force = true;
+                    break;
+                case "--silent": case "-h":
+                case "--disable-interactivity":
+                case "--accept-package-agreements":
+                case "--accept-source-agreements":
+                    break; // 静默/无交互/自动接受协议：安装引擎默认即此行为
+                default:
+                    break;
+            }
+        }
+
         List<AppEntry> catalog = fetchCatalog(isClient, false);
         if (catalog.isEmpty()) return "No catalog available. Run 'winget update' first.";
         AppEntry entry = null;
@@ -237,17 +278,24 @@ public class WingetManager {
         if (entry == null) return "Application not found in catalog: " + appId;
 
         List<InstalledApp> registry = loadRegistry(isClient);
-        for (InstalledApp a : registry) {
-            if (a.id.equalsIgnoreCase(appId)) {
-                return entry.name + " is already installed (v" + a.version + ").";
+        if (!force) {
+            for (InstalledApp a : registry) {
+                if (a.id.equalsIgnoreCase(appId)) {
+                    return entry.name + " is already installed (v" + a.version + "). Use --force to reinstall.";
+                }
             }
         }
 
         try {
-            // 下载安装包（多镜像回退）
+            StringBuilder out = new StringBuilder();
+            out.append("Found ").append(entry.name).append(" [").append(entry.id)
+               .append("] v").append(entry.version).append("\n");
+            out.append("Downloading ").append(entry.installer)
+               .append(entry.size > 0 ? " (" + entry.size + " B)" : "").append(" ... ");
             Path pkg = downloadInstaller(entry, isClient);
-            // 运行安装程序（内置安装引擎）
-            return runInstaller(pkg, entry, isClient);
+            out.append("done\n");
+            out.append(runInstaller(pkg, entry, location, scope, isClient));
+            return out.toString();
         } catch (Exception e) {
             ShortcutTerminal.LOGGER.error("winget install failed: {}", appId, e);
             return "Installation failed: " + e.getMessage();
@@ -279,8 +327,10 @@ public class WingetManager {
     /**
      * 安装引擎：模拟安装程序（setup.exe）的行为——
      * 展开安装包载荷 → 读取安装清单 → 释放程序文件到目标目录 → 写入已装注册表。
+     * 支持 --location（自定义安装目录，限游戏目录内）与 --scope（user/machine）。
      */
-    private static String runInstaller(Path pkgFile, AppEntry entry, boolean isClient) throws IOException {
+    private static String runInstaller(Path pkgFile, AppEntry entry, String location, String scope, boolean isClient) throws IOException {
+        Path gameDir = PkgManager.getGameDir(isClient).toAbsolutePath().normalize();
         Path appsDir = getWindowsAppsDir(isClient);
         Files.createDirectories(appsDir);
         Path staged = Files.createTempDirectory("winget_stage_");
@@ -289,8 +339,10 @@ public class WingetManager {
             unzip(pkgFile, staged);
             // [安装程序] 读取安装清单
             Manifest mf = readManifest(staged, entry);
-            // [安装程序] 释放文件 → Program/WindowsApps/<dir>/
-            Path target = appsDir.resolve(mf.dir);
+            // [安装程序] 解析安装目标：--location 指定 或 默认 Program/WindowsApps/<dir>
+            Path target = (location != null)
+                    ? safeResolveLocation(location, gameDir)
+                    : appsDir.resolve(mf.dir);
             if (Files.exists(target)) deleteRecursive(target);
             Path payload = staged.resolve("files");
             if (!Files.exists(payload)) throw new IOException("installer payload missing (files/)");
@@ -303,19 +355,34 @@ public class WingetManager {
             app.id = mf.id;
             app.name = mf.name;
             app.version = mf.version;
-            app.dir = mf.dir;
+            app.path = gameDir.relativize(target.toAbsolutePath().normalize()).toString().replace('\\', '/');
             app.installedAt = System.currentTimeMillis();
             registry.add(app);
             saveRegistry(isClient, registry);
 
-            return "Installing " + mf.name + " " + mf.version + "...\n"
-                 + " -> extracted to Program/WindowsApps/" + mf.dir + "/\n"
-                 + " -> registered application\n"
-                 + "Successfully installed: " + mf.name + " " + mf.version;
+            return "[installer] silent mode | disable-interactivity | accept-agreements\n"
+                 + "[installer] scope: " + scope
+                 + (scope.equals("machine") ? " (elevation auto-approved, no UAC prompt)" : " (no elevation required)") + "\n"
+                 + "[installer] location: " + app.path + "\n"
+                 + "[installer] releasing files... done\n"
+                 + "[installer] registering application... done\n"
+                 + "Successfully installed: " + mf.name + " " + mf.version + "\n"
+                 + "Run 'winget list' to see installed applications.";
         } finally {
             deleteRecursive(staged);
             try { Files.deleteIfExists(pkgFile); } catch (IOException ignored) {}
         }
+    }
+
+    /** 解析 --location：相对路径基于游戏目录；结果必须位于游戏目录内（防越界）。 */
+    private static Path safeResolveLocation(String location, Path gameDir) throws IOException {
+        Path p = Paths.get(location);
+        if (!p.isAbsolute()) p = gameDir.resolve(location);
+        p = p.toAbsolutePath().normalize();
+        if (!p.startsWith(gameDir)) {
+            throw new IOException("install location must be inside the game directory: " + location);
+        }
+        return p;
     }
 
     /** 安装清单模型。 */
@@ -345,13 +412,14 @@ public class WingetManager {
         for (InstalledApp a : registry) if (a.id.equalsIgnoreCase(appId)) { target = a; break; }
         if (target == null) return "Not installed: " + appId;
         try {
-            Path appDir = getWindowsAppsDir(isClient).resolve(target.dir);
+            Path gameDir = PkgManager.getGameDir(isClient).toAbsolutePath().normalize();
+            Path appDir = gameDir.resolve(target.path).normalize();
             // [卸载程序] 清理程序文件
             if (Files.exists(appDir)) deleteRecursive(appDir);
             registry.remove(target);
             saveRegistry(isClient, registry);
             return "Uninstalling " + target.name + "...\n"
-                 + " -> removed Program/WindowsApps/" + target.dir + "/\n"
+                 + " -> removed " + target.path + "/\n"
                  + " -> unregistered application\n"
                  + "Successfully uninstalled: " + target.name;
         } catch (Exception e) {
