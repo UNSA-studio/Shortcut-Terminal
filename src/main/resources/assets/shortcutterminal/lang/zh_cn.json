@@ -32,5 +32,15 @@
   "item.shortcutterminal.lithography_mask_l9": "光刻掩膜 L9",
   "block.shortcutterminal.lithography_machine": "光刻机",
   "block.shortcutterminal.machine_casing": "机器外壳",
-  "item.shortcutterminal.terminal_motherboard": "终端主板"
+  "item.shortcutterminal.terminal_motherboard": "终端主板",
+  "item.shortcutterminal.ram_1gb": "内存条 1 GB",
+  "item.shortcutterminal.ram_4gb": "内存条 4 GB",
+  "item.shortcutterminal.ram_16gb": "内存条 16 GB",
+  "item.shortcutterminal.ram_64gb": "内存条 64 GB",
+  "item.shortcutterminal.ram_256gb": "内存条 256 GB",
+  "item.shortcutterminal.ssd_64gb": "固态硬盘 64 GB",
+  "item.shortcutterminal.ssd_256gb": "固态硬盘 256 GB",
+  "item.shortcutterminal.ssd_1tb": "固态硬盘 1 TB",
+  "item.shortcutterminal.ssd_4tb": "固态硬盘 4 TB",
+  "item.shortcutterminal.ssd_16tb": "固态硬盘 16 TB"
 }

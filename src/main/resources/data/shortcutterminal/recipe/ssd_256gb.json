@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RCR",
+    "CBC",
+    "RCR"
+  ],
+  "key": {
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    },
+    "B": {
+      "item": "shortcutterminal:circuit_board"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ssd_256gb",
+    "count": 1
+  }
+}

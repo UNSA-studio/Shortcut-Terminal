@@ -58,6 +58,30 @@ public class ModItems {
         }
     }
 
+    // ===== RAM modules (5 tiers, shared texture) =====
+    /** RAM ladder produced by crafting; capacity keyed by tier 1..5. */
+    public static final java.util.Map<Integer, DeferredItem<Item>> RAM_MODULES = new java.util.HashMap<>();
+    static {
+        String[] names = {"ram_1gb", "ram_4gb", "ram_16gb", "ram_64gb", "ram_256gb"};
+        for (int i = 0; i < names.length; i++) {
+            final String nm = names[i];
+            final int tier = i + 1;
+            RAM_MODULES.put(tier, ITEMS.register(nm, () -> new Item(new Item.Properties())));
+        }
+    }
+
+    // ===== SSD modules (5 tiers, shared texture) =====
+    /** SSD ladder produced by crafting; capacity keyed by tier 1..5. */
+    public static final java.util.Map<Integer, DeferredItem<Item>> SSD_MODULES = new java.util.HashMap<>();
+    static {
+        String[] names = {"ssd_64gb", "ssd_256gb", "ssd_1tb", "ssd_4tb", "ssd_16tb"};
+        for (int i = 0; i < names.length; i++) {
+            final String nm = names[i];
+            final int tier = i + 1;
+            SSD_MODULES.put(tier, ITEMS.register(nm, () -> new Item(new Item.Properties())));
+        }
+    }
+
     // ===== Lithography masks L1-L9 (permanent blueprints, shared texture) =====
     public static final java.util.Map<Integer, DeferredItem<Item>> LITHO_MASKS = new java.util.HashMap<>();
     static {

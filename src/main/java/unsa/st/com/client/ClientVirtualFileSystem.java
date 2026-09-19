@@ -81,13 +81,39 @@ public class ClientVirtualFileSystem {
         return (vf == null || vf.isDirectory) ? null : vf.content == null ? "" : vf.content;
     }
 
-    public static void writeFile(String uuid, String path, String name, String content) {
+    /**
+     * 写入文件；超出 SSD 存储配额时拒绝并返回 false。
+     * （配额读取当前客户端玩家的面板；读取失败则放行，不影响旧行为）
+     */
+    public static boolean writeFile(String uuid, String path, String name, String content) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
         String full = np.equals("/") ? "/" + name : np + "/" + name;
         VirtualFile vf = fs.get(full);
+        long oldLen = (vf != null && !vf.isDirectory && vf.content != null) ? vf.content.length() : 0;
+        try {
+            long quota = ClientHardware.storageQuotaChars();
+            long used = totalChars(uuid);
+            if (used - oldLen + content.length() > quota) {
+                return false; // no space left on device
+            }
+        } catch (Throwable ignored) {
+            // 配额系统不可用时放行
+        }
         if (vf == null) { vf = new VirtualFile(full, false, false); fs.put(full, vf); }
         vf.content = content;
+        return true;
+    }
+
+    /** 玩家 VFS 全部文件字符总数（存储配额用）。 */
+    public static long totalChars(String uuid) {
+        Map<String, VirtualFile> fs = getFsForPlayer(uuid);
+        long n = 0;
+        for (VirtualFile v : fs.values()) {
+            if (v.isDirectory || v.content == null) continue;
+            n += v.content.length();
+        }
+        return n;
     }
 
     public static void writeFileFromStream(String uuid, String path, String name, InputStream in) throws IOException {

@@ -36,6 +36,9 @@ public class ModCreativeTabs {
                         // Lithography machine (BlockItem forms - block.asItem() is AIR without them)
                         output.accept(ModBlocks.MACHINE_CASING_ITEM.get());
                         output.accept(ModBlocks.LITHOGRAPHY_MACHINE_ITEM.get());
+                        // RAM / SSD modules
+                        for (int i = 1; i <= 5; i++) output.accept(ModItems.RAM_MODULES.get(i).get());
+                        for (int i = 1; i <= 5; i++) output.accept(ModItems.SSD_MODULES.get(i).get());
                         for (int l = 1; l <= 9; l++) output.accept(ModItems.LITHO_MASKS.get(l).get());
                         // Processors L1-L9
                         for (int l = 1; l <= 9; l++) output.accept(ModItems.PROCESSORS.get(l).get());

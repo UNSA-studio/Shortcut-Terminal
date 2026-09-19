@@ -11,6 +11,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import unsa.st.com.compute.ComputePolicy;
+import unsa.st.com.compute.HardwareSpec;
 import unsa.st.com.compute.ProcessorCapability;
 import unsa.st.com.terminal.TerminalIdManager;
 
@@ -81,6 +82,14 @@ public class TerminalPanelItem extends Item {
             tooltip.add(Component.literal("Processor: L" + level
                     + " (" + ComputePolicy.charsPerSecond(level) + " chars/s)"));
         }
+        int ramMb = HardwareSpec.getRamMb(stack);
+        tooltip.add(Component.literal(ramMb > 0 ? "RAM: " + HardwareSpec.formatRam(ramMb)
+                + " (" + HardwareSpec.scrollbackLimit(ramMb) + " lines scrollback)"
+                : "No RAM module - right-click with a RAM module to install"));
+        int ssdGb = HardwareSpec.getSsdGb(stack);
+        tooltip.add(Component.literal(ssdGb > 0 ? "SSD: " + HardwareSpec.formatSsd(ssdGb)
+                + " (" + HardwareSpec.formatChars(HardwareSpec.storageQuotaChars(ssdGb)) + " storage)"
+                : "No SSD module - right-click with an SSD module to install"));
         super.appendHoverText(stack, context, tooltip, flag);
     }
 
@@ -90,6 +99,35 @@ public class TerminalPanelItem extends Item {
         ItemStack panel = player.getItemInHand(hand);
         ItemStack other = player.getItemInHand(hand == net.minecraft.world.InteractionHand.MAIN_HAND
                 ? net.minecraft.world.InteractionHand.OFF_HAND : net.minecraft.world.InteractionHand.MAIN_HAND);
+        // ===== RAM / SSD 模块 =====
+        int ramMb = HardwareSpec.ramMbOfItem(other);
+        if (ramMb > 0 && !level.isClientSide) {
+            int oldRam = HardwareSpec.getRamMb(panel);
+            if (oldRam > 0) {
+                var oi = unsa.st.com.registry.ModItems.RAM_MODULES.get(HardwareSpec.ramTierOfMb(oldRam));
+                if (oi != null && !player.getInventory().add(new ItemStack(oi.get()))) player.drop(new ItemStack(oi.get()), false);
+            }
+            other.shrink(1);
+            HardwareSpec.installRam(panel, ramMb);
+            player.displayClientMessage(Component.literal("STOS: installed RAM " + HardwareSpec.formatRam(ramMb)
+                    + " (scrollback " + HardwareSpec.scrollbackLimit(ramMb) + " lines)"), false);
+            return net.minecraft.world.InteractionResultHolder.sidedSuccess(panel, false);
+        }
+        int ssdGb = HardwareSpec.ssdGbOfItem(other);
+        if (ssdGb > 0 && !level.isClientSide) {
+            int oldSsd = HardwareSpec.getSsdGb(panel);
+            if (oldSsd > 0) {
+                var oi = unsa.st.com.registry.ModItems.SSD_MODULES.get(HardwareSpec.ssdTierOfGb(oldSsd));
+                if (oi != null && !player.getInventory().add(new ItemStack(oi.get()))) player.drop(new ItemStack(oi.get()), false);
+            }
+            other.shrink(1);
+            HardwareSpec.installSsd(panel, ssdGb);
+            player.displayClientMessage(Component.literal("STOS: installed SSD " + HardwareSpec.formatSsd(ssdGb)
+                    + " (" + HardwareSpec.formatChars(HardwareSpec.storageQuotaChars(ssdGb)) + " storage)"), false);
+            return net.minecraft.world.InteractionResultHolder.sidedSuccess(panel, false);
+        }
+
+        // ===== 处理器 =====
         int newLevel = ProcessorCapability.levelOfProcessorItem(other);
         if (newLevel >= 1 && !level.isClientSide) {
             int old = ProcessorCapability.getInstalledLevel(panel);

@@ -115,7 +115,7 @@ public final class ComputePolicy {
     }
 
     /** 启动日志行序列（按处理器等级生成开机自检内容）。 */
-    public static List<String> bootSequence(int level) {
+    public static List<String> bootSequence(int level, int ramMb, int ssdGb) {
         List<String> lines = new ArrayList<>();
         for (String l : ASCII_LOGO.split("\n")) lines.add(l);
         lines.add("");
@@ -131,9 +131,9 @@ public final class ComputePolicy {
             lines.add("Type 'help' for basic commands.");
         } else {
             lines.add("[0.12] STOS kernel " + kernelVersion(level) + " booting...");
-            lines.add("[0.24] memory check... [ok]");
+            lines.add("[0.24] memory check... " + (ramMb > 0 ? HardwareSpec.formatRam(ramMb) + " RAM" : "no RAM") + " [ok]");
             lines.add("[0.36] initializing kernel subsystems... [ok]");
-            lines.add("[0.48] mounting virtual filesystems... [ok]");
+            lines.add("[0.48] mounting virtual filesystems... " + (ssdGb > 0 ? "SSD " + HardwareSpec.formatSsd(ssdGb) : "no SSD") + " [ok]");
             lines.add("[0.60] scanning compute unit... found L" + level + " (" + charsPerSecond(level) + " chars/s)");
             lines.add("[0.72] starting shell services... [ok]");
             lines.add("[0.84] system ready.");
@@ -141,6 +141,7 @@ public final class ComputePolicy {
             lines.add("System: STOS 1.0 (GNU/Linux, Debian 12 \"bookworm\" base)");
             lines.add("Kernel: " + kernelVersion(level));
             lines.add("Manufacturer: UNSA STUDIO");
+            lines.add("RAM: " + HardwareSpec.formatRam(ramMb) + " / SSD: " + HardwareSpec.formatSsd(ssdGb));
             lines.add("Compute: L" + level + " / " + charsPerSecond(level) + " chars/s");
         }
         lines.add("");

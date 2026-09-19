@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MDM",
+    "MRM",
+    "MDM"
+  ],
+  "key": {
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "D": {
+      "item": "shortcutterminal:display_screen"
+    },
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ssd_16tb",
+    "count": 1
+  }
+}

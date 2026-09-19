@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RIR",
+    "ICI",
+    "RIR"
+  ],
+  "key": {
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ssd_64gb",
+    "count": 1
+  }
+}

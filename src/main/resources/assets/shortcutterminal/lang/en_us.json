@@ -32,5 +32,15 @@
   "item.shortcutterminal.lithography_mask_l9": "Lithography Mask L9",
   "block.shortcutterminal.lithography_machine": "Lithography Machine",
   "block.shortcutterminal.machine_casing": "Machine Casing",
-  "item.shortcutterminal.terminal_motherboard": "Terminal Motherboard"
+  "item.shortcutterminal.terminal_motherboard": "Terminal Motherboard",
+  "item.shortcutterminal.ram_1gb": "RAM Module 1 GB",
+  "item.shortcutterminal.ram_4gb": "RAM Module 4 GB",
+  "item.shortcutterminal.ram_16gb": "RAM Module 16 GB",
+  "item.shortcutterminal.ram_64gb": "RAM Module 64 GB",
+  "item.shortcutterminal.ram_256gb": "RAM Module 256 GB",
+  "item.shortcutterminal.ssd_64gb": "SSD 64 GB",
+  "item.shortcutterminal.ssd_256gb": "SSD 256 GB",
+  "item.shortcutterminal.ssd_1tb": "SSD 1 TB",
+  "item.shortcutterminal.ssd_4tb": "SSD 4 TB",
+  "item.shortcutterminal.ssd_16tb": "SSD 16 TB"
 }

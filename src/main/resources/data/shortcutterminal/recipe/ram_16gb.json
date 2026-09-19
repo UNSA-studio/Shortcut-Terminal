@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MAM",
+    "ACA",
+    "MAM"
+  ],
+  "key": {
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ram_16gb",
+    "count": 1
+  }
+}

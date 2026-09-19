@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RAR",
+    "ABA",
+    "RAR"
+  ],
+  "key": {
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "B": {
+      "item": "shortcutterminal:circuit_board"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ssd_1tb",
+    "count": 1
+  }
+}

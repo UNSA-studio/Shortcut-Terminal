@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RMR",
+    "MAM",
+    "RMR"
+  ],
+  "key": {
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ssd_4tb",
+    "count": 1
+  }
+}

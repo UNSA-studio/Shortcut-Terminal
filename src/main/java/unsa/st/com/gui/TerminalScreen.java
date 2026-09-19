@@ -143,13 +143,15 @@ public class TerminalScreen extends Screen {
     /** 播放 STOS 启动序列：逐行渐显，行间隔按处理器等级（L9 秒开 / 低等级慢吞吞）。 */
     private void playBootSequence(int level) {
         int delay = unsa.st.com.compute.ComputePolicy.bootLineDelayMs(level);
+        int ramMb = unsa.st.com.client.ClientHardware.clientRamMb();
+        int ssdGb = unsa.st.com.client.ClientHardware.clientSsdGb();
         long at = 0;
-        for (String line : unsa.st.com.compute.ComputePolicy.bootSequence(level)) {
+        for (String line : unsa.st.com.compute.ComputePolicy.bootSequence(level, ramMb, ssdGb)) {
             at += delay;
             final String text = line;
             bootTasks.add(BOOT_SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> {
                 if (instance == this) {
-                    outputLines.add(text);
+                    appendLine(text);
                     scrollOffset = Double.MAX_VALUE;
                 }
             }), at, TimeUnit.MILLISECONDS));
@@ -291,7 +293,7 @@ public class TerminalScreen extends Screen {
             } else if (keyCode == GLFW.GLFW_KEY_N) {
                 forcibleState = false;
                 pendingSyncAction = null;
-                outputLines.add("Sync cancelled.");
+                appendLine("Sync cancelled.");
                 return true;
             }
             return true;
@@ -368,7 +370,7 @@ public class TerminalScreen extends Screen {
     }
 
     private void processCommand(String command) {
-        outputLines.add(currentPrompt + command);
+        appendLine(currentPrompt + command);
         executor.addCommandToHistory(command);
         commandHistory = executor.getCommandHistory();
         historyIndex = commandHistory.size();
@@ -398,7 +400,7 @@ public class TerminalScreen extends Screen {
         
         String result = executor.execute(cmd, args);
         if (result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) outputLines.add(line);
+            for (String line : result.split("\n")) appendLine(line);
         }
         
         if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
@@ -423,7 +425,7 @@ public class TerminalScreen extends Screen {
             Minecraft.getInstance().player.displayClientMessage(Component.literal("§e[Sync] File sync started, please do not shut down the game."), false);
         }
         syncFileSystemToServer();
-        outputLines.add("Local data synced to server.");
+        appendLine("Local data synced to server.");
         // 显示完成消息
         if (Minecraft.getInstance().player != null) {
             Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
@@ -443,32 +445,45 @@ public class TerminalScreen extends Screen {
 
     public void requestSyncFromServer() {
         PacketDistributor.sendToServer(new RequestServerSyncPayload(executor.getPlayerUuid().toString()));
-        outputLines.add("Requesting file list from server...");
+        appendLine("Requesting file list from server...");
     }
 
     public static void receiveServerSyncData(String uuid, Map<String, String> files) {
         if (instance == null) return;
+        boolean storageFull = false;
         for (Map.Entry<String, String> entry : files.entrySet()) {
             String fullPath = entry.getKey();
             String content = entry.getValue();
             int lastSlash = fullPath.lastIndexOf('/');
             String dirPath = lastSlash > 0 ? fullPath.substring(0, lastSlash + 1) : "/";
             String fileName = fullPath.substring(lastSlash + 1);
-            ClientVirtualFileSystem.writeFile(instance.playerName, dirPath, fileName, content);
+            if (!ClientVirtualFileSystem.writeFile(instance.playerName, dirPath, fileName, content)) {
+                storageFull = true;
+            }
         }
         instance.addOutputLine("§a[Sync] Received and applied " + files.size() + " files from server.");
+        if (storageFull) instance.appendLine("§c[Sync] Storage full - some files were not written (install a bigger SSD).");
     }
 
     public static void receiveCommandResult(String result) {
         if (instance != null && result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) instance.outputLines.add(line);
+            for (String line : result.split("\n")) instance.appendLine(line);
             instance.saveCurrentSession();
             instance.scrollOffset = Double.MAX_VALUE;
         }
     }
 
-    public void addOutputLine(String line) {
+    /** 追加输出行，并按面板 RAM 限制历史缓冲行数（超出时丢弃最老的输出）。 */
+    private void appendLine(String line) {
         outputLines.add(line);
+        int limit = unsa.st.com.client.ClientHardware.scrollbackLimit();
+        if (limit > 0 && outputLines.size() > limit) {
+            outputLines.subList(0, outputLines.size() - limit).clear();
+        }
+    }
+
+    public void addOutputLine(String line) {
+        appendLine(line);
         saveCurrentSession();
         scrollOffset = Double.MAX_VALUE;
     }

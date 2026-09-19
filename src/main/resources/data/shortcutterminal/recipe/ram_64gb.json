@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MMM",
+    "MAM",
+    "MMM"
+  ],
+  "key": {
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ram_64gb",
+    "count": 1
+  }
+}

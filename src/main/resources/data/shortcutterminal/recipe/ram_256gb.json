@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MRM",
+    "MAM",
+    "MRM"
+  ],
+  "key": {
+    "M": {
+      "item": "shortcutterminal:memory_bank"
+    },
+    "R": {
+      "item": "shortcutterminal:refined_iron"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ram_256gb",
+    "count": 1
+  }
+}

@@ -130,6 +130,7 @@ public class ClientCommandExecutor {
             case "lscpu": return CoreToolCommands.lscpu();
             case "date": return CoreToolCommands.date();
             case "init": return CoreToolCommands.initInfo();
+            case "df": return unsa.st.com.client.ClientHardware.dfReport(playerName);
             case "kill": return CoreToolCommands.killInfo(args);
             case "sleep": return CoreToolCommands.sleep(args);
             case "dmesg": return KernelCommands.dmesg(args);

@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CAC",
+    "ABA",
+    "CAC"
+  ],
+  "key": {
+    "C": {
+      "item": "shortcutterminal:logic_chip"
+    },
+    "A": {
+      "item": "shortcutterminal:advanced_circuit"
+    },
+    "B": {
+      "item": "shortcutterminal:circuit_board"
+    }
+  },
+  "result": {
+    "id": "shortcutterminal:ram_4gb",
+    "count": 1
+  }
+}
