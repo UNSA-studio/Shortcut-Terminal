@@ -9,6 +9,7 @@ public class PackageInfo {
     public String architecture;
     public String filename;
     public long size;
+    public long installedSize;
     public String md5;
     public String sha256;
     public String description;
@@ -28,6 +29,8 @@ public class PackageInfo {
                 info.filename = line.substring(10).trim();
             } else if (line.startsWith("Size: ")) {
                 try { info.size = Long.parseLong(line.substring(6).trim()); } catch (NumberFormatException ignored) {}
+            } else if (line.startsWith("Installed-Size: ")) {
+                try { info.installedSize = Long.parseLong(line.substring(16).trim()) * 1024; } catch (NumberFormatException ignored) {}
             } else if (line.startsWith("MD5sum: ")) {
                 info.md5 = line.substring(8).trim();
             } else if (line.startsWith("SHA256: ")) {

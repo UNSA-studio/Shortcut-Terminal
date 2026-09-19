@@ -32,6 +32,7 @@ public class PkgManager {
     private static final String BINARY_DIR = "Binary file";
     private static final String PATH_FILE = "PATH.txt";
     private static final String INSTALLED_DB = "var/lib/dpkg/status";
+    private static final String DPKG_INFO_DIR = "var/lib/dpkg/info";
     private static final String INDEX_CACHE = "var/cache/pkg/index.json";
 
     // 动态查找 XZInputStream 类（处理 jarJar 重定位）
@@ -280,68 +281,73 @@ public class PkgManager {
     }
 
     public static String install(String packageName, boolean isClient) {
+        return install(packageName, isClient, false, false);
+    }
+
+    /**
+     * 完整安装流程（apt 风格）：依赖解析 → 下载 → SHA256 校验 → 文件冲突检测
+     * → 释放文件 → 写文件清单 → 注册数据库。
+     * @param noDeps 跳过依赖自动安装
+     * @param force  覆盖安装（允许文件冲突与重装）
+     */
+    public static String install(String packageName, boolean isClient, boolean noDeps, boolean force) {
         if (!indexLoaded) updateIndex(isClient, false);
-        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
         if (!remoteIndex.containsKey(packageName)) return "Package not found: " + packageName;
-        if (localDb.containsKey(packageName)) return "Package already installed: " + packageName;
-
-        // Android 权限警告
-        String warning = "";
-        if (isRealAndroid()) {
-            warning = "\nAndroid: The system you are using is not supported.";
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
+        if (localDb.containsKey(packageName) && !force) {
+            return packageName + " is already installed. Use 'pkg upgrade " + packageName + "' to reinstall.";
         }
+        PackageInfo main = remoteIndex.get(packageName);
 
-        PackageInfo pkg = remoteIndex.get(packageName);
+        StringBuilder out = new StringBuilder();
+        out.append("Reading package lists... Done\n");
+        out.append("Building dependency tree... Done\n");
 
-        Path tmpDeb = null, extractDir = null;
-        try {
-            tmpDeb = Files.createTempFile("pkg_", ".deb");
-            // 按配置镜像优先顺序尝试下载 .deb
-            PkgSources.Config cfg = PkgSources.load(isClient);
-            Exception lastError = null;
-            boolean downloaded = false;
-            for (PkgSources.Mirror mirror : PkgSources.fallbackOrder(cfg)) {
-                String debUrl = mirror.baseUrl + "/" + pkg.filename;
+        // 依赖解析（不含主包）
+        List<PackageInfo> deps = resolveDependencies(packageName, localDb, noDeps);
+        List<PackageInfo> toInstall = new ArrayList<>(deps);
+        toInstall.add(main);
+
+        if (!deps.isEmpty()) {
+            out.append("The following additional packages will be installed:\n");
+            for (PackageInfo d : deps) out.append("  ").append(d.packageName);
+            out.append('\n');
+        }
+        long needBytes = 0, installBytes = 0;
+        for (PackageInfo p : toInstall) {
+            needBytes += Math.max(p.size, 0);
+            installBytes += Math.max(p.installedSize, 0);
+        }
+        out.append("The following NEW packages will be installed:\n  ").append(packageName).append('\n');
+        out.append("0 upgraded, ").append(toInstall.size()).append(" newly installed, 0 to remove.\n");
+        out.append("Need to get ").append(fmtSize(needBytes)).append(" of archives.\n");
+        out.append("After this operation, ").append(fmtSize(installBytes)).append(" of additional disk space will be used.\n");
+
+        // 逐包：下载 → 校验 → 解包安装
+        int idx = 1;
+        for (PackageInfo p : toInstall) {
+            try {
+                out.append("Get:").append(idx++).append(" ").append(p.packageName).append(" ").append(p.version)
+                        .append(p.size > 0 ? " [" + fmtSize(p.size) + "]" : "").append('\n');
+                Path deb = downloadPackage(p, isClient);
                 try {
-                    HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
-                    conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
-                    conn.setConnectTimeout(10000);
-                    conn.setReadTimeout(30000);
-                    try (InputStream in = conn.getInputStream()) {
-                        Files.copy(in, tmpDeb, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    downloaded = true;
-                    break;
-                } catch (Exception e) {
-                    lastError = e;
+                    verifySha256(deb, p);
+                    out.append(unpackAndRegister(deb, p, localDb, isClient, force));
+                } finally {
+                    try { Files.deleteIfExists(deb); } catch (IOException ignored) {}
                 }
+            } catch (Exception e) {
+                ShortcutTerminal.LOGGER.error("Installation failed for " + p.packageName, e);
+                return out.append("Installation failed: ").append(e.getMessage()).toString();
             }
-            if (!downloaded) throw new IOException("All mirrors failed: " + (lastError != null ? lastError.getMessage() : "unknown"));
-
-            extractDir = Files.createTempDirectory("pkg_extract");
-            extractDeb(tmpDeb, extractDir);
-
-            Path dataDir = extractDir.resolve("data");
-            if (!Files.exists(dataDir)) dataDir = extractDir;
-            Path targetDir = getProgramPath(isClient);
-            copyDirectory(dataDir, targetDir);
-
-            try { setExecutableRecursive(targetDir.resolve("bin")); } catch (Exception ignored) {}
-            try { setExecutableRecursive(targetDir.resolve("sbin")); } catch (Exception ignored) {}
-            try { setExecutableRecursive(targetDir.resolve("usr/bin")); } catch (Exception ignored) {}
-            try { setExecutableRecursive(targetDir.resolve("usr/sbin")); } catch (Exception ignored) {}
-
-            localDb.put(packageName, pkg);
-            saveLocalDatabase(isClient, localDb);
-            ensurePath(isClient);
-            return "Package installed: " + packageName + " (" + pkg.version + ")" + warning;
-        } catch (Exception e) {
-            ShortcutTerminal.LOGGER.error("Installation failed for " + packageName, e);
-            return "Installation failed: " + e.getMessage();
-        } finally {
-            if (tmpDeb != null) try { Files.deleteIfExists(tmpDeb); } catch (IOException ignored) {}
-            if (extractDir != null) deleteRecursive(extractDir);
         }
+
+        ensurePath(isClient);
+
+        if (isRealAndroid()) {
+            out.append("\nAndroid: The system you are using is not supported.");
+        }
+        return out.toString();
     }
 
     private static void setExecutableRecursive(Path dir) throws IOException {
@@ -421,12 +427,73 @@ public class PkgManager {
     }
 
     public static String remove(String packageName, boolean isClient) {
+        return remove(packageName, isClient, false);
+    }
+
+    /** 完整卸载：反向依赖检查 → 按文件清单删除文件 → 清理空目录 → 移除数据库记录。 */
+    public static String remove(String packageName, boolean isClient, boolean force) {
         Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
-        if (!localDb.containsKey(packageName)) return "Package not installed: " + packageName;
+        PackageInfo rec = localDb.get(packageName);
+        if (rec == null) return "Package not installed: " + packageName;
+
+        if (!force) {
+            List<String> dependents = findDependents(packageName, localDb);
+            if (!dependents.isEmpty()) {
+                return "Removing " + packageName + " would break: " + String.join(", ", dependents)
+                        + "\nUse 'pkg remove " + packageName + " --force' to remove anyway.";
+            }
+        }
+
+        StringBuilder out = new StringBuilder();
+        out.append("Reading package lists... Done\n");
+        out.append("Building dependency tree... Done\n");
+        out.append("The following packages will be REMOVED:\n  ").append(packageName).append('\n');
+        out.append("0 upgraded, 0 newly installed, 1 to remove.\n");
+
+        // 按文件清单删除（含防越界检查），统计释放空间
+        List<String> files = readFileList(isClient, packageName);
+        Path programDir = getProgramPath(isClient);
+        long freed = 0;
+        for (String rel : files) {
+            try {
+                Path f = programDir.resolve(rel).normalize();
+                if (!f.startsWith(programDir)) continue;
+                if (Files.isRegularFile(f)) {
+                    freed += Files.size(f);
+                    Files.deleteIfExists(f);
+                }
+            } catch (Exception ignored) {}
+        }
+        // 清理空目录（自底向上）
+        try {
+            List<Path> dirList = new ArrayList<>();
+            for (String rel : files) {
+                try {
+                    Path f = programDir.resolve(rel).normalize();
+                    Path d = f.getParent();
+                    if (d != null && d.startsWith(programDir) && Files.isDirectory(d)) dirList.add(d);
+                } catch (Exception ignored) {}
+            }
+            dirList.sort(Comparator.comparingInt((Path d) -> d.getNameCount()).reversed());
+            for (Path d : dirList) {
+                try { if (Files.isDirectory(d) && isEmptyDir(d)) Files.deleteIfExists(d); } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+
+        out.append("After this operation, ").append(fmtSize(freed)).append(" disk space will be freed.\n");
+        out.append("(Reading database ... ").append(localDb.size()).append(" packages installed.)\n");
+        out.append("Removing ").append(packageName).append(" (").append(rec.version).append(") ...\n");
+
         localDb.remove(packageName);
         saveLocalDatabase(isClient, localDb);
+        try { Files.deleteIfExists(getInfoDir(isClient).resolve(packageName + ".list")); } catch (IOException ignored) {}
         ensurePath(isClient);
-        return "Package removed: " + packageName;
+        out.append("Done.");
+        return out.toString();
+    }
+
+    private static boolean isEmptyDir(Path dir) {
+        try (var s = Files.list(dir)) { return s.findAny().isEmpty(); } catch (IOException e) { return false; }
     }
 
     public static List<String> listInstalled(boolean isClient) {
@@ -457,11 +524,253 @@ public class PkgManager {
         return new ArrayList<>();
     }
 
+    // ==================== 完整包管理器内部实现 ====================
+
+    private static Path getInfoDir(boolean isClient) {
+        return getProgramPath(isClient).resolve(DPKG_INFO_DIR);
+    }
+
+    /** 下载 .deb（多镜像回退）到临时文件。 */
+    private static Path downloadPackage(PackageInfo pkg, boolean isClient) throws IOException {
+        PkgSources.Config cfg = PkgSources.load(isClient);
+        Exception lastError = null;
+        for (PkgSources.Mirror mirror : PkgSources.fallbackOrder(cfg)) {
+            String debUrl = mirror.baseUrl + "/" + pkg.filename;
+            try {
+                Path tmpDeb = Files.createTempFile("pkg_", ".deb");
+                HttpURLConnection conn = (HttpURLConnection) new URL(debUrl).openConnection();
+                conn.setRequestProperty("User-Agent", "ShortcutTerminal/1.0");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(30000);
+                try (InputStream in = conn.getInputStream()) {
+                    Files.copy(in, tmpDeb, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return tmpDeb;
+            } catch (Exception e) {
+                lastError = e;
+            }
+        }
+        throw new IOException("all mirrors failed: " + (lastError != null ? lastError.getMessage() : "unknown"));
+    }
+
+    /** SHA256 校验（索引提供摘要时）。 */
+    private static void verifySha256(Path file, PackageInfo pkg) throws IOException {
+        if (pkg.sha256 == null || pkg.sha256.isEmpty()) return;
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            try (InputStream in = Files.newInputStream(file)) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) md.update(buf, 0, n);
+            }
+            StringBuilder hex = new StringBuilder();
+            for (byte b : md.digest()) hex.append(String.format("%02x", b));
+            if (!hex.toString().equalsIgnoreCase(pkg.sha256.trim())) {
+                throw new IOException("SHA256 mismatch for " + pkg.packageName + " (corrupted download, try again)");
+            }
+        } catch (java.security.NoSuchAlgorithmException ignored) {
+            // JVM 不支持 SHA-256 时跳过校验
+        }
+    }
+
+    /** 解包 → 冲突检测 → 释放文件 → 写文件清单 → 注册数据库（安装引擎核心）。 */
+    private static String unpackAndRegister(Path deb, PackageInfo pkg, Map<String, PackageInfo> localDb,
+                                            boolean isClient, boolean force) throws IOException {
+        Path staging = Files.createTempDirectory("pkg_stage_");
+        try {
+            extractDeb(deb, staging);
+            Path dataDir = staging.resolve("data");
+            if (!Files.exists(dataDir)) dataDir = staging;
+
+            List<String> fileList = listFiles(dataDir);
+
+            // 文件冲突检测（非 --force）
+            if (!force) {
+                List<String> conflicts = checkConflicts(fileList, localDb, isClient);
+                if (!conflicts.isEmpty()) {
+                    StringBuilder c = new StringBuilder("file conflicts with existing packages:\n");
+                    int shown = 0;
+                    for (String s : conflicts) {
+                        c.append("  ").append(s).append('\n');
+                        if (++shown >= 5) break;
+                    }
+                    if (conflicts.size() > 5) c.append("  ... and ").append(conflicts.size() - 5).append(" more\n");
+                    c.append("Use --force to overwrite.");
+                    throw new IOException(c.toString());
+                }
+            }
+
+            Path targetDir = getProgramPath(isClient);
+            copyDirectory(dataDir, targetDir);
+            try { setExecutableRecursive(targetDir.resolve("bin")); } catch (Exception ignored) {}
+            try { setExecutableRecursive(targetDir.resolve("sbin")); } catch (Exception ignored) {}
+            try { setExecutableRecursive(targetDir.resolve("usr/bin")); } catch (Exception ignored) {}
+            try { setExecutableRecursive(targetDir.resolve("usr/sbin")); } catch (Exception ignored) {}
+
+            // 写文件清单（真实 dpkg 路径：var/lib/dpkg/info/<pkg>.list）
+            writeFileList(isClient, pkg.packageName, fileList);
+
+            // 注册数据库
+            localDb.put(pkg.packageName, pkg);
+            saveLocalDatabase(isClient, localDb);
+
+            String fileName = pkg.filename == null ? (pkg.packageName + ".deb")
+                    : pkg.filename.substring(pkg.filename.lastIndexOf('/') + 1);
+            return "Selecting previously unselected package " + pkg.packageName + ".\n"
+                 + "(Reading database ... " + (localDb.size() - 1) + " packages installed.)\n"
+                 + "Preparing to unpack .../" + fileName + " ...\n"
+                 + "Unpacking " + pkg.packageName + " (" + pkg.version + ") ...\n"
+                 + "Setting up " + pkg.packageName + " (" + pkg.version + ") ...\n";
+        } finally {
+            deleteRecursive(staging);
+        }
+    }
+
+    /** 依赖解析：收集未安装的依赖（递归，带环保护），返回安装顺序（依赖在前）。 */
+    private static List<PackageInfo> resolveDependencies(String name, Map<String, PackageInfo> localDb, boolean noDeps) {
+        List<PackageInfo> out = new ArrayList<>();
+        if (noDeps) return out;
+        Set<String> visiting = new HashSet<>();
+        collectDeps(name, localDb, visiting, out, 0);
+        return out;
+    }
+
+    private static void collectDeps(String name, Map<String, PackageInfo> localDb, Set<String> visiting,
+                                    List<PackageInfo> out, int depth) {
+        if (depth > 12 || visiting.contains(name)) return;
+        PackageInfo pkg = remoteIndex.get(name);
+        if (pkg == null) return;
+        visiting.add(name);
+        for (String dep : pkg.depends) {
+            String dn = depName(dep);
+            if (dn.isEmpty() || localDb.containsKey(dn) || remoteIndex.get(dn) == null) continue;
+            collectDeps(dn, localDb, visiting, out, depth + 1);
+        }
+        // 依赖先装：自身放最后（若尚未收集且未安装）
+        if (!localDb.containsKey(name)) {
+            boolean exists = false;
+            for (PackageInfo p : out) if (p.packageName.equals(name)) { exists = true; break; }
+            if (!exists) out.add(pkg);
+        }
+        visiting.remove(name);
+    }
+
+    /** "libc6 (>= 2.34) | libc6-udeb" → "libc6" */
+    private static String depName(String dep) {
+        if (dep == null) return "";
+        String s = dep.split("\\|")[0].trim();
+        int sp = s.indexOf(' ');
+        if (sp > 0) s = s.substring(0, sp);
+        int colon = s.indexOf(':');
+        if (colon > 0) s = s.substring(0, colon);
+        return s.trim();
+    }
+
+    /** 列出目录下全部文件的相对路径（"/" 分隔）。 */
+    private static List<String> listFiles(Path dir) throws IOException {
+        List<String> out = new ArrayList<>();
+        Files.walk(dir).filter(Files::isRegularFile).forEach(f ->
+                out.add(dir.relativize(f).toString().replace('\\', '/')));
+        return out;
+    }
+
+    /** 文件冲突检测：与已装包的文件清单求交。 */
+    private static List<String> checkConflicts(List<String> newFiles, Map<String, PackageInfo> localDb, boolean isClient) {
+        List<String> conflicts = new ArrayList<>();
+        Path infoDir = getInfoDir(isClient);
+        for (String p : localDb.keySet()) {
+            Path listFile = infoDir.resolve(p + ".list");
+            if (!Files.exists(listFile)) continue;
+            try {
+                Set<String> owned = new HashSet<>(Files.readAllLines(listFile));
+                for (String f : newFiles) if (owned.contains(f)) conflicts.add(f + " (owned by " + p + ")");
+            } catch (IOException ignored) {}
+        }
+        return conflicts;
+    }
+
+    private static void writeFileList(boolean isClient, String pkg, List<String> files) {
+        try {
+            Path f = getInfoDir(isClient).resolve(pkg + ".list");
+            Files.createDirectories(f.getParent());
+            Files.write(f, files);
+        } catch (IOException ignored) {}
+    }
+
+    private static List<String> readFileList(boolean isClient, String pkg) {
+        try {
+            Path f = getInfoDir(isClient).resolve(pkg + ".list");
+            if (Files.exists(f)) return Files.readAllLines(f);
+        } catch (IOException ignored) {}
+        return new ArrayList<>();
+    }
+
+    /** 反向依赖：哪些已装包依赖 name。 */
+    private static List<String> findDependents(String name, Map<String, PackageInfo> localDb) {
+        List<String> out = new ArrayList<>();
+        for (PackageInfo p : localDb.values()) {
+            if (p.packageName != null && p.packageName.equals(name)) continue;
+            for (String dep : p.depends) {
+                if (depName(dep).equals(name)) { out.add(p.packageName); break; }
+            }
+        }
+        return out;
+    }
+
+    // ==================== 升级 ====================
+
+    /** 升级/重装单个包。 */
+    public static String upgrade(String packageName, boolean isClient) {
+        if (!indexLoaded) updateIndex(isClient, false);
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
+        if (!localDb.containsKey(packageName)) {
+            return packageName + " is not installed. Use 'pkg install " + packageName + "'.";
+        }
+        PackageInfo idx = remoteIndex.get(packageName);
+        if (idx == null) return "Package not found in the index: " + packageName;
+        PackageInfo inst = localDb.get(packageName);
+        if (idx.version != null && idx.version.equals(inst.version)) {
+            return packageName + " is already the newest version (" + inst.version + ").";
+        }
+        return "Calculating upgrade... Done\n" + install(packageName, isClient, false, true);
+    }
+
+    /** 升级全部已安装包。 */
+    public static String upgradeAll(boolean isClient) {
+        if (!indexLoaded) updateIndex(isClient, false);
+        Map<String, PackageInfo> localDb = loadLocalDatabase(isClient);
+        if (localDb.isEmpty()) return "No packages installed.";
+        StringBuilder out = new StringBuilder();
+        int upgraded = 0;
+        for (String name : new ArrayList<>(localDb.keySet())) {
+            PackageInfo idx = remoteIndex.get(name);
+            if (idx == null) continue;
+            PackageInfo inst = localDb.get(name);
+            if (idx.version != null && !idx.version.equals(inst.version)) {
+                out.append("Upgrading ").append(name).append(" ").append(inst.version)
+                   .append(" -> ").append(idx.version).append('\n');
+                out.append(install(name, isClient, false, true));
+                upgraded++;
+            }
+        }
+        if (upgraded == 0) return "0 packages upgraded, all up to date.";
+        return out.toString();
+    }
+
+    private static String fmtSize(long bytes) {
+        if (bytes < 0) return "0 B";
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1048576) return String.format("%.1f kB", bytes / 1024.0);
+        if (bytes < 1073741824) return String.format("%.1f MB", bytes / 1048576.0);
+        return String.format("%.1f GB", bytes / 1073741824.0);
+    }
+
     public static String getHelp() {
         return "pkg update [force] - refresh package index\n" +
                "pkg search <keyword> - search packages\n" +
-               "pkg install <pkg> - install a package\n" +
-               "pkg remove <pkg> - remove a package\n" +
+               "pkg install <pkg> [--no-deps] [--force] - install (auto-resolves dependencies)\n" +
+               "pkg remove <pkg> [--force] - remove (deletes files via file-list)\n" +
+               "pkg upgrade <pkg|--all> - upgrade package(s)\n" +
                "pkg list - list installed\n" +
                "pkg show <pkg> - show package details\n" +
                "pkg source - show current source config\n" +

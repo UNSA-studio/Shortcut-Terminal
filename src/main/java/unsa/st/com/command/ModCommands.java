@@ -498,6 +498,21 @@ public class ModCommands {
                     })
                 )
             )
+            .then(Commands.literal("upgrade")
+                .then(Commands.argument("package", StringArgumentType.word())
+                    .executes(ctx -> {
+                        String pkg = StringArgumentType.getString(ctx, "package");
+                        String result = PkgManager.upgrade(pkg, false);
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return 1;
+                    })
+                )
+                .executes(ctx -> {
+                    String result = PkgManager.upgradeAll(false);
+                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                    return 1;
+                })
+            )
             .then(Commands.literal("source")
                 .then(Commands.argument("args", StringArgumentType.greedyString())
                     .executes(ctx -> {

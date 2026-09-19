@@ -240,8 +240,23 @@ public class ClientCommandExecutor {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "update": return PkgManager.updateIndex();
             case "search": return args.length > 1 ? String.join("\n", PkgManager.search(args[1])) : "Usage: pkg search <keyword>";
-            case "install": return args.length > 1 ? PkgManager.install(args[1], true) : "Usage: pkg install <package>";
-            case "remove": return args.length > 1 ? PkgManager.remove(args[1], true) : "Usage: pkg remove <package>";
+            case "install": {
+                if (args.length < 2) return "Usage: pkg install <pkg> [--no-deps] [--force]";
+                boolean noDeps = false, force = false;
+                for (int i = 2; i < args.length; i++) {
+                    if (args[i].equalsIgnoreCase("--no-deps")) noDeps = true;
+                    if (args[i].equalsIgnoreCase("--force")) force = true;
+                }
+                return PkgManager.install(args[1], true, noDeps, force);
+            }
+            case "remove": {
+                if (args.length < 2) return "Usage: pkg remove <pkg> [--force]";
+                boolean force = false;
+                for (int i = 2; i < args.length; i++) if (args[i].equalsIgnoreCase("--force")) force = true;
+                return PkgManager.remove(args[1], true, force);
+            }
+            case "upgrade": return args.length > 1 && !args[1].equalsIgnoreCase("--all")
+                    ? PkgManager.upgrade(args[1], true) : PkgManager.upgradeAll(true);
             case "list": return String.join("\n", PkgManager.listInstalled(true));
             case "show": return args.length > 1 ? PkgManager.showInfo(args[1]) : "Usage: pkg show <package>";
             case "source": return PkgManager.sourceCommand(args, true);
