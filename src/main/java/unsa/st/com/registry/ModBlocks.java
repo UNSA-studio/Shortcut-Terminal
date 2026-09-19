@@ -30,6 +30,18 @@ public class ModBlocks {
                             BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
                                     .strength(3.0f, 6.0f).requiresCorrectToolForDrops()));
 
+    /** 硅矿石：raw silicon 的真实来源（主世界矿脉，可挖掘）。 */
+    public static final DeferredBlock<Block> SILICON_ORE =
+            BLOCKS.register("silicon_ore",
+                    () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
+                            .strength(3.0f, 3.0f).requiresCorrectToolForDrops()));
+
+    /** 深层硅矿石（深板岩带）。 */
+    public static final DeferredBlock<Block> DEEPSLATE_SILICON_ORE =
+            BLOCKS.register("deepslate_silicon_ore",
+                    () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
+                            .strength(4.5f, 3.0f).requiresCorrectToolForDrops()));
+
     public static final DeferredRegister.Items BLOCK_ITEMS = DeferredRegister.createItems(ShortcutTerminal.MODID);
 
     /** 方块的物品形态（缺失会导致创造栏 asItem()==AIR 崩溃）。 */
@@ -39,6 +51,12 @@ public class ModBlocks {
     public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
             BLOCK_ITEMS.register("machine_casing",
                     () -> new BlockItem(MACHINE_CASING.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> SILICON_ORE_ITEM =
+            BLOCK_ITEMS.register("silicon_ore",
+                    () -> new BlockItem(SILICON_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> DEEPSLATE_SILICON_ORE_ITEM =
+            BLOCK_ITEMS.register("deepslate_silicon_ore",
+                    () -> new BlockItem(DEEPSLATE_SILICON_ORE.get(), new Item.Properties()));
 
     public static void register(IEventBus eventBus) {
         BLOCKS.register(eventBus);

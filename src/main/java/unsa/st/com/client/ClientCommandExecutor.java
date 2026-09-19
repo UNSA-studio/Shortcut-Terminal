@@ -127,7 +127,8 @@ public class ClientCommandExecutor {
             case "w": return KernelCommands.w();
             case "env": return CoreToolCommands.env();
             case "hostname": return CoreToolCommands.hostname();
-            case "lscpu": return CoreToolCommands.lscpu();
+            case "lscpu": return CoreToolCommands.lscpu(stosLevel());
+            case "nproc": return CoreToolCommands.nproc(unsa.st.com.compute.ComputePolicy.threads(stosLevel()));
             case "date": return CoreToolCommands.date();
             case "init": return CoreToolCommands.initInfo();
             case "df": return unsa.st.com.client.ClientHardware.dfReport(playerName);
@@ -169,7 +170,7 @@ public class ClientCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, addons, run spoof\nKernel: uptime, who, w, dmesg, tps, lsmod, modinfo, top, gcstat, vmstat, netstat, mpstat, kinfo, kmods, lscpu, env, date\n/proc is mounted - try 'kinfo', 'cat /proc/mspt', 'cat /proc/game/world'");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, addons, run spoof\nKernel: uptime, who, w, dmesg, tps, lsmod, modinfo, top, gcstat, vmstat, netstat, mpstat, kinfo, kmods, lscpu, nproc, env, date\n/proc is mounted - try 'kinfo', 'cat /proc/mspt', 'cat /proc/game/world'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");

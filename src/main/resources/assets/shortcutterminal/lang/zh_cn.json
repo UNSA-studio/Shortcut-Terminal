@@ -42,5 +42,7 @@
   "item.shortcutterminal.ssd_256gb": "固态硬盘 256 GB",
   "item.shortcutterminal.ssd_1tb": "固态硬盘 1 TB",
   "item.shortcutterminal.ssd_4tb": "固态硬盘 4 TB",
-  "item.shortcutterminal.ssd_16tb": "固态硬盘 16 TB"
+  "item.shortcutterminal.ssd_16tb": "固态硬盘 16 TB",
+  "block.shortcutterminal.silicon_ore": "硅矿石",
+  "block.shortcutterminal.deepslate_silicon_ore": "深层硅矿石"
 }

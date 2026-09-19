@@ -42,5 +42,7 @@
   "item.shortcutterminal.ssd_256gb": "SSD 256 GB",
   "item.shortcutterminal.ssd_1tb": "SSD 1 TB",
   "item.shortcutterminal.ssd_4tb": "SSD 4 TB",
-  "item.shortcutterminal.ssd_16tb": "SSD 16 TB"
+  "item.shortcutterminal.ssd_16tb": "SSD 16 TB",
+  "block.shortcutterminal.silicon_ore": "Silicon Ore",
+  "block.shortcutterminal.deepslate_silicon_ore": "Deepslate Silicon Ore"
 }

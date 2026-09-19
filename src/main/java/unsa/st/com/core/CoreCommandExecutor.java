@@ -120,6 +120,7 @@ public class CoreCommandExecutor {
             case "env": return CoreToolCommands.env();
             case "hostname": return CoreToolCommands.hostname();
             case "lscpu": return CoreToolCommands.lscpu();
+            case "nproc": return String.valueOf(Runtime.getRuntime().availableProcessors());
             case "top": return KernelCommands.psTop();
             case "addons": return CoreToolCommands.addons();
             case "init": return CoreToolCommands.initInfo();
@@ -181,7 +182,7 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, winget, gcstat, vmstat, netstat, mpstat, kinfo, kmods, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, nproc, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, winget, gcstat, vmstat, netstat, mpstat, kinfo, kmods, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");

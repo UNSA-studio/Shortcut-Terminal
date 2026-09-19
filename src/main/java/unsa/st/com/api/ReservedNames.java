@@ -16,7 +16,7 @@ final class ReservedNames {
             "whoami", "uname", "df", "free", "ps", "du",
             "ping", "curl", "wget", "clear", "date", "which", "chmod",
             "sh", "refresh", "pkg", "macro", "run", "user", "stop", "winget",
-            "uptime", "who", "env", "hostname", "lscpu", "top", "addons",
+            "uptime", "who", "env", "hostname", "lscpu", "nproc", "top", "addons",
             "init", "kill", "sleep", "dmesg", "tps", "lsmod", "modinfo", "w",
             "gcstat", "vmstat", "netstat", "mpstat", "kinfo", "kmods"
     );

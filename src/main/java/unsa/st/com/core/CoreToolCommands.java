@@ -70,6 +70,17 @@ public final class CoreToolCommands {
                 System.getProperty("os.name", "unknown"));
     }
 
+    /** lscpu（含 STOS 处理器提供的线程数） */
+    public static String lscpu(int stosLevel) {
+        return lscpu() + String.format("\nSTOS threads:        %d (Processor L%d, multi-threading)",
+                unsa.st.com.compute.ComputePolicy.threads(stosLevel), stosLevel);
+    }
+
+    /** nproc：STOS 处理器提供的可用线程数。 */
+    public static String nproc(int threads) {
+        return String.valueOf(Math.max(1, threads));
+    }
+
     /** date：服务器世界内日期与实际时间 */
     public static String date() {
         MinecraftServer s = ServerLifecycleHooks.getCurrentServer();

@@ -21,6 +21,8 @@ public class ModCreativeTabs {
                     .icon(() -> new ItemStack(ModItems.TERMINAL_PANEL.get()))
                     .displayItems((params, output) -> {
                         // Tier 0: raw materials
+                        output.accept(ModBlocks.SILICON_ORE_ITEM.get());
+                        output.accept(ModBlocks.DEEPSLATE_SILICON_ORE_ITEM.get());
                         output.accept(ModItems.RAW_SILICON.get());
                         output.accept(ModItems.SILICON_WAFER.get());
                         output.accept(ModItems.LOGIC_WAFER.get());
