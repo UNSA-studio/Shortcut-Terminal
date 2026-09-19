@@ -18,6 +18,7 @@ import unsa.st.com.network.SyncFileSystemPacket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.*;
 
 public class TerminalScreen extends Screen {
     private static final int BORDER_COLOR = 0xFFFFFFFF;
@@ -32,6 +33,13 @@ public class TerminalScreen extends Screen {
     private int leftPos, topPos;
     private EditBox commandInput;
     private List<String> outputLines = new ArrayList<>();
+    /** 启动动画调度器（守护线程，逐行渐显）。 */
+    private static final ScheduledExecutorService BOOT_SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "STOS-Boot");
+        t.setDaemon(true);
+        return t;
+    });
+    private final List<ScheduledFuture<?>> bootTasks = new ArrayList<>();
     private double scrollOffset = 0;
     private boolean isDraggingScrollbar = false;
     private List<String> commandHistory = new ArrayList<>();
@@ -89,6 +97,7 @@ public class TerminalScreen extends Screen {
     
     private void loadSession(int index) {
         if (index < 0 || index >= sessions.size()) return;
+        cancelBootTasks(); // 切换/重载会话时停止未播完的启动动画
         if (executor != null) {
             sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
             TerminalSessionManager.saveCurrentSessions(playerName, sessions);
@@ -97,11 +106,9 @@ public class TerminalScreen extends Screen {
         SessionData data = sessions.get(index);
         this.executor = data.createExecutor();
         this.outputLines = new ArrayList<>(data.outputLines);
-        // 新会话首次显示 STOS 启动横幅（-|/\ 字符拼成的艺术字）
+        // 新会话首次播放 STOS 启动动画（逐行渐显，速度取决于处理器等级）
         if (this.outputLines.isEmpty()) {
-            for (String line : unsa.st.com.compute.ComputePolicy.stosBanner(executor.stosLevel()).split("\n")) {
-                this.outputLines.add(line);
-            }
+            playBootSequence(executor.stosLevel());
         }
         this.commandHistory = new ArrayList<>(data.commandHistory);
         this.historyIndex = commandHistory.size();
@@ -129,6 +136,32 @@ public class TerminalScreen extends Screen {
         if (currentSessionIndex >= sessions.size()) currentSessionIndex = sessions.size() - 1;
         TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(currentSessionIndex);
+    }
+
+    // ==================== 启动动画 ====================
+
+    /** 播放 STOS 启动序列：逐行渐显，行间隔按处理器等级（L9 秒开 / 低等级慢吞吞）。 */
+    private void playBootSequence(int level) {
+        int delay = unsa.st.com.compute.ComputePolicy.bootLineDelayMs(level);
+        long at = 0;
+        for (String line : unsa.st.com.compute.ComputePolicy.bootSequence(level)) {
+            at += delay;
+            final String text = line;
+            bootTasks.add(BOOT_SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> {
+                if (instance == this) {
+                    outputLines.add(text);
+                    scrollOffset = Double.MAX_VALUE;
+                }
+            }), at, TimeUnit.MILLISECONDS));
+        }
+    }
+
+    /** 取消未播完的启动动画任务。 */
+    private void cancelBootTasks() {
+        for (ScheduledFuture<?> f : bootTasks) {
+            try { f.cancel(false); } catch (Exception ignored) {}
+        }
+        bootTasks.clear();
     }
 
     private void updatePrompt() {
@@ -445,6 +478,7 @@ public class TerminalScreen extends Screen {
     @Override
     public void removed() {
         super.removed();
+        cancelBootTasks();
         if (instance == this) instance = null;
     }
     @Override public boolean shouldCloseOnEsc() { saveCurrentSession(); return true; }

@@ -1,5 +1,7 @@
 package unsa.st.com.compute;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -102,6 +104,47 @@ public final class ComputePolicy {
     /** 骗过管理员眼睛的内核版本号（等级越高版本号越大）。 */
     public static String kernelVersion(int level) {
         return String.format(Locale.ROOT, "stos-kernel 4.%d.1-l%d", 9 + level, level);
+    }
+
+    // ==================== 启动序列（真·逐行渐显动画） ====================
+
+    /** 启动动画的行间隔毫秒：L9 秒开；低等级逐级放慢；裸终端最慢。 */
+    public static int bootLineDelayMs(int level) {
+        if (level <= 0) return 400;
+        return Math.max(35, 340 - 35 * level); // L1≈305ms ... L4≈200ms ... L7≈95ms ... L9≈35ms
+    }
+
+    /** 启动日志行序列（按处理器等级生成开机自检内容）。 */
+    public static List<String> bootSequence(int level) {
+        List<String> lines = new ArrayList<>();
+        for (String l : ASCII_LOGO.split("\n")) lines.add(l);
+        lines.add("");
+        lines.add("[0.00] STOS bootloader v1.0");
+        if (level <= 0) {
+            lines.add("[0.12] STOS kernel (fallback mode) booting...");
+            lines.add("[0.24] no processor detected");
+            lines.add("[0.36] starting basic shell services... [ok]");
+            lines.add("[0.48] system ready.");
+            lines.add("");
+            lines.add("[bare terminal program]");
+            lines.add("No processor installed - install a Processor (L1-L9) to boot the full system.");
+            lines.add("Type 'help' for basic commands.");
+        } else {
+            lines.add("[0.12] STOS kernel " + kernelVersion(level) + " booting...");
+            lines.add("[0.24] memory check... [ok]");
+            lines.add("[0.36] initializing kernel subsystems... [ok]");
+            lines.add("[0.48] mounting virtual filesystems... [ok]");
+            lines.add("[0.60] scanning compute unit... found L" + level + " (" + charsPerSecond(level) + " chars/s)");
+            lines.add("[0.72] starting shell services... [ok]");
+            lines.add("[0.84] system ready.");
+            lines.add("");
+            lines.add("System: STOS 1.0 (GNU/Linux, Debian 12 \"bookworm\" base)");
+            lines.add("Kernel: " + kernelVersion(level));
+            lines.add("Manufacturer: UNSA STUDIO");
+            lines.add("Compute: L" + level + " / " + charsPerSecond(level) + " chars/s");
+        }
+        lines.add("");
+        return lines;
     }
 
     // ==================== 低配强跑的 kernel panic（纯文本） ====================
