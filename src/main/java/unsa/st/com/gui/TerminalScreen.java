@@ -128,11 +128,17 @@ public class TerminalScreen extends Screen {
     }
     
     private void newSession() {
-        int max = unsa.st.com.client.ClientHardware.maxWindows();
-        if (sessions.size() >= max) {
-            appendLine("RAM full: cannot open another window (" + sessions.size() + "/" + max
-                    + " windows, " + unsa.st.com.compute.HardwareSpec.WINDOW_OVERHEAD_KB
-                    + " KB each) - install a bigger RAM module.");
+        // CPU 硬性上限：处理器线程数决定最多能开多少窗口（与每窗口用量无关）
+        int cpuLimit = unsa.st.com.client.ClientHardware.cpuWindowLimit();
+        if (sessions.size() >= cpuLimit) {
+            appendLine("STOS:There are no available CPU resources to calculate a new page");
+            saveCurrentSession();
+            scrollOffset = Double.MAX_VALUE;
+            return;
+        }
+        // RAM 容量：任一窗口占用已超过 80% 容量，就不允许再开新窗口
+        if (unsa.st.com.client.ClientHardware.ramUnderPressure()) {
+            appendLine("STOS:Insufficient RAM capacity to create a new window");
             saveCurrentSession();
             scrollOffset = Double.MAX_VALUE;
             return;
@@ -333,6 +339,19 @@ public class TerminalScreen extends Screen {
     /** 当前打开的窗口数量（硬件统计用）。 */
     public static int windowCount() {
         return instance == null || instance.sessions == null ? 1 : instance.sessions.size();
+    }
+
+    /** 所有窗口中最高的一份输出行数（RAM 压力判定用）。 */
+    public static int maxUsedLines() {
+        if (instance == null || instance.sessions == null) return 0;
+        int idx = instance.currentSessionIndex;
+        int max = instance.outputLines != null ? instance.outputLines.size() : 0;
+        for (int i = 0; i < instance.sessions.size(); i++) {
+            if (i == idx) continue;
+            java.util.List<String> lines = instance.sessions.get(i).outputLines;
+            if (lines != null) max = Math.max(max, lines.size());
+        }
+        return max;
     }
 
     public boolean isMouseOver(double mouseX, double mouseY) {

@@ -2,14 +2,18 @@ package unsa.st.com.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
+import unsa.st.com.compute.ComputePolicy;
 import unsa.st.com.compute.HardwareSpec;
+import unsa.st.com.compute.ProcessorCapability;
 import unsa.st.com.item.TerminalPanelItem;
 
 import java.util.function.ToIntFunction;
 
 /**
- * 客户端硬件查询：从当前玩家的手持/背包中找终端面板，读取 RAM / SSD 规格。
+ * 客户端硬件查询：从当前玩家的手持/背包中找终端面板，读取 CPU / RAM / SSD 规格。
  * 仅在物理客户端调用（单人游戏即本机）。
+ *
+ * <p>窗口规则：CPU 线程数 = 硬性窗口上限；RAM = 每窗口内存容量，任一窗口占用超 80% 即拦截新窗口。</p>
  */
 public final class ClientHardware {
     private ClientHardware() {}
@@ -38,7 +42,12 @@ public final class ClientHardware {
         return panelStat(HardwareSpec::getSsdGb, 0);
     }
 
-    /** 当前生效的终端历史缓冲行数。 */
+    /** 当前玩家面板的处理器等级（0 = 裸机）。 */
+    public static int clientProcessorLevel() {
+        return panelStat(ProcessorCapability::getInstalledLevel, 0);
+    }
+
+    /** 当前生效的终端历史缓冲行数（= 每窗口内存容量）。 */
     public static int scrollbackLimit() {
         return HardwareSpec.scrollbackLimit(clientRamMb());
     }
@@ -48,12 +57,19 @@ public final class ClientHardware {
         return HardwareSpec.storageQuotaChars(clientSsdGb());
     }
 
-    /** 当前生效的最大终端窗口数（受 RAM 限制）。 */
-    public static int maxWindows() {
-        return HardwareSpec.maxWindows(clientRamMb());
+    // ==================== 窗口规则 ====================
+
+    /** CPU 硬上限：处理器线程数就是允许的窗口数（不管每个窗口用了多少内存）。 */
+    public static int cpuWindowLimit() {
+        return ComputePolicy.threads(clientProcessorLevel());
     }
 
-    /** 当前打开的终端窗口数（无界面时按 1 计）。 */
+    /** 每个窗口的内存容量（行）。 */
+    public static int windowCapacityLines() {
+        return HardwareSpec.windowCapacityLines(clientRamMb());
+    }
+
+    /** 当前打开的窗口数（无界面时按 1 计）。 */
     public static int currentWindowCount() {
         try {
             return unsa.st.com.gui.TerminalScreen.windowCount();
@@ -62,9 +78,23 @@ public final class ClientHardware {
         }
     }
 
-    /** 当前窗口常驻内存记账（KB）。 */
+    /** 所有窗口中最高的一份输出行数（无界面时为 0）。 */
+    public static int maxUsedLines() {
+        try {
+            return unsa.st.com.gui.TerminalScreen.maxUsedLines();
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
+    /** 窗口常驻内存记账（KB）。 */
     public static int windowMemoryKb() {
         return HardwareSpec.windowMemoryKb(currentWindowCount());
+    }
+
+    /** 是否存在窗口已用满 80% 内存容量。 */
+    public static boolean ramUnderPressure() {
+        return HardwareSpec.ramUnderPressure(maxUsedLines(), windowCapacityLines());
     }
 
     /** 客户端 df 报告。 */
@@ -72,6 +102,6 @@ public final class ClientHardware {
         long quota = storageQuotaChars();
         long used = 0;
         try { used = ClientVirtualFileSystem.totalChars(playerName); } catch (Throwable ignored) {}
-        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount());
+        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount(), maxUsedLines());
     }
 }

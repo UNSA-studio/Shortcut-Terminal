@@ -80,12 +80,13 @@ public class TerminalPanelItem extends Item {
             tooltip.add(Component.literal("Right-click with a Processor L1-L9 to install"));
         } else {
             tooltip.add(Component.literal("Processor: L" + level
-                    + " (" + ComputePolicy.charsPerSecond(level) + " chars/s)"));
+                    + " (" + ComputePolicy.charsPerSecond(level) + " chars/s, "
+                    + ComputePolicy.threads(level) + " threads)"));
         }
         int ramMb = HardwareSpec.getRamMb(stack);
         tooltip.add(Component.literal(ramMb > 0 ? "RAM: " + HardwareSpec.formatRam(ramMb)
-                + " (" + HardwareSpec.scrollbackLimit(ramMb) + " lines scrollback, "
-                + HardwareSpec.maxWindows(ramMb) + " windows)"
+                + " (" + HardwareSpec.windowCapacityLines(ramMb) + " lines/window, "
+                + HardwareSpec.RAM_PRESSURE_PERCENT + "% pressure limit)"
                 : "No RAM module - right-click with a RAM module to install"));
         int ssdGb = HardwareSpec.getSsdGb(stack);
         tooltip.add(Component.literal(ssdGb > 0 ? "SSD: " + HardwareSpec.formatSsd(ssdGb)
@@ -111,8 +112,7 @@ public class TerminalPanelItem extends Item {
             other.shrink(1);
             HardwareSpec.installRam(panel, ramMb);
             player.displayClientMessage(Component.literal("STOS: installed RAM " + HardwareSpec.formatRam(ramMb)
-                    + " (scrollback " + HardwareSpec.scrollbackLimit(ramMb) + " lines, "
-                    + HardwareSpec.maxWindows(ramMb) + " windows)"), false);
+                    + " (window capacity " + HardwareSpec.windowCapacityLines(ramMb) + " lines)"), false);
             return net.minecraft.world.InteractionResultHolder.sidedSuccess(panel, false);
         }
         int ssdGb = HardwareSpec.ssdGbOfItem(other);
