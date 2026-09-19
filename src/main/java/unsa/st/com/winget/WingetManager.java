@@ -253,13 +253,7 @@ public class WingetManager {
         Process proc = pb.start();
         try { proc.getOutputStream().close(); } catch (IOException ignored) {}
 
-        java.nio.charset.Charset cs;
-        String override = System.getProperty("st.winget.charset");
-        if (override != null && !override.isEmpty()) {
-            try { cs = java.nio.charset.Charset.forName(override); } catch (Exception e) { cs = java.nio.charset.Charset.defaultCharset(); }
-        } else {
-            cs = java.nio.charset.Charset.defaultCharset();
-        }
+        java.nio.charset.Charset cs = resolveHostCharset();
 
         final List<String> lines = new ArrayList<>();
         Thread reader = new Thread(() -> {
@@ -297,6 +291,15 @@ public class WingetManager {
             for (String l : lines) sb.append('\n').append(l);
         }
         return sb.toString();
+    }
+
+    /** 宿主机输出字符集：-Dst.winget.charset 覆盖，否则系统默认。 */
+    private static java.nio.charset.Charset resolveHostCharset() {
+        String override = System.getProperty("st.winget.charset");
+        if (override != null && !override.isEmpty()) {
+            try { return java.nio.charset.Charset.forName(override); } catch (Exception ignored) {}
+        }
+        return java.nio.charset.Charset.defaultCharset();
     }
 
     /** 进度条噪声帧过滤（仅由块字符/百分比/数字/空白组成的行为噪声）。 */
