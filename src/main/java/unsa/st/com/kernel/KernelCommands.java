@@ -105,6 +105,133 @@ public final class KernelCommands {
                 total, used, free, max);
     }
 
+    /** gcstat：GC 与类加载统计。 */
+    public static String gcstat() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("gc               (name / collections / time_ms)\n");
+        sb.append("-------------------------------------------------\n");
+        long tc = 0, tt = 0;
+        for (TerminalKernel.GcRow g : TerminalKernel.gcStats()) {
+            sb.append(String.format("%-32s %8d %10d\n", g.name(), g.count(), g.timeMs()));
+            tc += g.count(); tt += g.timeMs();
+        }
+        sb.append("-------------------------------------------------\n");
+        sb.append(String.format("TOTAL: %d collections, %d ms\n", tc, tt));
+        sb.append(String.format("Classes: loaded=%d, total=%d, unloaded=%d\n",
+                TerminalKernel.loadedClasses(), TerminalKernel.totalLoadedClasses(), TerminalKernel.unloadedClasses()));
+        Runtime rt = Runtime.getRuntime();
+        sb.append(String.format("Heap: %dK used / %dK committed / %dK max\n",
+                (rt.totalMemory() - rt.freeMemory()) / 1024, rt.totalMemory() / 1024, rt.maxMemory() / 1024));
+        return sb.toString();
+    }
+
+    /** vmstat：系统综合统计（进程/内存/交换/GC/CPU）。 */
+    public static String vmstat() {
+        Runtime rt = Runtime.getRuntime();
+        long pTotal = TerminalKernel.physicalTotalMemory();
+        long pFree = TerminalKernel.physicalFreeMemory();
+        long swTotal = TerminalKernel.swapTotal();
+        long swFree = TerminalKernel.swapFree();
+        long gcCount = 0, gcTime = 0;
+        for (TerminalKernel.GcRow g : TerminalKernel.gcStats()) { gcCount += g.count(); gcTime += g.timeMs(); }
+        double sys = TerminalKernel.systemCpuLoad();
+        double proc = TerminalKernel.processCpuLoad();
+        String pMem = pTotal > 0
+                ? String.format("%d/%d MB", (pTotal - pFree) / 1048576, pTotal / 1048576)
+                : String.format("JVM %d/%d MB", (rt.totalMemory() - rt.freeMemory()) / 1048576, rt.maxMemory() / 1048576);
+        String sw = swTotal > 0
+                ? String.format("%d/%d MB", (swTotal - swFree) / 1048576, swTotal / 1048576)
+                : "n/a";
+        StringBuilder sb = new StringBuilder();
+        sb.append("procs -----------memory---------- ---swap-- --gc-- -----cpu-----\n");
+        sb.append(String.format("%5s %13s %9s %7d %6d %6s %8s\n",
+                "r=1", pMem, sw, gcCount, gcTime,
+                sys >= 0 ? String.format("%.0f%%", sys * 100) : "n/a",
+                proc >= 0 ? String.format("%.0f%%", proc * 100) : "n/a"));
+        sb.append(String.format("threads running=%d, started=%d\n",
+                TerminalKernel.threadTable().size(), TerminalKernel.totalThreadsStarted()));
+        return sb.toString();
+    }
+
+    /** netstat：活动网络连接（玩家连接映射）。 */
+    public static String netstat() {
+        return "Active connections:\n" + ProcFS.read("/proc/net/tcp");
+    }
+
+    /** mpstat：线程 CPU 使用排行（top 10）。 */
+    public static String mpstat() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%8s %-32s %-12s %10s\n", "TID", "THREAD", "STATE", "CPU(ms)"));
+        sb.append("-".repeat(66)).append('\n');
+        List<TerminalKernel.ThreadRow> rows = TerminalKernel.threadTable();
+        int n = 0;
+        for (TerminalKernel.ThreadRow t : rows) {
+            if (n++ >= 10) break;
+            sb.append(String.format("%8d %-32s %-12s %10d\n", t.id, clip(t.name, 32), t.state, t.cpuMs));
+        }
+        sb.append("-".repeat(66)).append('\n');
+        sb.append("(").append(rows.size()).append(" threads total)");
+        return sb.toString();
+    }
+
+    /** kinfo：内核综合信息一屏。 */
+    public static String kinfo() {
+        long up = TerminalKernel.uptimeSeconds();
+        Runtime rt = Runtime.getRuntime();
+        double sys = TerminalKernel.systemCpuLoad();
+        double proc = TerminalKernel.processCpuLoad();
+        double sysLoad = TerminalKernel.systemLoadAverage();
+        long gcCount = 0, gcTime = 0;
+        for (TerminalKernel.GcRow g : TerminalKernel.gcStats()) { gcCount += g.count(); gcTime += g.timeMs(); }
+        StringBuilder sb = new StringBuilder("STOS Kernel Information\n");
+        sb.append("============================\n");
+        sb.append(String.format("kernel    : 1.1.0-stos (NeoForge 21.1.219)\n"));
+        sb.append(String.format("vm        : %s %s\n", TerminalKernel.vmName(), TerminalKernel.vmVersion()));
+        sb.append(String.format("uptime    : %dd %dh %dm %ds\n", up / 86400, (up % 86400) / 3600, (up % 3600) / 60, up % 60));
+        sb.append(String.format("mspt/tps  : %.2f ms / %.2f\n", TerminalKernel.averageMspt(), TerminalKernel.tps()));
+        sb.append(String.format("cpu       : sys=%s proc=%s loadavg=%s\n",
+                sys >= 0 ? String.format("%.0f%%", sys * 100) : "n/a",
+                proc >= 0 ? String.format("%.0f%%", proc * 100) : "n/a",
+                sysLoad >= 0 ? String.format("%.2f", sysLoad) : "n/a"));
+        long pTotal = TerminalKernel.physicalTotalMemory();
+        if (pTotal > 0) {
+            sb.append(String.format("mem(host) : %d/%d MB\n",
+                    (pTotal - TerminalKernel.physicalFreeMemory()) / 1048576, pTotal / 1048576));
+        }
+        sb.append(String.format("mem(heap) : %d/%d MB\n",
+                (rt.totalMemory() - rt.freeMemory()) / 1048576, rt.maxMemory() / 1048576));
+        sb.append(String.format("gc        : %d collections, %d ms\n", gcCount, gcTime));
+        sb.append(String.format("threads   : active=%d started=%d\n", TerminalKernel.threadTable().size(), TerminalKernel.totalThreadsStarted()));
+        sb.append(String.format("classes   : loaded=%d\n", TerminalKernel.loadedClasses()));
+        sb.append(String.format("mods      : %d loaded\n", TerminalKernel.modCount()));
+        sb.append(String.format("players   : %d online\n", serverPlayerCount()));
+        sb.append("============================\n");
+        sb.append("subsystems: core procfs klog sched netd gc world");
+        return sb.toString();
+    }
+
+    /** kmods：内核子系统表（实际实现的功能模块）。 */
+    public static String kmods() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%-14s %-8s %s\n", "MODULE", "STATUS", "DESCRIPTION"));
+        sb.append("-".repeat(72)).append('\n');
+        sb.append(String.format("%-14s %-8s %s\n", "stos_core",  "live", "Kernel core: MSPT sampler, ring log, system stats"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_procfs","live", "/proc virtual filesystem (19 files)"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_sched", "live", "Server tick hooks (MSPT sampling)"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_klog",  "live", "dmesg ring buffer (200 entries)"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_netd",  "live", "Player connection monitor"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_gc",    "live", "GC & class loading statistics"));
+        sb.append(String.format("%-14s %-8s %s\n", "stos_world", "live", "World/entity/chunk statistics"));
+        sb.append("-".repeat(72)).append('\n');
+        sb.append("7 modules loaded");
+        return sb.toString();
+    }
+
+    private static int serverPlayerCount() {
+        var s = TerminalKernel.server();
+        return s != null ? s.getPlayerCount() : 0;
+    }
+
     private static String clip(String s, int max) {
         return s.length() > max ? s.substring(0, max - 1) + "…" : s;
     }

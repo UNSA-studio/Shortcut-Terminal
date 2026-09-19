@@ -163,6 +163,104 @@ public final class TerminalKernel {
         try { return net.neoforged.fml.ModList.get().isLoaded(id); } catch (Throwable t) { return false; }
     }
 
+    // ==================== 系统级数据（宿主/JVM 真实数据，反射保护） ====================
+
+    private static final java.lang.management.OperatingSystemMXBean OS_BEAN = ManagementFactory.getOperatingSystemMXBean();
+
+    /** 系统 CPU 负载（0~1；不可用返回 -1）。 */
+    public static double systemCpuLoad() { return callDouble(OS_BEAN, "getCpuLoad", "getSystemCpuLoad"); }
+
+    /** 本进程 CPU 负载（0~1；不可用返回 -1）。 */
+    public static double processCpuLoad() { return callDouble(OS_BEAN, "getProcessCpuLoad"); }
+
+    /** 系统负载平均值（1 分钟；不可用返回 -1）。 */
+    public static double systemLoadAverage() {
+        try { return OS_BEAN.getSystemLoadAverage(); } catch (Throwable t) { return -1; }
+    }
+
+    /** 物理内存总字节（不可用返回 -1）。 */
+    public static long physicalTotalMemory() { return callLong(OS_BEAN, "getTotalMemorySize"); }
+
+    /** 物理内存空闲字节。 */
+    public static long physicalFreeMemory() { return callLong(OS_BEAN, "getFreeMemorySize"); }
+
+    /** 交换区总字节。 */
+    public static long swapTotal() { return callLong(OS_BEAN, "getTotalSwapSpaceSize"); }
+
+    /** 交换区空闲字节。 */
+    public static long swapFree() { return callLong(OS_BEAN, "getFreeSwapSpaceSize"); }
+
+    public record GcRow(String name, long count, long timeMs) {}
+
+    /** GC 统计（次数/总耗时）。 */
+    public static List<GcRow> gcStats() {
+        List<GcRow> rows = new ArrayList<>();
+        try {
+            for (var gc : ManagementFactory.getGarbageCollectorMXBeans()) {
+                rows.add(new GcRow(gc.getName(), gc.getCollectionCount(), gc.getCollectionTime()));
+            }
+        } catch (Throwable ignored) {}
+        return rows;
+    }
+
+    /** 当前已加载类数量。 */
+    public static long loadedClasses() {
+        try { return ManagementFactory.getClassLoadingMXBean().getLoadedClassCount(); } catch (Throwable t) { return -1; }
+    }
+
+    /** 累计加载类数量。 */
+    public static long totalLoadedClasses() {
+        try { return ManagementFactory.getClassLoadingMXBean().getTotalLoadedClassCount(); } catch (Throwable t) { return -1; }
+    }
+
+    /** 已卸载类数量。 */
+    public static long unloadedClasses() {
+        try { return ManagementFactory.getClassLoadingMXBean().getUnloadedClassCount(); } catch (Throwable t) { return -1; }
+    }
+
+    /** JVM 启动参数（真实命令行参数）。 */
+    public static List<String> vmArguments() {
+        try { return ManagementFactory.getRuntimeMXBean().getInputArguments(); } catch (Throwable t) { return List.of(); }
+    }
+
+    public static String vmName() { return System.getProperty("java.vm.name", "unknown"); }
+
+    public static String vmVersion() { return System.getProperty("java.version", "unknown"); }
+
+    /** 待终结对象数。 */
+    public static long pendingFinalization() {
+        try { return ManagementFactory.getMemoryMXBean().getObjectPendingFinalizationCount(); } catch (Throwable t) { return -1; }
+    }
+
+    /** 非堆内存使用字节。 */
+    public static long nonHeapUsed() {
+        try {
+            return ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage().getUsed();
+        } catch (Throwable t) { return -1; }
+    }
+
+    private static double callDouble(Object bean, String... names) {
+        for (String n : names) {
+            try {
+                var m = bean.getClass().getMethod(n);
+                Object v = m.invoke(bean);
+                if (v instanceof Double d) return d;
+            } catch (Throwable ignored) {}
+        }
+        return -1;
+    }
+
+    private static long callLong(Object bean, String... names) {
+        for (String n : names) {
+            try {
+                var m = bean.getClass().getMethod(n);
+                Object v = m.invoke(bean);
+                if (v instanceof Long value) return value;
+            } catch (Throwable ignored) {}
+        }
+        return -1;
+    }
+
     // ==================== 服务器快捷访问 ====================
 
     /** 当前服务器实例（可能为 null，调用方须处理）。 */

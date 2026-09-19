@@ -130,6 +130,12 @@ public class CoreCommandExecutor {
             case "lsmod": return KernelCommands.lsmod();
             case "modinfo": return KernelCommands.modinfo(args);
             case "w": return KernelCommands.w();
+            case "gcstat": return KernelCommands.gcstat();
+            case "vmstat": return KernelCommands.vmstat();
+            case "netstat": return KernelCommands.netstat();
+            case "mpstat": return KernelCommands.mpstat();
+            case "kinfo": return KernelCommands.kinfo();
+            case "kmods": return KernelCommands.kmods();
             case "ping": return executePing(args);
             case "curl": return executeCurl(args);
             case "wget": return executeWget(args);
@@ -175,7 +181,7 @@ public class CoreCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, winget, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, cp, mv, head, tail, wc, grep, sort, uniq, whoami, uname, uptime, who, w, env, hostname, lscpu, top, init, kill, sleep, dmesg, tps, lsmod, modinfo, df, free, ps, du, ping, curl, wget, clear, date, which, chmod, sh, refresh, pkg, winget, gcstat, vmstat, netstat, mpstat, kinfo, kmods, addons, macro, run, stop macro, User (admin)\nKernel: /proc is mounted - try 'ls /proc' and 'cat /proc/mspt'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");
@@ -210,7 +216,7 @@ public class CoreCommandExecutor {
     private String executeLs() {
         // /proc 挂载点：列出内核信息文件
         if (UserFileSystem.normalizePath(currentPath, "").equals("/proc")) {
-            return "cpuinfo  loadavg  meminfo  mods  mspt  net.dev  threads  uptime  version";
+            return "cmdline  cpuinfo  filesystems  gc  loadavg  meminfo  mods  mounts  mspt  net.dev  net.tcp  stat  threads  uptime  version  vmstat  game/";
         }
         List<String> files = isClient ?
                 ClientVirtualFileSystem.listDirectory(playerName, currentPath) :

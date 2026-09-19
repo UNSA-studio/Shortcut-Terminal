@@ -38,7 +38,7 @@ public class ModCommands {
             "ls", "mkdir", "touch", "rm", "cat", "echo", "cd", "pwd", "cp", "mv",
             "head", "tail", "wc", "grep", "sort", "uniq", "whoami", "uname", "uptime",
             "who", "w", "env", "hostname", "lscpu", "top", "addons",
-            "dmesg", "tps", "lsmod", "modinfo", "winget",
+            "dmesg", "tps", "lsmod", "modinfo", "gcstat", "vmstat", "netstat", "mpstat", "kinfo", "kmods", "winget",
             "df", "free", "ps", "du", "ping", "curl", "wget", "clear", "date", "which",
             "chmod", "sh", "refresh", "stop", "help"
         };

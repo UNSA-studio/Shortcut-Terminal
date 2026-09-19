@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import unsa.st.com.api.ShortcutTerminalAPI;
 import unsa.st.com.compute.ComputePolicy;
 import unsa.st.com.core.CoreToolCommands;
+import unsa.st.com.kernel.KernelCommands;
 import unsa.st.com.gui.TerminalScreen;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.ShortcutTerminal;
@@ -121,6 +122,27 @@ public class ClientCommandExecutor {
             case "pkg": return executePkg(args);
             case "winget": return executeWinget(args);
             case "addons": return CoreToolCommands.addons();
+            case "uptime": return CoreToolCommands.uptime();
+            case "who": return CoreToolCommands.who();
+            case "w": return KernelCommands.w();
+            case "env": return CoreToolCommands.env();
+            case "hostname": return CoreToolCommands.hostname();
+            case "lscpu": return CoreToolCommands.lscpu();
+            case "date": return CoreToolCommands.date();
+            case "init": return CoreToolCommands.initInfo();
+            case "kill": return CoreToolCommands.killInfo(args);
+            case "sleep": return CoreToolCommands.sleep(args);
+            case "dmesg": return KernelCommands.dmesg(args);
+            case "tps": return KernelCommands.tps();
+            case "lsmod": return KernelCommands.lsmod();
+            case "modinfo": return KernelCommands.modinfo(args);
+            case "top": return KernelCommands.psTop();
+            case "gcstat": return KernelCommands.gcstat();
+            case "vmstat": return KernelCommands.vmstat();
+            case "netstat": return KernelCommands.netstat();
+            case "mpstat": return KernelCommands.mpstat();
+            case "kinfo": return KernelCommands.kinfo();
+            case "kmods": return KernelCommands.kmods();
             case "run": return executeRun(args);
             default: return null;
         }
@@ -146,7 +168,7 @@ public class ClientCommandExecutor {
     }
 
     private String getHelp() {
-        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, addons, run spoof");
+        StringBuilder sb = new StringBuilder("Available: ls, mkdir, touch, rm, cat, echo, cd, pwd, clear, pkg, winget, addons, run spoof\nKernel: uptime, who, w, dmesg, tps, lsmod, modinfo, top, gcstat, vmstat, netstat, mpstat, kinfo, kmods, lscpu, env, date\n/proc is mounted - try 'kinfo', 'cat /proc/mspt', 'cat /proc/game/world'");
         Map<String, String> addon = ShortcutTerminalAPI.commandInfoSnapshot();
         if (!addon.isEmpty()) {
             sb.append("\nAddon commands:");
@@ -186,6 +208,11 @@ public class ClientCommandExecutor {
 
     private String executeCat(String[] args) {
         if (args.length == 0) return "Usage: cat <file>";
+        // /proc 挂载点（内核虚拟文件，绝对路径）
+        if (args[0].startsWith("/proc")) {
+            String c = unsa.st.com.kernel.ProcFS.read(args[0]);
+            if (c != null) return c;
+        }
         String content = ClientVirtualFileSystem.readFile(playerName, currentPath, args[0]);
         return content != null ? content : "Error: File not found.";
     }

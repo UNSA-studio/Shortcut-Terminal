@@ -39,7 +39,8 @@ public final class ComputePolicy {
     /** T2：中阶系统命令（L4+，需要稳定内核渲染）。 */
     public static final Set<String> TIER2 = Set.of(
             "ps", "df", "free", "env", "hostname", "lscpu", "top", "w",
-            "dmesg", "tps", "lsmod", "modinfo", "ping", "addons");
+            "dmesg", "tps", "lsmod", "modinfo", "ping", "addons",
+            "gcstat", "vmstat", "netstat", "mpstat", "kinfo", "kmods");
 
     /** T3：高阶命令（L7+，满血伪装系统）。 */
     public static final Set<String> TIER3 = Set.of(
