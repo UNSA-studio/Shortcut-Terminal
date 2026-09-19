@@ -266,6 +266,7 @@ public class WingetManager {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
                 String line;
                 while ((line = r.readLine()) != null) {
+                    if (isProgressNoise(line)) continue; // 折叠进度条噪声帧
                     synchronized (lines) {
                         if (lines.size() < 500) lines.add(line);
                     }
@@ -296,6 +297,21 @@ public class WingetManager {
             for (String l : lines) sb.append('\n').append(l);
         }
         return sb.toString();
+    }
+
+    /** 进度条噪声帧过滤（仅由块字符/百分比/数字/空白组成的行为噪声）。 */
+    private static boolean isProgressNoise(String line) {
+        if (line == null || line.isEmpty()) return false;
+        boolean hasProgressChar = false;
+        for (char c : line.toCharArray()) {
+            if (Character.isWhitespace(c)) continue;
+            if ("-\\|/─━═0123456789%.: ".indexOf(c) >= 0 || (c >= 0x2580 && c <= 0x259F)) {
+                hasProgressChar = true;
+                continue;
+            }
+            return false;
+        }
+        return hasProgressChar;
     }
 
     public static String getHelp() {
