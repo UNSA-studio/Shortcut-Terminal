@@ -15,14 +15,14 @@ Cleaning intermediate results cache in /home/runner/.gradle/caches/neoformruntim
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.01s
-[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mdownloadServer[0m[0m
+[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.05s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.05s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -53,28 +53,21 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.12s
+Total runtime: 0.99s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
-    public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
-                        ^
-  symbol:   class DeferredItem
-  location: class ModBlocks
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
-    public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
-                        ^
-  symbol:   class DeferredItem
-  location: class ModBlocks
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
+                                                                                                    ^
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
-2 errors
+1 error
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788701581814.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1789808684654.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -83,21 +76,14 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
+              try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
+                                                                                                      ^
   Note: Recompile with -Xlint:deprecation for details.
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
-      public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
-                          ^
-    symbol:   class DeferredItem
-    location: class ModBlocks
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
-      public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
-                          ^
-    symbol:   class DeferredItem
-    location: class ModBlocks
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  2 errors
+  1 error
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -139,21 +125,14 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
+                                                                                                    ^
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:35: error: cannot find symbol
-    public static final DeferredItem<BlockItem> LITHOGRAPHY_MACHINE_ITEM =
-                        ^
-  symbol:   class DeferredItem
-  location: class ModBlocks
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/registry/ModBlocks.java:38: error: cannot find symbol
-    public static final DeferredItem<BlockItem> MACHINE_CASING_ITEM =
-                        ^
-  symbol:   class DeferredItem
-  location: class ModBlocks
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-2 errors
+1 error
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -277,6 +256,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 16s
+BUILD FAILED in 18s
 2 actionable tasks: 2 executed
 ```
