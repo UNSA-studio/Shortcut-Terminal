@@ -44,5 +44,8 @@
   "item.shortcutterminal.ssd_4tb": "SSD 4 TB",
   "item.shortcutterminal.ssd_16tb": "SSD 16 TB",
   "block.shortcutterminal.silicon_ore": "Silicon Ore",
-  "block.shortcutterminal.deepslate_silicon_ore": "Deepslate Silicon Ore"
+  "block.shortcutterminal.deepslate_silicon_ore": "Deepslate Silicon Ore",
+  "block.shortcutterminal.assembly_bench": "Terminal Assembly Bench",
+  "item.shortcutterminal.iron_shell": "Iron Shell",
+  "item.shortcutterminal.bonding_glue": "Bonding Glue"
 }

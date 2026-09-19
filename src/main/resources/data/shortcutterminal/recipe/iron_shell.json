@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["RRR", "I I", "ICI"],
+  "key": {
+    "R": { "item": "shortcutterminal:refined_iron" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "C": { "item": "shortcutterminal:copper_wire" }
+  },
+  "result": { "id": "shortcutterminal:iron_shell", "count": 1 }
+}

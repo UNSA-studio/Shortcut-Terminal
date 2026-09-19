@@ -10,6 +10,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.block.AssemblyBenchBlock;
 import unsa.st.com.block.LithographyMachineBlock;
 import unsa.st.com.block.MachineCasingBlock;
 
@@ -42,6 +43,13 @@ public class ModBlocks {
                     () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
                             .strength(4.5f, 3.0f).requiresCorrectToolForDrops()));
 
+    /** 制造台：装配终端面板的工作台。 */
+    public static final DeferredBlock<AssemblyBenchBlock> ASSEMBLY_BENCH =
+            BLOCKS.register("assembly_bench",
+                    () -> new AssemblyBenchBlock(
+                            BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                                    .strength(3.0f, 6.0f).requiresCorrectToolForDrops()));
+
     public static final DeferredRegister.Items BLOCK_ITEMS = DeferredRegister.createItems(ShortcutTerminal.MODID);
 
     /** 方块的物品形态（缺失会导致创造栏 asItem()==AIR 崩溃）。 */
@@ -57,6 +65,9 @@ public class ModBlocks {
     public static final DeferredItem<BlockItem> DEEPSLATE_SILICON_ORE_ITEM =
             BLOCK_ITEMS.register("deepslate_silicon_ore",
                     () -> new BlockItem(DEEPSLATE_SILICON_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> ASSEMBLY_BENCH_ITEM =
+            BLOCK_ITEMS.register("assembly_bench",
+                    () -> new BlockItem(ASSEMBLY_BENCH.get(), new Item.Properties()));
 
     public static void register(IEventBus eventBus) {
         BLOCKS.register(eventBus);

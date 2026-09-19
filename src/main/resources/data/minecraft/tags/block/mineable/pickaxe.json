@@ -3,6 +3,7 @@
     "shortcutterminal:lithography_machine",
     "shortcutterminal:machine_casing",
     "shortcutterminal:silicon_ore",
-    "shortcutterminal:deepslate_silicon_ore"
+    "shortcutterminal:deepslate_silicon_ore",
+    "shortcutterminal:assembly_bench"
   ]
 }

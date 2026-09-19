@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["ICI", "CMC", "ICI"],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "C": { "item": "shortcutterminal:circuit_board" },
+    "M": { "item": "shortcutterminal:machine_casing" }
+  },
+  "result": { "id": "shortcutterminal:assembly_bench", "count": 1 }
+}

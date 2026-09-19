@@ -44,5 +44,8 @@
   "item.shortcutterminal.ssd_4tb": "固态硬盘 4 TB",
   "item.shortcutterminal.ssd_16tb": "固态硬盘 16 TB",
   "block.shortcutterminal.silicon_ore": "硅矿石",
-  "block.shortcutterminal.deepslate_silicon_ore": "深层硅矿石"
+  "block.shortcutterminal.deepslate_silicon_ore": "深层硅矿石",
+  "block.shortcutterminal.assembly_bench": "终端制造台",
+  "item.shortcutterminal.iron_shell": "铁壳子",
+  "item.shortcutterminal.bonding_glue": "缝合胶液"
 }

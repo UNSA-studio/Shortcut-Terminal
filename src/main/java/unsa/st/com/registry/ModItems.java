@@ -47,6 +47,14 @@ public class ModItems {
     public static final DeferredItem<Item> POWER_COIL = ITEMS.register("power_coil",
             () -> new Item(new Item.Properties()));
 
+    // ===== Assembly bench parts (CASING → PANEL production chain) =====
+    /** Iron shell: the metal housing of a terminal panel (step 1 of assembly). */
+    public static final DeferredItem<Item> IRON_SHELL = ITEMS.register("iron_shell",
+            () -> new Item(new Item.Properties()));
+    /** Bonding glue: seals the shell and all parts into a finished panel (last step). */
+    public static final DeferredItem<Item> BONDING_GLUE = ITEMS.register("bonding_glue",
+            () -> new Item(new Item.Properties()));
+
     // ===== Processor L1-L9 (produce by lithography machine only) =====
     /** Ladder of processors produced by the lithography machine, shared texture. */
     public static final java.util.Map<Integer, DeferredItem<Item>> PROCESSORS = new java.util.HashMap<>();
