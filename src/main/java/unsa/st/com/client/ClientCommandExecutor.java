@@ -164,7 +164,7 @@ public class ClientCommandExecutor {
     }
 
     private String executeExternalProgram(Path programPath, String[] args) {
-        return "External execution not fully implemented yet.";
+        return unsa.st.com.util.ExternalRunner.run(programPath, java.util.Arrays.asList(args), 30);
     }
 
     private String getHelp() {

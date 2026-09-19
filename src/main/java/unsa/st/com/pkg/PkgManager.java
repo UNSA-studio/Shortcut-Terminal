@@ -288,7 +288,7 @@ public class PkgManager {
         // Android 权限警告
         String warning = "";
         if (isRealAndroid()) {
-            warning = "\n§c[!] You are running on Android. Installed programs will NOT be executable due to system restrictions.\n§c    The files are extracted but cannot be granted execute permission. This is unavoidable.";
+            warning = "\nAndroid: The system you are using is not supported.";
         }
 
         PackageInfo pkg = remoteIndex.get(packageName);

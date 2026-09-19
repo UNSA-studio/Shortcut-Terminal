@@ -177,7 +177,7 @@ public class CoreCommandExecutor {
     }
 
     private String executeExternalProgram(Path programPath, String[] args) {
-        return "External execution not available.";
+        return unsa.st.com.util.ExternalRunner.run(programPath, java.util.Arrays.asList(args), 30);
     }
 
     private String getHelp() {
