@@ -97,32 +97,27 @@ public class WingetManager {
     // ==================== 命令入口 ====================
 
     /**
-     * 命令入口：按运行环境自动分流（与 pkg 的检测方案同款思路）——
-     * ・安卓（AARCH 沙箱）→ 警告 + 内置模拟安装引擎
-     * ・桌面系统且有系统 winget（Windows）→ 直通调用真实 winget.exe
-     * ・其余桌面平台（无 winget）→ 提示 + 内置模拟安装引擎
+     * 命令入口：按运行环境分流——
+     * ・安卓（AARCH 沙箱）→ The system you are using is not supported.
+     * ・桌面且装有系统 winget（Windows）→ 直通真实 winget.exe
+     * ・其余（无 winget）→ 不可用提示（Windows 检查安装 / Linux 用 pkg）
      */
     public static String dispatch(String[] args, boolean isClient, java.util.function.Consumer<String> asyncOutput) {
         if (isRealAndroid()) {
-            String sub = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "";
-            boolean installish = sub.equals("install") || sub.equals("uninstall") || sub.equals("remove")
-                    || sub.equals("upgrade") || sub.equals("add");
-            if (installish) {
-                return "[!] Android environment detected: real system installers cannot be executed here.\n"
-                     + "    Using the built-in installer (files are placed under Program/WindowsApps).\n"
-                     + builtinDispatch(args, isClient);
-            }
-            return builtinDispatch(args, isClient);
+            return "Android: The system you are using is not supported.";
         }
         if (hasHostWinget()) {
             return hostDispatch(args, asyncOutput);
         }
-        String os = System.getProperty("os.name", "unknown");
-        return "[!] No system winget found on this platform (" + os + ") - using the built-in installer.\n"
-             + builtinDispatch(args, isClient);
+        return "Winget is not a usable program.\n"
+             + "If you are using Windows, check if you have winget installed.\n"
+             + "If you are using Linux, use pkg.";
     }
 
-    /** 内置安装引擎的命令分发（安卓及无宿主 winget 的平台使用）。 */
+    /**
+     * 保留的内置安装引擎入口（当前平台策略下不自动触发）。
+     * 若未来需要"在无 winget 环境提供内置体验"，可重新接回 dispatch。
+     */
     private static String builtinDispatch(String[] args, boolean isClient) {
         if (args.length == 0) return getHelp();
         switch (args[0].toLowerCase(Locale.ROOT)) {
