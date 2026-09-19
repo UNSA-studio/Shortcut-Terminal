@@ -5,26 +5,19 @@ To honour the JVM settings for this build a single-use Daemon process will be fo
 Daemon will be stopped at the end of the build 
 
 > Task :createMinecraftArtifacts
-Performing periodic cache maintenance on /home/runner/.gradle/caches/neoformruntime
-Cleaning intermediate results cache in /home/runner/.gradle/caches/neoformruntime/intermediate_results
- Maximum age: 744h
- Maximum cache size: 1 GiB
- [0;2;3m37 files found[0m
- [0;2;3m210 MiB overall size[0m
- [0;2;3m0 expired keys found[0m
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
- [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.01s
+ [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
 [1m*** Started working on [4mdownloadServer[0m[0m
-[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
+[1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.05s
 [1m*** Started working on [4mmergeMappings[0m[0m
- [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
+ [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.01s
 [1m*** Started working on [4mstripClient[0m[0m
  [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mextractServer[0m[0m
@@ -53,13 +46,13 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 0.99s
+Total runtime: 1.68s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
-                                                                                                    ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
+                    int players = lvl.getPlayers(p -> true).size();
+                                                 ^
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
@@ -67,7 +60,7 @@ Note: Recompile with -Xlint:unchecked for details.
 1 error
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1789808684654.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1789813277883.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -76,13 +69,13 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
-              try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
-                                                                                                      ^
   Note: Recompile with -Xlint:deprecation for details.
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
+                      int players = lvl.getPlayers(p -> true).size();
+                                                   ^
   1 error
 
 * Try:
@@ -125,13 +118,13 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/winget/WingetManager.java:266: error: local variables referenced from a lambda expression must be final or effectively final
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
-                                                                                                    ^
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
+                    int players = lvl.getPlayers(p -> true).size();
+                                                 ^
 1 error
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
@@ -256,6 +249,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 18s
+BUILD FAILED in 20s
 2 actionable tasks: 2 executed
 ```
