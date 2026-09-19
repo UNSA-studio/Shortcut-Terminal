@@ -18,6 +18,9 @@ public final class HardwareSpec {
     public static final int DEFAULT_SCROLLBACK = 200;
     public static final long DEFAULT_QUOTA_CHARS = 4096;
 
+    /** 每个终端窗口的基础内存开销（KB）——即使不执行任何指令也常驻。 */
+    public static final int WINDOW_OVERHEAD_KB = 10;
+
     // ==================== NBT 读写（与处理器同通道） ====================
 
     public static void installRam(ItemStack panel, int ramMb) {
@@ -102,6 +105,21 @@ public final class HardwareSpec {
         return ssdGb * 1024L;
     }
 
+    /** RAM 容量 → 最大终端窗口数（每个窗口常驻占用 {@link #WINDOW_OVERHEAD_KB} KB）。 */
+    public static int maxWindows(int ramMb) {
+        if (ramMb >= 262144) return 8;
+        if (ramMb >= 65536) return 6;
+        if (ramMb >= 16384) return 4;
+        if (ramMb >= 4096) return 3;
+        if (ramMb >= 1024) return 2;
+        return 1;
+    }
+
+    /** 当前窗口数占用的内存记账（KB）。 */
+    public static int windowMemoryKb(int windows) {
+        return Math.max(0, windows) * WINDOW_OVERHEAD_KB;
+    }
+
     // ==================== 显示格式化 ====================
 
     public static String formatRam(int mb) {
@@ -126,14 +144,19 @@ public final class HardwareSpec {
 
     /** df 报告（由调用方提供数据，避免客户端依赖）。 */
     public static String dfReport(long quotaChars, long usedChars, int ramMb) {
+        return dfReport(quotaChars, usedChars, ramMb, 1);
+    }
+
+    /** df 报告（含窗口内存记账）。 */
+    public static String dfReport(long quotaChars, long usedChars, int ramMb, int windows) {
         long avail = Math.max(0, quotaChars - usedChars);
         int pct = quotaChars > 0 ? (int) (usedChars * 100 / quotaChars) : 0;
         StringBuilder sb = new StringBuilder();
         sb.append("Filesystem      Size    Used    Avail   Use% Mounted on\n");
         sb.append(String.format(Locale.ROOT, "/dev/ssd0       %-7s %-7s %-7s %3d%% /",
                 formatChars(quotaChars), formatChars(usedChars), formatChars(avail), pct));
-        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (scrollback %d lines)",
-                formatRam(ramMb), scrollbackLimit(ramMb)));
+        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (scrollback %d lines, %d/%d windows @ %d KB)",
+                formatRam(ramMb), scrollbackLimit(ramMb), windows, maxWindows(ramMb), WINDOW_OVERHEAD_KB));
         return sb.toString();
     }
 }

@@ -48,11 +48,30 @@ public final class ClientHardware {
         return HardwareSpec.storageQuotaChars(clientSsdGb());
     }
 
+    /** 当前生效的最大终端窗口数（受 RAM 限制）。 */
+    public static int maxWindows() {
+        return HardwareSpec.maxWindows(clientRamMb());
+    }
+
+    /** 当前打开的终端窗口数（无界面时按 1 计）。 */
+    public static int currentWindowCount() {
+        try {
+            return unsa.st.com.gui.TerminalScreen.windowCount();
+        } catch (Throwable t) {
+            return 1;
+        }
+    }
+
+    /** 当前窗口常驻内存记账（KB）。 */
+    public static int windowMemoryKb() {
+        return HardwareSpec.windowMemoryKb(currentWindowCount());
+    }
+
     /** 客户端 df 报告。 */
     public static String dfReport(String playerName) {
         long quota = storageQuotaChars();
         long used = 0;
         try { used = ClientVirtualFileSystem.totalChars(playerName); } catch (Throwable ignored) {}
-        return HardwareSpec.dfReport(quota, used, clientRamMb());
+        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount());
     }
 }

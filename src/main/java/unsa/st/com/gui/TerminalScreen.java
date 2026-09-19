@@ -46,6 +46,11 @@ public class TerminalScreen extends Screen {
     private int historyIndex = -1;
     private String currentPrompt = "~ $ ";
     private static TerminalScreen instance;
+
+    /** 顶部标签栏每帧重建的点击区：{startX, width}。 */
+    private final List<int[]> tabBounds = new ArrayList<>();
+    /** "+"（新建窗口）按钮的起始 X；-1 表示尚未绘制。 */
+    private int addTabX = -1;
     
     private ClientCommandExecutor executor;
     private String playerName;
@@ -123,19 +128,37 @@ public class TerminalScreen extends Screen {
     }
     
     private void newSession() {
+        int max = unsa.st.com.client.ClientHardware.maxWindows();
+        if (sessions.size() >= max) {
+            appendLine("RAM full: cannot open another window (" + sessions.size() + "/" + max
+                    + " windows, " + unsa.st.com.compute.HardwareSpec.WINDOW_OVERHEAD_KB
+                    + " KB each) - install a bigger RAM module.");
+            saveCurrentSession();
+            scrollOffset = Double.MAX_VALUE;
+            return;
+        }
         SessionData newData = TerminalSessionManager.createSession(playerName);
         sessions.add(newData);
         TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(sessions.size() - 1);
     }
-    
-    private void deleteCurrentSession() {
-        if (sessions.size() <= 1) return;
-        sessions.remove(currentSessionIndex);
+
+    /** 关闭指定窗口；关闭当前窗口时自动切到相邻窗口。 */
+    private void closeSession(int index) {
+        if (sessions.size() <= 1 || index < 0 || index >= sessions.size()) return;
+        if (executor != null) {
+            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
+            executor = null; // 阻止 loadSession 再把状态写回已删除的窗口
+        }
+        sessions.remove(index);
         for (int i = 0; i < sessions.size(); i++) sessions.get(i).index = i;
         if (currentSessionIndex >= sessions.size()) currentSessionIndex = sessions.size() - 1;
         TerminalSessionManager.saveCurrentSessions(playerName, sessions);
         loadSession(currentSessionIndex);
+    }
+
+    private void deleteCurrentSession() {
+        closeSession(currentSessionIndex);
     }
 
     // ==================== 启动动画 ====================
@@ -176,10 +199,11 @@ public class TerminalScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         guiGraphics.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + GUI_HEIGHT, BG_COLOR);
         guiGraphics.renderOutline(leftPos, topPos, GUI_WIDTH, GUI_HEIGHT, BORDER_COLOR);
+        renderTabBar(guiGraphics);
 
         int outputStartX = leftPos + PADDING;
-        int outputStartY = topPos + PADDING;
-        int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
+        int outputStartY = terminalOutputTop();
+        int outputHeight = terminalOutputHeight();
         int lineHeight = this.font.lineHeight + 1;
         int maxVisibleLines = outputHeight / lineHeight;
         
@@ -225,13 +249,90 @@ public class TerminalScreen extends Screen {
             this.commandInput.setVisible(true);
         }
         
-        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + "]";
+        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + " win]";
         int infoWidth = this.font.width(sessionInfo);
         guiGraphics.drawString(this.font, sessionInfo, 
                 leftPos + GUI_WIDTH - PADDING - infoWidth - SCROLLBAR_WIDTH, 
                 topPos + GUI_HEIGHT - this.font.lineHeight - PADDING, 0xFFAAAAAA);
         
         super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    // ==================== 顶部标签栏（Windows Terminal 风格） ====================
+
+    /** 标签栏高度。 */
+    private int tabBarHeight() { return this.font.lineHeight + 6; }
+
+    /** 输出区域顶部 Y。 */
+    private int terminalOutputTop() { return topPos + tabBarHeight() + PADDING; }
+
+    /** 输出区域高度。 */
+    private int terminalOutputHeight() {
+        return GUI_HEIGHT - tabBarHeight() - this.font.lineHeight - 4 * PADDING;
+    }
+
+    /** 绘制顶部标签栏：可点击切换 / 关闭窗口，"+" 新建窗口。 */
+    private void renderTabBar(GuiGraphics g) {
+        int tabH = tabBarHeight();
+        g.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + tabH, 0xFF141414);
+        g.fill(leftPos, topPos + tabH - 1, leftPos + GUI_WIDTH, topPos + tabH, 0xFF444444);
+
+        int addW = 14;
+        int avail = GUI_WIDTH - addW - 6;
+        int n = Math.max(1, sessions.size());
+        int tabW = Math.min(88, Math.max(24, avail / n));
+        if (tabW * n > avail) tabW = Math.max(18, avail / n);
+
+        tabBounds.clear();
+        int x = leftPos + 2;
+        for (int i = 0; i < sessions.size(); i++) {
+            boolean active = i == currentSessionIndex;
+            g.fill(x, topPos + 2, x + tabW, topPos + tabH - 3, active ? 0xFF2C2C2C : 0xFF0A0A0A);
+            if (active) g.fill(x, topPos + 2, x + tabW, topPos + 3, 0xFF55FFFF);
+            String label = trimToWidth(tabLabel(i), tabW - 16);
+            g.drawString(this.font, label, x + 4, topPos + (tabH - this.font.lineHeight) / 2,
+                    active ? 0xFFFFFFFF : 0xFF808080);
+            g.drawString(this.font, "x", x + tabW - 9, topPos + (tabH - this.font.lineHeight) / 2,
+                    active ? 0xFFFF8888 : 0xFF777777);
+            tabBounds.add(new int[]{x, tabW});
+            x += tabW + 1;
+        }
+        this.addTabX = x;
+        g.fill(x, topPos + 2, x + addW, topPos + tabH - 3, 0xFF1C1C1C);
+        g.drawString(this.font, "+", x + 5, topPos + (tabH - this.font.lineHeight) / 2, 0xFFCCCCCC);
+    }
+
+    /** 标签标题：序号 + 当前目录名。 */
+    private String tabLabel(int i) {
+        String path = (i == currentSessionIndex && executor != null)
+                ? executor.getCurrentPath() : sessions.get(i).currentPath;
+        if (path == null || path.isEmpty()) path = "/";
+        String name = path.equals("/") ? "/" : path.substring(path.lastIndexOf('/') + 1);
+        if (name.isEmpty()) name = "/";
+        return (i + 1) + ": " + name;
+    }
+
+    /** 按像素宽度裁剪字符串（超出加省略号）。 */
+    private String trimToWidth(String s, int maxWidth) {
+        if (maxWidth <= 0) return "";
+        if (this.font.width(s) <= maxWidth) return s;
+        String ell = "..";
+        int ew = this.font.width(ell);
+        StringBuilder sb = new StringBuilder();
+        int w = 0;
+        for (int i = 0; i < s.length(); i++) {
+            String c = String.valueOf(s.charAt(i));
+            int cw = this.font.width(c);
+            if (w + cw + ew > maxWidth) break;
+            sb.append(c);
+            w += cw;
+        }
+        return sb + ell;
+    }
+
+    /** 当前打开的窗口数量（硬件统计用）。 */
+    public static int windowCount() {
+        return instance == null || instance.sessions == null ? 1 : instance.sessions.size();
     }
 
     public boolean isMouseOver(double mouseX, double mouseY) {
@@ -249,10 +350,25 @@ public class TerminalScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && mouseY >= topPos && mouseY <= topPos + tabBarHeight()) {
+            if (addTabX >= 0 && mouseX >= addTabX && mouseX <= addTabX + 14) {
+                newSession();
+                return true;
+            }
+            for (int i = 0; i < tabBounds.size(); i++) {
+                int[] b = tabBounds.get(i);
+                if (mouseX >= b[0] && mouseX <= b[0] + b[1]) {
+                    if (mouseX >= b[0] + b[1] - 11) closeSession(i);
+                    else loadSession(i);
+                    return true;
+                }
+            }
+            return true;
+        }
         if (button == 0) {
             int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
-            int outputStartY = topPos + PADDING;
-            int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
+            int outputStartY = terminalOutputTop();
+            int outputHeight = terminalOutputHeight();
             if (mouseX >= scrollbarX && mouseX <= scrollbarX + SCROLLBAR_WIDTH && mouseY >= outputStartY && mouseY <= outputStartY + outputHeight) {
                 isDraggingScrollbar = true;
                 return true;
@@ -270,7 +386,7 @@ public class TerminalScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (isDraggingScrollbar) {
-            int outputHeight = GUI_HEIGHT - this.font.lineHeight - 4 * PADDING;
+            int outputHeight = terminalOutputHeight();
             int totalContentHeight = outputLines.size() * (this.font.lineHeight + 1);
             int maxScroll = Math.max(0, totalContentHeight - outputHeight);
             float ratio = (float)(mouseY - topPos - PADDING) / outputHeight;
@@ -300,6 +416,14 @@ public class TerminalScreen extends Screen {
         }
         
         if (ctrl) {
+            if (keyCode == GLFW.GLFW_KEY_T) {
+                newSession();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_W) {
+                closeSession(currentSessionIndex);
+                return true;
+            }
             if (keyCode == GLFW.GLFW_KEY_X) {
                 if (!ctrlXPressed) { ctrlXPressed = true; newSession(); }
                 return true;
