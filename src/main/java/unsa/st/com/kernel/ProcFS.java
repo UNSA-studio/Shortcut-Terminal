@@ -229,7 +229,7 @@ public final class ProcFS {
                 sb.append("--------------------------------------------------\n");
                 for (ServerLevel lvl : allLevels()) {
                     long entities = countEntities(lvl);
-                    int players = lvl.getPlayers(p -> true).size();
+                    int players = lvl.getPlayers(pl -> true).size();
                     sb.append(String.format("%-32s %8s %8d\n", dimName(lvl),
                             entities >= 0 ? String.valueOf(entities) : "n/a", players));
                 }
