@@ -96,7 +96,34 @@ public class WingetManager {
 
     // ==================== 命令入口 ====================
 
-    public static String dispatch(String[] args, boolean isClient) {
+    /**
+     * 命令入口：按运行环境自动分流（与 pkg 的检测方案同款思路）——
+     * ・安卓（AARCH 沙箱）→ 警告 + 内置模拟安装引擎
+     * ・桌面系统且有系统 winget（Windows）→ 直通调用真实 winget.exe
+     * ・其余桌面平台（无 winget）→ 提示 + 内置模拟安装引擎
+     */
+    public static String dispatch(String[] args, boolean isClient, java.util.function.Consumer<String> asyncOutput) {
+        if (isRealAndroid()) {
+            String sub = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "";
+            boolean installish = sub.equals("install") || sub.equals("uninstall") || sub.equals("remove")
+                    || sub.equals("upgrade") || sub.equals("add");
+            if (installish) {
+                return "[!] Android environment detected: real system installers cannot be executed here.\n"
+                     + "    Using the built-in installer (files are placed under Program/WindowsApps).\n"
+                     + builtinDispatch(args, isClient);
+            }
+            return builtinDispatch(args, isClient);
+        }
+        if (hasHostWinget()) {
+            return hostDispatch(args, asyncOutput);
+        }
+        String os = System.getProperty("os.name", "unknown");
+        return "[!] No system winget found on this platform (" + os + ") - using the built-in installer.\n"
+             + builtinDispatch(args, isClient);
+    }
+
+    /** 内置安装引擎的命令分发（安卓及无宿主 winget 的平台使用）。 */
+    private static String builtinDispatch(String[] args, boolean isClient) {
         if (args.length == 0) return getHelp();
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "install":   return install(args, isClient);
@@ -112,6 +139,165 @@ public class WingetManager {
         }
     }
 
+    // ==================== 系统 winget 直通（桌面平台） ====================
+
+    /** 安卓环境检测（与 PkgManager 同款特征组合，避免误判 Linux 桌面）。 */
+    private static boolean isRealAndroid() {
+        String javaVendor = System.getProperty("java.vendor", "").toLowerCase(Locale.ROOT);
+        String javaVmName = System.getProperty("java.vm.name", "").toLowerCase(Locale.ROOT);
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String androidRoot = System.getenv("ANDROID_ROOT");
+        String androidData = System.getenv("ANDROID_DATA");
+        return javaVendor.contains("android") || javaVmName.contains("dalvik") || osName.contains("android")
+                || (androidRoot != null && !androidRoot.isEmpty())
+                || (androidData != null && !androidData.isEmpty());
+    }
+
+    /** 系统 winget 探测结果缓存（null=未检测）。 */
+    private static volatile Boolean hostWingetAvailable = null;
+
+    /** 当前平台的 winget 命令名。 */
+    private static List<String> hostWingetCmd() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        List<String> cmd = new ArrayList<>();
+        cmd.add(os.contains("win") ? "winget.exe" : "winget");
+        return cmd;
+    }
+
+    /** 探测系统是否装有真实 winget。 */
+    private static synchronized boolean hasHostWinget() {
+        if (hostWingetAvailable != null) return hostWingetAvailable;
+        boolean found = false;
+        try {
+            List<String> probe = hostWingetCmd();
+            probe.add("--version");
+            Process p = new ProcessBuilder(probe).redirectErrorStream(true).start();
+            try { p.getOutputStream().close(); } catch (IOException ignored) {}
+            boolean done = p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+            if (!done) {
+                p.destroyForcibly();
+            } else {
+                found = p.exitValue() == 0;
+            }
+        } catch (Exception ignored) {}
+        hostWingetAvailable = found;
+        return found;
+    }
+
+    /** 直通执行系统 winget：快命令同步返回；安装类命令后台执行、完成后经回调送回输出。 */
+    private static String hostDispatch(String[] args, java.util.function.Consumer<String> asyncOutput) {
+        if (args.length == 0) {
+            return "Microsoft winget (system passthrough)\n" +
+                   "winget search <kw> | install <id> [--location <dir>] | list | uninstall <id> | upgrade [--all]";
+        }
+        String sub = args[0].toLowerCase(Locale.ROOT);
+        List<String> cmd = hostWingetCmd();
+        for (String a : args) cmd.add(a);
+
+        // 安装类命令补齐无交互参数（自动化，无需点击）：
+        //   --accept-package-agreements / --accept-source-agreements / --disable-interactivity
+        boolean mutating = sub.equals("install") || sub.equals("upgrade")
+                || sub.equals("uninstall") || sub.equals("add");
+        if (mutating) {
+            boolean hasAccept = false, hasSrc = false, hasNoInteract = false;
+            for (String a : args) {
+                String l = a.toLowerCase(Locale.ROOT);
+                if (l.startsWith("--accept-package-agreements")) hasAccept = true;
+                if (l.startsWith("--accept-source-agreements")) hasSrc = true;
+                if (l.startsWith("--disable-interactivity")) hasNoInteract = true;
+            }
+            if (!hasAccept) cmd.add("--accept-package-agreements");
+            if (!hasSrc) cmd.add("--accept-source-agreements");
+            if (!hasNoInteract) cmd.add("--disable-interactivity");
+        }
+
+        boolean fast = sub.equals("search") || sub.equals("list") || sub.equals("show")
+                || sub.equals("source") || sub.equals("--version") || sub.equals("-v")
+                || sub.equals("--info") || sub.equals("help") || sub.equals("configure")
+                || sub.equals("features");
+        if (fast) {
+            try {
+                return "[system winget]\n" + runHostProcess(new ArrayList<>(cmd), 30);
+            } catch (Exception e) {
+                return "winget failed: " + e.getMessage();
+            }
+        }
+
+        final List<String> bgCmd = new ArrayList<>(cmd);
+        if (asyncOutput == null) {
+            try {
+                return runHostProcess(bgCmd, 600);
+            } catch (Exception e) {
+                return "winget failed: " + e.getMessage();
+            }
+        }
+        Thread worker = new Thread(() -> {
+            String out;
+            try {
+                out = runHostProcess(bgCmd, 600);
+            } catch (Exception e) {
+                out = "winget failed: " + e.getMessage();
+            }
+            asyncOutput.accept(out);
+        }, "ShortcutTerminal-HostWinget");
+        worker.setDaemon(true);
+        worker.start();
+        return "winget " + args[0] + " is running on the system in the background...\n"
+             + "This may take a while; output will appear here when finished.";
+    }
+
+    /** 运行宿主进程并收集输出；timeoutSec<=0 表示不限时。 */
+    private static String runHostProcess(List<String> cmd, int timeoutSec) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        try { proc.getOutputStream().close(); } catch (IOException ignored) {}
+
+        java.nio.charset.Charset cs;
+        String override = System.getProperty("st.winget.charset");
+        if (override != null && !override.isEmpty()) {
+            try { cs = java.nio.charset.Charset.forName(override); } catch (Exception e) { cs = java.nio.charset.Charset.defaultCharset(); }
+        } else {
+            cs = java.nio.charset.Charset.defaultCharset();
+        }
+
+        final List<String> lines = new ArrayList<>();
+        Thread reader = new Thread(() -> {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), cs))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    synchronized (lines) {
+                        if (lines.size() < 500) lines.add(line);
+                    }
+                }
+            } catch (IOException ignored) {}
+        }, "ShortcutTerminal-HostWinget-Reader");
+        reader.setDaemon(true);
+        reader.start();
+
+        boolean finished;
+        if (timeoutSec <= 0) {
+            proc.waitFor();
+            finished = true;
+        } else {
+            finished = proc.waitFor(timeoutSec, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        StringBuilder sb = new StringBuilder();
+        if (!finished) {
+            proc.destroyForcibly();
+            proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            sb.append("Error: winget timed out after ").append(timeoutSec).append("s and was killed.\n");
+        }
+        reader.join(3000);
+        int code = -1;
+        try { code = proc.exitValue(); } catch (IllegalThreadStateException ignored) {}
+        sb.append("[winget exit code: ").append(code).append(']');
+        synchronized (lines) {
+            for (String l : lines) sb.append('\n').append(l);
+        }
+        return sb.toString();
+    }
+
     public static String getHelp() {
         return "winget install <id> [options]\n" +
                "    --location <dir> / -l   custom install directory (inside game dir)\n" +
@@ -125,7 +311,9 @@ public class WingetManager {
                "winget show <id>       - show application details\n" +
                "winget update          - refresh the source catalog\n" +
                "winget source list     - list mirrors\n" +
-               "winget source set <id> - switch mirror";
+               "winget source set <id> - switch mirror\n" +
+               "NOTE: on desktop systems with Microsoft winget installed, these commands\n" +
+               "      are passed through to the system winget automatically.";
     }
 
     // ==================== 源管理 ====================

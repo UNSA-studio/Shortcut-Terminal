@@ -140,7 +140,13 @@ public class CoreCommandExecutor {
             case "sh": return executeSh(args);
             case "refresh": return executeRefresh(args);
             case "pkg": return executePkg(args);
-            case "winget": return unsa.st.com.winget.WingetManager.dispatch(args, isClient);
+            case "winget": return unsa.st.com.winget.WingetManager.dispatch(args, isClient, result -> {
+                var server = ServerLifecycleHooks.getCurrentServer();
+                if (server != null && playerUuid != null) {
+                    var p = server.getPlayerList().getPlayer(playerUuid);
+                    if (p != null) p.sendSystemMessage(net.minecraft.network.chat.Component.literal(result));
+                }
+            });
             case "macro": return executeMacro(args);
             case "run": return executeRun(args);
             case "User": return executeUser(args);

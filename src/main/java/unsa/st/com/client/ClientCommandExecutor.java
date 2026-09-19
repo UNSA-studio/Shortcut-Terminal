@@ -222,9 +222,14 @@ public class ClientCommandExecutor {
         }
     }
 
-    // ========== WINGET (built-in package manager) ==========
+    // ========== WINGET (system passthrough on desktop / built-in on Android) ==========
     private String executeWinget(String[] args) {
-        return unsa.st.com.winget.WingetManager.dispatch(args, true);
+        return unsa.st.com.winget.WingetManager.dispatch(args, true, result -> {
+            Minecraft.getInstance().execute(() -> {
+                TerminalScreen screen = TerminalScreen.getInstance();
+                if (screen != null) screen.addOutputLine(result);
+            });
+        });
     }
 
     // ========== RUN ==========
