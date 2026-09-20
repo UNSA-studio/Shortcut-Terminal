@@ -255,7 +255,9 @@ public class TerminalScreen extends Screen {
             this.commandInput.setVisible(true);
         }
         
-        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + " win]";
+        int ramPct = unsa.st.com.compute.HardwareSpec.windowUsagePercent(totalUsedLines(),
+                unsa.st.com.client.ClientHardware.totalMemoryCapacityLines());
+        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + " win] RAM " + ramPct + "%";
         int infoWidth = this.font.width(sessionInfo);
         guiGraphics.drawString(this.font, sessionInfo, 
                 leftPos + GUI_WIDTH - PADDING - infoWidth - SCROLLBAR_WIDTH, 
@@ -341,17 +343,17 @@ public class TerminalScreen extends Screen {
         return instance == null || instance.sessions == null ? 1 : instance.sessions.size();
     }
 
-    /** 所有窗口中最高的一份输出行数（RAM 压力判定用）。 */
-    public static int maxUsedLines() {
+    /** 全部窗口的输出行数总和（RAM 总占用判定用）。 */
+    public static int totalUsedLines() {
         if (instance == null || instance.sessions == null) return 0;
         int idx = instance.currentSessionIndex;
-        int max = instance.outputLines != null ? instance.outputLines.size() : 0;
+        int total = instance.outputLines != null ? instance.outputLines.size() : 0;
         for (int i = 0; i < instance.sessions.size(); i++) {
             if (i == idx) continue;
             java.util.List<String> lines = instance.sessions.get(i).outputLines;
-            if (lines != null) max = Math.max(max, lines.size());
+            if (lines != null) total += lines.size();
         }
-        return max;
+        return total;
     }
 
     public boolean isMouseOver(double mouseX, double mouseY) {

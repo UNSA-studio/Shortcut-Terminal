@@ -85,7 +85,7 @@ public class TerminalPanelItem extends Item {
         }
         int ramMb = HardwareSpec.getRamMb(stack);
         tooltip.add(Component.literal(ramMb > 0 ? "RAM: " + HardwareSpec.formatRam(ramMb)
-                + " (" + HardwareSpec.windowCapacityLines(ramMb) + " lines/window, "
+                + " (" + HardwareSpec.totalMemoryCapacityLines(ramMb) + " lines total, "
                 + HardwareSpec.RAM_PRESSURE_PERCENT + "% pressure limit)"
                 : "No RAM module - right-click with a RAM module to install"));
         int ssdGb = HardwareSpec.getSsdGb(stack);
@@ -112,7 +112,7 @@ public class TerminalPanelItem extends Item {
             other.shrink(1);
             HardwareSpec.installRam(panel, ramMb);
             player.displayClientMessage(Component.literal("STOS: installed RAM " + HardwareSpec.formatRam(ramMb)
-                    + " (window capacity " + HardwareSpec.windowCapacityLines(ramMb) + " lines)"), false);
+                    + " (memory capacity " + HardwareSpec.totalMemoryCapacityLines(ramMb) + " lines total)"), false);
             return net.minecraft.world.InteractionResultHolder.sidedSuccess(panel, false);
         }
         int ssdGb = HardwareSpec.ssdGbOfItem(other);

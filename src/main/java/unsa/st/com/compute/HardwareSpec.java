@@ -105,12 +105,12 @@ public final class HardwareSpec {
         return ssdGb * 1024L;
     }
 
-    /** 每个窗口的内存容量（行）——RAM 越大，单个窗口能装的输出越多。 */
-    public static int windowCapacityLines(int ramMb) {
+    /** RAM 总内存容量（行）——所有窗口输出行数之和的上限。 */
+    public static int totalMemoryCapacityLines(int ramMb) {
         return scrollbackLimit(ramMb);
     }
 
-    /** RAM 压力阈值：任一窗口容量使用率超过该百分比，就不允许再开新窗口。 */
+    /** RAM 压力阈值：全部窗口总占用超过该百分比，就不允许再开新窗口。 */
     public static final int RAM_PRESSURE_PERCENT = 80;
 
     /** 内存使用率（百分比，可能超过 100）。 */
@@ -119,9 +119,9 @@ public final class HardwareSpec {
         return (int) (usedLines * 100L / capacityLines);
     }
 
-    /** 窗口是否已造成内存压力（使用率 ≥ 80%）。 */
-    public static boolean ramUnderPressure(int maxUsedLines, int capacityLines) {
-        return windowUsagePercent(maxUsedLines, capacityLines) >= RAM_PRESSURE_PERCENT;
+    /** 全部窗口是否已造成内存压力（总占用 ≥ 80% 容量）。 */
+    public static boolean ramUnderPressure(int totalUsedLines, int capacityLines) {
+        return windowUsagePercent(totalUsedLines, capacityLines) >= RAM_PRESSURE_PERCENT;
     }
 
     /** 当前窗口数占用的内存记账（KB）。 */
@@ -156,17 +156,17 @@ public final class HardwareSpec {
         return dfReport(quotaChars, usedChars, ramMb, 1, 0);
     }
 
-    /** df 报告（含窗口内存记账：CPU 线程数决定窗口上限，RAM 决定每窗口容量）。 */
-    public static String dfReport(long quotaChars, long usedChars, int ramMb, int windows, int maxUsedLines) {
+    /** df 报告（含窗口内存记账：CPU 线程数决定窗口上限，RAM 是全部窗口的总内存容量）。 */
+    public static String dfReport(long quotaChars, long usedChars, int ramMb, int windows, int totalUsedLines) {
         long avail = Math.max(0, quotaChars - usedChars);
         int pct = quotaChars > 0 ? (int) (usedChars * 100 / quotaChars) : 0;
         StringBuilder sb = new StringBuilder();
         sb.append("Filesystem      Size    Used    Avail   Use% Mounted on\n");
         sb.append(String.format(Locale.ROOT, "/dev/ssd0       %-7s %-7s %-7s %3d%% /",
                 formatChars(quotaChars), formatChars(usedChars), formatChars(avail), pct));
-        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (%d lines/window, %d windows, %d%% used)",
-                formatRam(ramMb), windowCapacityLines(ramMb), windows,
-                windowUsagePercent(maxUsedLines, windowCapacityLines(ramMb))));
+        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (%d lines total, %d windows, %d%% used)",
+                formatRam(ramMb), totalMemoryCapacityLines(ramMb), windows,
+                windowUsagePercent(totalUsedLines, totalMemoryCapacityLines(ramMb))));
         return sb.toString();
     }
 }

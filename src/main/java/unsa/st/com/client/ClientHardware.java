@@ -64,9 +64,9 @@ public final class ClientHardware {
         return ComputePolicy.threads(clientProcessorLevel());
     }
 
-    /** 每个窗口的内存容量（行）。 */
-    public static int windowCapacityLines() {
-        return HardwareSpec.windowCapacityLines(clientRamMb());
+    /** RAM 总内存容量（行）：所有窗口输出行数之和的上限。 */
+    public static int totalMemoryCapacityLines() {
+        return HardwareSpec.totalMemoryCapacityLines(clientRamMb());
     }
 
     /** 当前打开的窗口数（无界面时按 1 计）。 */
@@ -78,10 +78,10 @@ public final class ClientHardware {
         }
     }
 
-    /** 所有窗口中最高的一份输出行数（无界面时为 0）。 */
-    public static int maxUsedLines() {
+    /** 全部窗口的输出行数总和（无界面时为 0）。 */
+    public static int totalUsedLines() {
         try {
-            return unsa.st.com.gui.TerminalScreen.maxUsedLines();
+            return unsa.st.com.gui.TerminalScreen.totalUsedLines();
         } catch (Throwable t) {
             return 0;
         }
@@ -92,9 +92,9 @@ public final class ClientHardware {
         return HardwareSpec.windowMemoryKb(currentWindowCount());
     }
 
-    /** 是否存在窗口已用满 80% 内存容量。 */
+    /** 全部窗口总占用是否已用满 80% RAM 总容量。 */
     public static boolean ramUnderPressure() {
-        return HardwareSpec.ramUnderPressure(maxUsedLines(), windowCapacityLines());
+        return HardwareSpec.ramUnderPressure(totalUsedLines(), totalMemoryCapacityLines());
     }
 
     /** 客户端 df 报告。 */
@@ -102,6 +102,6 @@ public final class ClientHardware {
         long quota = storageQuotaChars();
         long used = 0;
         try { used = ClientVirtualFileSystem.totalChars(playerName); } catch (Throwable ignored) {}
-        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount(), maxUsedLines());
+        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount(), totalUsedLines());
     }
 }
