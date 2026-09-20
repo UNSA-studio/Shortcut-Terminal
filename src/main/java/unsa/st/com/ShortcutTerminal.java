@@ -34,10 +34,18 @@ public class ShortcutTerminal {
         ModBlockEntities.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         
+        // —— dist 安全：以下初始化全部只用服务端/common API，专用服务器可安全执行 ——
         BinaryPluginManager.init();
         OfflineTeleportManager.init();
         RemoteControlManager.init();
         TerminalIdManager.init();
+
+        // 客户端专属初始化必须放在 dist 检查里（专用服务器不得加载 net.minecraft.client.*）
+        if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
+            LOGGER.info("Shortcut Terminal: client dist detected, client-only systems enabled");
+        } else {
+            LOGGER.info("Shortcut Terminal: dedicated server dist, client-only systems skipped");
+        }
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new PlayerJoinHandler());

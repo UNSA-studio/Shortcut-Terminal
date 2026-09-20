@@ -7,7 +7,6 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.DirectionalPayloadHandler;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import unsa.st.com.ShortcutTerminal;
-import unsa.st.com.gui.TerminalScreen;
 import unsa.st.com.core.CoreCommandExecutor;
 
 public class ModPackets {
@@ -38,7 +37,7 @@ public class ModPackets {
                 CommandResultPayload.STREAM_CODEC,
                 new DirectionalPayloadHandler<>(
                         (payload, context) -> context.enqueueWork(() -> {
-                            TerminalScreen.receiveCommandResult(payload.result());
+                            unsa.st.com.client.ClientPayloadHandler.onCommandResult(payload.result());
                         }),
                         (payload, context) -> {}
                 )

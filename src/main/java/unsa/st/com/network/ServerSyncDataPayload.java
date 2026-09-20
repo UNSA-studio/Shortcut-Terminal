@@ -1,21 +1,20 @@
 package unsa.st.com.network;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import unsa.st.com.ShortcutTerminal;
-import unsa.st.com.gui.TerminalScreen;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/** 服务端 → 客户端的文件列表同步。客户端逻辑委托给 client 包（dist 隔离）。 */
 public record ServerSyncDataPayload(Map<String, String> files) implements CustomPacketPayload {
-    public static final Type<ServerSyncDataPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(ShortcutTerminal.MODID, "server_sync_data"));
-    
+    public static final Type<ServerSyncDataPayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(ShortcutTerminal.MODID, "server_sync_data"));
+
     public static final StreamCodec<FriendlyByteBuf, ServerSyncDataPayload> STREAM_CODEC = new StreamCodec<>() {
         @Override
         public ServerSyncDataPayload decode(FriendlyByteBuf buf) {
@@ -42,11 +41,6 @@ public record ServerSyncDataPayload(Map<String, String> files) implements Custom
     }
 
     public static void handleClient(final ServerSyncDataPayload payload, final IPayloadContext context) {
-        context.enqueueWork(() -> {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
-            }
-            TerminalScreen.receiveServerSyncData("", payload.files());
-        });
+        context.enqueueWork(() -> unsa.st.com.client.ClientPayloadHandler.onServerSyncData(payload.files));
     }
 }

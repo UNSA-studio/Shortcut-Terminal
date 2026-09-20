@@ -15,7 +15,7 @@ import unsa.st.com.client.ClientVirtualFileSystem;
 import unsa.st.com.filesystem.UserFileSystem;
 import unsa.st.com.pkg.PkgManager;
 import unsa.st.com.plugin.BinaryPluginManager;
-import unsa.st.com.dummy.PlayerMacroManager;
+import unsa.st.com.client.PlayerMacroManager;
 import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.api.ShortcutTerminalAPI;
 import unsa.st.com.kernel.KernelCommands;

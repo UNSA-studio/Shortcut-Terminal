@@ -3,7 +3,6 @@ package unsa.st.com.pkg;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
@@ -72,12 +71,9 @@ public class PkgManager {
     }
 
     public static Path getGameDir(boolean isClient) {
-        if (isClient) {
-            return Minecraft.getInstance().gameDirectory.toPath();
-        } else {
-            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-            return server.getServerDirectory();
-        }
+        // FMLPaths.GAMEDIR：客户端 = .minecraft，专用服务器 = 服务器运行目录。
+        // 这里绝不能触碰 net.minecraft.client.Minecraft，否则专用服务器会因 dist 校验直接崩溃。
+        return net.neoforged.fml.loading.FMLPaths.GAMEDIR.get();
     }
 
     private static Path getProgramPath(boolean isClient) {
