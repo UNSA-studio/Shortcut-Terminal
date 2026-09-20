@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
@@ -50,3 +52,17 @@ jobs:
         with:
           name: ShortcutTerminal-Mod
           path: build/libs/*.jar
+
+      - name: Publish jar to dist
+        if: success()
+        run: |
+          git config user.name "UNSA-STUDIO"
+          git config user.email "UNSA-studio@outlook.com"
+          mkdir -p dist
+          rm -f dist/*.jar
+          cp build/libs/*.jar dist/
+          ls -la dist/
+          git add -A dist
+          git commit -m "ci: publish build jar to dist [skip ci]" || echo "nothing to commit"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
