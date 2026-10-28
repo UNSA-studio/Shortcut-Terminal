@@ -40,7 +40,7 @@ public abstract class MachineScreen<M extends AbstractContainerMenu> extends Abs
         }
     }
     protected void text(GuiGraphics g, Component text, int x, int y, int width, int color) {
-        g.drawString(font, font.substrByWidth(text, width), x, y, color, false);
+        g.drawString(font, font.plainSubstrByWidth(text.getString(), width), x, y, color, false);
     }
     @Override protected void renderLabels(GuiGraphics g, int x, int y) {
         text(g, title, titleLabelX, titleLabelY, imageWidth - 20, 0xFFF1F5F9);
