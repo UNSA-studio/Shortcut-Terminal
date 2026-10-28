@@ -10,12 +10,12 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
 [1m*** Started working on [4mdownloadServer[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
  [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+[1m*** Started working on [4mdownloadClient[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.00s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.02s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
 [1m*** Started working on [4mstripClient[0m[0m
@@ -46,7 +46,7 @@ Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/
  [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.07s
+Total runtime: 1.44s
 
 
 > Task :compileJava
@@ -67,11 +67,11 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :test NO-SOURCE
 > Task :check UP-TO-DATE
 > Task :build UP-TO-DATE
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793202749589.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793202981990.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
-BUILD SUCCESSFUL in 16s
+BUILD SUCCESSFUL in 19s
 4 actionable tasks: 4 executed
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.2.1/userguide/configuration_cache_enabling.html
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
@@ -93,13 +93,13 @@ Using Minecraft asset root: /home/runner/.gradle/caches/neoformruntime/assets
 
 > Task :runGameTestServer
 WARN StatusConsoleListener Advanced terminal features are not available in this environment
-[15:52:51] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserverdev, --gameDir, ., --fml.fmlVersion, 4.0.42, --fml.mcVersion, 1.21.1, --fml.neoForgeVersion, 21.1.219, --fml.neoFormVersion, 20240808.144430]
-[15:52:51] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.13+9-LTS
-[15:52:51] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.13 by Eclipse Adoptium; OS Linux arch amd64 version 7.0.0-1017-azure
-[15:52:51] [main/INFO] [ne.ne.fm.lo.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserverdev
-[15:52:51] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.2+mixin.0.8.7/2af2f021d8e02a0220dc27a7a72b4666d66d44ca/sponge-mixin-0.15.2+mixin.0.8.7.jar%2394!/ Service=ModLauncher Env=SERVER
-[15:52:52] [main/INFO] [ne.ne.fm.lo.mo.lo.JarInJarDependencyLocator/]: Found 2 dependencies adding them to mods collection
-[15:52:52] [main/INFO] [ne.ne.fm.lo.mo.ModDiscoverer/]: 
+[15:56:44] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserverdev, --gameDir, ., --fml.fmlVersion, 4.0.42, --fml.mcVersion, 1.21.1, --fml.neoForgeVersion, 21.1.219, --fml.neoFormVersion, 20240808.144430]
+[15:56:44] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.13+9-LTS
+[15:56:44] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.13 by Eclipse Adoptium; OS Linux arch amd64 version 7.0.0-1017-azure
+[15:56:44] [main/INFO] [ne.ne.fm.lo.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserverdev
+[15:56:44] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.2+mixin.0.8.7/2af2f021d8e02a0220dc27a7a72b4666d66d44ca/sponge-mixin-0.15.2+mixin.0.8.7.jar%2394!/ Service=ModLauncher Env=SERVER
+[15:56:45] [main/INFO] [ne.ne.fm.lo.mo.lo.JarInJarDependencyLocator/]: Found 2 dependencies adding them to mods collection
+[15:56:45] [main/INFO] [ne.ne.fm.lo.mo.ModDiscoverer/]: 
      Mod List:
 		Name Version (Mod Id)
 
@@ -107,20 +107,20 @@ WARN StatusConsoleListener Advanced terminal features are not available in this 
 		NeoForge 21.1.219 (neoforge)
 		Patchouli 1.21.1-93-NEOFORGE (patchouli)
 		Shortcut Terminal 1.0.1(Beta) (shortcutterminal)
-[15:52:53] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
-[15:52:53] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserverdev' with arguments [--gameDir, .]
-[15:52:53] [main/WARN] [mixin/]: Reference map 'patchouli.refmap.json' for patchouli_xplat.mixins.json could not be read. If this is a development environment you can ignore this message
-[15:52:54] [main/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
-[15:53:00] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
-[15:53:00] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
-[15:53:00] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
-[15:53:00] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
-[15:53:00] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
-[15:53:00] [modloading-worker-0/INFO] [ne.ne.ne.co.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.219, for MC 1.21.1
-[15:53:00] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal Mod initializing...
-[15:53:00] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Remote control is only available on dedicated servers.
-[15:53:00] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal: dedicated server dist, client-only systems skipped
-[15:53:00] [main/ERROR] [minecraft/Settings]: Failed to load properties from file: server.properties
+[15:56:45] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
+[15:56:45] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserverdev' with arguments [--gameDir, .]
+[15:56:45] [main/WARN] [mixin/]: Reference map 'patchouli.refmap.json' for patchouli_xplat.mixins.json could not be read. If this is a development environment you can ignore this message
+[15:56:46] [main/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+[15:56:50] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[15:56:50] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
+[15:56:50] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[15:56:50] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[15:56:50] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[15:56:50] [modloading-worker-0/INFO] [ne.ne.ne.co.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.219, for MC 1.21.1
+[15:56:51] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal Mod initializing...
+[15:56:51] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Remote control is only available on dedicated servers.
+[15:56:51] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal: dedicated server dist, client-only systems skipped
+[15:56:51] [main/ERROR] [minecraft/Settings]: Failed to load properties from file: server.properties
 java.nio.file.NoSuchFileException: server.properties
 	at java.base/sun.nio.fs.UnixException.translateToIOException(UnixException.java:92) ~[?:?] {}
 	at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:106) ~[?:?] {}
@@ -152,43 +152,43 @@ java.nio.file.NoSuchFileException: server.properties
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?] {}
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?] {}
 	at net.neoforged.devlaunch.Main.main(Main.java:55) [DevLaunch-1.0.1.jar:?] {}
-[15:53:00] [main/INFO] [mojang/YggdrasilAuthenticationService]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
-[15:53:00] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/moddev/artifacts/neoforge-21.1.219.jar%23125!/assets/.mcassetsroot' uses unexpected schema
-[15:53:00] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/moddev/artifacts/neoforge-21.1.219.jar%23125!/data/.mcassetsroot' uses unexpected schema
-[15:53:00] [main/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [shortcutterminal]
-[15:53:01] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
-[15:53:01] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
-[15:53:02] [main/INFO] [minecraft/RecipeManager]: Loaded 1328 recipes
-[15:53:02] [main/INFO] [minecraft/AdvancementTree]: Loaded 1400 advancements
-[15:53:03] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
-[15:53:03] [worldgen/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
-[15:53:03] [Server thread/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 322 ms
-[15:53:03] [Server thread/INFO] [minecraft/GameTestServer]: Started game test server
-[15:53:03] [Server thread/INFO] [ne.ne.ne.se.pe.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
-[15:53:03] [Server thread/INFO] [patchouli/]: Sending reload packet to clients
-[15:53:03] [Server thread/INFO] [minecraft/GameTestServer]: 4 tests are now running at position 5027419, -59, -13153134!
-[15:53:04] [Server thread/INFO] [minecraft/GameTestRunner]: Running test batch 'defaultBatch:0' (4 tests)...
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]: [    ]
-[15:53:04] [Server thread/ERROR] [minecraft/LogTestReporter]: lithographyfueloutputandlocking failed at 5027447, -60, -13153134! Index 6 out of bounds for length 6
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]: [++X+]
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]: ========= 4 GAME TESTS COMPLETE IN 632.2 ms ======================
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]: 1 required tests failed :(
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]:    - lithographyfueloutputandlocking
-[15:53:04] [Server thread/INFO] [minecraft/GameTestServer]: ====================================================
-[15:53:04] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
-[15:53:04] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
-[15:53:04] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:overworld
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_end
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_nether
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
-[15:53:06] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
-[15:53:06] [Server thread/INFO] [minecraft/GameTestServer]: Game test server shutting down
+[15:56:51] [main/INFO] [mojang/YggdrasilAuthenticationService]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[15:56:51] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/moddev/artifacts/neoforge-21.1.219.jar%23125!/assets/.mcassetsroot' uses unexpected schema
+[15:56:51] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/moddev/artifacts/neoforge-21.1.219.jar%23125!/data/.mcassetsroot' uses unexpected schema
+[15:56:51] [main/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [shortcutterminal]
+[15:56:52] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
+[15:56:52] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
+[15:56:52] [main/INFO] [minecraft/RecipeManager]: Loaded 1328 recipes
+[15:56:52] [main/INFO] [minecraft/AdvancementTree]: Loaded 1400 advancements
+[15:56:53] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[15:56:53] [worldgen/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[15:56:53] [Server thread/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 344 ms
+[15:56:53] [Server thread/INFO] [minecraft/GameTestServer]: Started game test server
+[15:56:53] [Server thread/INFO] [ne.ne.ne.se.pe.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
+[15:56:53] [Server thread/INFO] [patchouli/]: Sending reload packet to clients
+[15:56:53] [Server thread/INFO] [minecraft/GameTestServer]: 4 tests are now running at position -8688528, -59, -1677375!
+[15:56:53] [Server thread/INFO] [minecraft/GameTestRunner]: Running test batch 'defaultBatch:0' (4 tests)...
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]: [    ]
+[15:56:54] [Server thread/ERROR] [minecraft/LogTestReporter]: lithographyfueloutputandlocking failed at -8688500, -60, -1677375! Index 6 out of bounds for length 6
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]: [++X+]
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]: ========= 4 GAME TESTS COMPLETE IN 485.9 ms ======================
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]: 1 required tests failed :(
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]:    - lithographyfueloutputandlocking
+[15:56:54] [Server thread/INFO] [minecraft/GameTestServer]: ====================================================
+[15:56:54] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[15:56:54] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[15:56:54] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:overworld
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_end
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_nether
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[15:56:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[15:56:55] [Server thread/INFO] [minecraft/GameTestServer]: Game test server shutting down
 
 > Task :runGameTestServer FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793202765667.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793202999821.json
 
 FAILURE: Build failed with an exception.
 
@@ -333,6 +333,6 @@ Caused by: org.gradle.process.ProcessExecutionException: Process 'command '/usr/
 	... 30 more
 
 
-BUILD FAILED in 24s
+BUILD FAILED in 18s
 7 actionable tasks: 4 executed, 3 up-to-date
 ```
