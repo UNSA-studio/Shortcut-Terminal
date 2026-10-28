@@ -14,7 +14,7 @@ import java.util.function.ToIntFunction;
  * 客户端硬件查询：从当前玩家的手持/背包中找终端面板，读取 CPU / RAM / SSD 规格。
  * 仅在物理客户端调用（单人游戏即本机）。
  *
- * <p>窗口规则：CPU 线程数 = 硬性窗口上限；RAM = 每窗口内存容量，任一窗口占用超 80% 即拦截新窗口。</p>
+ * <p>窗口规则：CPU 线程数 = 硬性窗口上限；RAM = 全部窗口的总内存容量，总占用超过 80% 即拦截新窗口。</p>
  */
 public final class ClientHardware {
     private ClientHardware() {}
@@ -51,7 +51,7 @@ public final class ClientHardware {
         return panelStat(ProcessorCapability::getInstalledLevel, 0);
     }
 
-    /** 当前生效的终端历史缓冲行数（= 每窗口内存容量）。 */
+    /** 当前生效的终端缓冲档位（按所有窗口共享的逻辑预算记账）。 */
     public static int scrollbackLimit() {
         return HardwareSpec.scrollbackLimit(clientRamMb());
     }

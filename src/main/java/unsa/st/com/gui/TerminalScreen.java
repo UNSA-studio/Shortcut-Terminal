@@ -119,9 +119,14 @@ public class TerminalScreen extends Screen {
             }
         }
     }
+    private static long lineUnits(String line) { return Math.max(1, (line.length() * 2L + 32 + 1023) / 1024); }
     private static int sessionUnits(SessionData data) {
         long units = WindowResourcePolicy.WINDOW_OVERHEAD_UNITS;
-        for (String line : data.outputLines) units += Math.max(1, (line.length() * 2L + 32 + 1023) / 1024);
+        if (data.outputUnits < 0) {
+            data.outputUnits = 0;
+            for (String line : data.outputLines) data.outputUnits += lineUnits(line);
+        }
+        units += data.outputUnits;
         for (String line : data.commandHistory) units += Math.max(1, (line.length() * 2L + 32 + 1023) / 1024);
         if (!data.draft.isEmpty()) units += Math.max(1, (data.draft.length() * 2L + 1023) / 1024);
         return (int) Math.min(Integer.MAX_VALUE, units);
@@ -143,9 +148,15 @@ public class TerminalScreen extends Screen {
         if (line == null) line = "";
         // A single addon/result cannot allocate unbounded UI text.
         if (line.length() > 16384) line = line.substring(0, 16384) + " [truncated]";
+        sessionUnits(target); // initialize the cache before adding a line
         target.outputLines.add(line);
+        target.outputUnits += lineUnits(line);
         int cap = ClientHardware.totalMemoryCapacityLines();
-        while (usedMemoryUnits() > cap && !target.outputLines.isEmpty()) target.outputLines.remove(0);
+        while (usedMemoryUnits() > cap && !target.outputLines.isEmpty()) {
+            int remove = Math.min(target.outputLines.size(), Math.max(1, cap / 64));
+            for (int i = 0; i < remove; i++) target.outputUnits -= lineUnits(target.outputLines.get(i));
+            target.outputLines.subList(0, remove).clear();
+        }
         while (usedMemoryUnits() > cap && target.commandHistory.size() > 1) target.commandHistory.remove(0);
         if (target.executor != null) target.executor.setCommandHistory(target.commandHistory);
         if (target == session()) { dirtyRows = true; followTail = true; }
@@ -295,7 +306,7 @@ public class TerminalScreen extends Screen {
     }
     @Override public boolean charTyped(char c, int mods) { return confirm != null || super.charTyped(c, mods); }
     private void clearSession() {
-        SessionData data = session(); data.outputLines.clear(); data.booted = true; data.bootLines = null;
+        SessionData data = session(); data.outputLines.clear(); data.outputUnits = 0; data.booted = true; data.bootLines = null;
         scroll = 0; dirtyRows = true; notice = ""; saveCurrentSession();
     }
     private void processCommand(String command) {

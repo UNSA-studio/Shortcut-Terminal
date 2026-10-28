@@ -71,6 +71,7 @@ public final class TerminalSessionManager {
     }
     public static class SessionData {
         public transient int index;
+        public transient long outputUnits = -1;
         public String playerName, currentPath = "/", draft = "";
         public List<String> outputLines = new ArrayList<>(), commandHistory = new ArrayList<>();
         public boolean booted;
