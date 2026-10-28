@@ -1,0 +1,9 @@
+		Shortcut Terminal 1.0.1(Beta) (shortcutterminal)
+[16:02:34] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal Mod initializing...
+[16:02:34] [modloading-worker-0/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal: dedicated server dist, client-only systems skipped
+[16:02:34] [main/ERROR] [minecraft/Settings]: Failed to load properties from file: server.properties
+[16:02:34] [main/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [shortcutterminal]
+[16:02:35] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
+[16:02:35] [Worker-Main-1/INFO] [un.st.co.ShortcutTerminal/]: Shortcut Terminal commands registered
+[16:02:38] [Server thread/INFO] [minecraft/GameTestServer]: ========= 4 GAME TESTS COMPLETE IN 582.3 ms ======================
+[16:02:38] [Server thread/INFO] [minecraft/GameTestServer]: All 4 required tests passed :)
