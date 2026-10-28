@@ -106,6 +106,12 @@ public class GuiRegressionGameTests {
     }
     @GameTest(template = "empty")
     public static void cpuAndTotalRamPolicy(GameTestHelper h) {
+        for (int level = 1; level <= 9; level++) for (int seed = 0; seed < 256; seed++) {
+            int[] batch = YieldTable.rollBatch(level, new java.util.Random(seed));
+            h.assertTrue(batch.length == 10, "Batch size must not vary with random seed");
+            for (int actual : batch) h.assertTrue(actual >= Math.max(1, level - 2) && actual <= level,
+                    "Quality failures may downgrade only once, by one or two levels");
+        }
         h.assertTrue(WindowResourcePolicy.CPU_ERROR.equals(WindowResourcePolicy.creationError(2, 2, 20, 200)), "CPU is hard limit");
         h.assertTrue(WindowResourcePolicy.RAM_ERROR.equals(WindowResourcePolicy.creationError(2, 8, 161, 200)), "Sum of all windows above 80% must block");
         h.assertTrue(WindowResourcePolicy.creationError(2, 8, 160, 200) == null, "Exactly 80% is not above 80%");

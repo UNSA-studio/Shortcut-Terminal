@@ -25,13 +25,10 @@ public final class YieldTable {
 
     /** 单颗 CPU 质检：返回实际等级（≤ 目标）。 */
     public static int rollDie(int targetLevel, Random random) {
-        int level = targetLevel;
-        while (level > 1) {
-            if (random.nextInt(100) < fullYieldPercent(level)) return level;
-            // 不合格：70% 降 1 级，30% 降 2 级
-            level -= random.nextInt(10) < 7 ? 1 : 2;
-        }
-        return Math.max(1, level);
+        int level = Math.max(1, Math.min(9, targetLevel));
+        if (level == 1 || random.nextInt(100) < fullYieldPercent(level)) return level;
+        // One quality assessment per die. Re-testing in a loop incorrectly cascaded an L9 down to L1.
+        return Math.max(1, level - (random.nextInt(10) < 7 ? 1 : 2));
     }
 
     /** 一批的质检结果（长度 BATCH_SIZE 的等级数组）。 */
