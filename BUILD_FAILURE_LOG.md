@@ -1,66 +1,106 @@
 # Build failure log
 
 ```text
+Downloading https://services.gradle.org/distributions/gradle-9.2.1-bin.zip
+............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%.............100%
+
+Welcome to Gradle 9.2.1!
+
+Here are the highlights of this release:
+ - Windows ARM support
+ - Improved publishing APIs
+ - Better guidance for dependency verification failures
+
+For more details see https://docs.gradle.org/9.2.1/release-notes.html
+
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
 
 > Task :createMinecraftArtifacts
 Loaded 111 artifacts from /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
- [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadServer[0m[0m
-[1m*** Started working on [4mdownloadClient[0m[0m
+  ↓ https://launchermeta.mojang.com/mc/game/version_manifest_v2.json
+  ↓ https://piston-meta.mojang.com/v1/packages/018296bcb207bea6fd25b05f08eee3942dcec406/1.21.1.json
+ [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.39s
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
 [1m*** Started working on [4mlistLibraries[0m[0m
- [1m[92m♻[0m Used cache of [4mlistLibraries[0m in 0.00s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.05s
+[1m*** Started working on [4mdownloadClient[0m[0m
+[1m*** Started working on [4mdownloadServer[0m[0m
+  ↓ https://piston-data.mojang.com/v1/objects/30c73b1c5da787909b2f73340419fdf13b9def88/client.jar
+  ↓ https://piston-data.mojang.com/v1/objects/59353fb40c36d304f2035d51e7d6e6baa98dc05c/server.jar
+  ↓ https://piston-data.mojang.com/v1/objects/2244b6f072256667bcd9a73df124d6c58de77992/client.txt
+ [1m[92m✓[0m Completed [4mlistLibraries[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.40s
 [1m*** Started working on [4mmergeMappings[0m[0m
- [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.01s
+ ↳ Running external tool net.neoforged.installertools:installertools:2.1.2:fatjar
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.66s
 [1m*** Started working on [4mstripClient[0m[0m
- [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.86s
 [1m*** Started working on [4mextractServer[0m[0m
- [1m[92m♻[0m Used cache of [4mextractServer[0m in 0.00s
+ ↳ Running external tool net.neoforged.installertools:installertools:2.1.2:fatjar
+ [1m[92m✓[0m Completed [4mextractServer[0m in 0.61s
 [1m*** Started working on [4mstripServer[0m[0m
- [1m[92m♻[0m Used cache of [4mstripServer[0m in 0.00s
+ [1m[92m✓[0m Completed [4mstripServer[0m in 1.95s
+ [1m[92m✓[0m Completed [4mmergeMappings[0m in 3.40s
+ [1m[92m✓[0m Completed [4mstripClient[0m in 3.14s
 [1m*** Started working on [4mmerge[0m[0m
- [1m[92m♻[0m Used cache of [4mmerge[0m in 0.00s
+ ↳ Running external tool net.neoforged:mergetool:2.0.3:fatjar
+ [1m[92m✓[0m Completed [4mmerge[0m in 2.58s
 [1m*** Started working on [4mrename[0m[0m
- [1m[92m♻[0m Used cache of [4mrename[0m in 0.00s
+ ↳ Running external tool net.neoforged:AutoRenamingTool:2.0.3:all
+ [1m[92m✓[0m Completed [4mrename[0m in 4.98s
 [1m*** Started working on [4mdecompile[0m[0m
- [1m[92m♻[0m Used cache of [4mdecompile[0m in 0.00s
+ ↳ Running external tool org.vineflower:vineflower:1.10.1
+ [1m[92m✓[0m Completed [4mdecompile[0m in 50.34s
 [1m*** Started working on [4minject[0m[0m
- [1m[92m♻[0m Used cache of [4minject[0m in 0.00s
+ [1m[92m✓[0m Completed [4minject[0m in 2.27s
 [1m*** Started working on [4mpatch[0m[0m
- [1m[92m♻[0m Used cache of [4mpatch[0m in 0.00s
+ ↳ Running external tool io.codechicken:DiffPatch:2.0.0.36:all
+ [1m[92m✓[0m Completed [4mpatch[0m in 2.28s
 [1m*** Started working on [4mapplyNeoforgePatches[0m[0m
- [1m[92m♻[0m Used cache of [4mapplyNeoforgePatches[0m in 0.00s
+ ↳ Running external tool io.codechicken:DiffPatch:2.0.0.36:all
+ [1m[92m✓[0m Completed [4mapplyNeoforgePatches[0m in 1.78s
 [1m*** Started working on [4mtransformSources[0m[0m
- [1m[92m♻[0m Used cache of [4mtransformSources[0m in 0.00s
+ ↳ Running external tool net.neoforged.jst:jst-cli-bundle:1.0.66
+ [1m[92m✓[0m Completed [4mtransformSources[0m in 6.72s
 [1m*** Started working on [4mrecompile[0m[0m
- [1m[92m♻[0m Used cache of [4mrecompile[0m in 0.00s
+ 109 items on the compile classpath
+ 0 items on the sourcepath
 [1m*** Started working on [4msourcesWithNeoForge[0m[0m
- [1m[92m♻[0m Used cache of [4msourcesWithNeoForge[0m in 0.00s
+ Compiling 5364 source files
+ [1m[92m✓[0m Completed [4msourcesWithNeoForge[0m in 4.04s
+Copied 0 resource files
+ [1m[92m✓[0m Completed [4mrecompile[0m in 30.49s
 [1m*** Started working on [4mcompiledWithNeoForge[0m[0m
- [1m[92m♻[0m Used cache of [4mcompiledWithNeoForge[0m in 0.00s
+ [1m[92m✓[0m Completed [4mcompiledWithNeoForge[0m in 5.65s
 [1m*** Started working on [4msourcesAndCompiledWithNeoForge[0m[0m
- [1m[92m♻[0m Used cache of [4msourcesAndCompiledWithNeoForge[0m in 0.00s
-Total runtime: 1.68s
+ [1m[92m✓[0m Completed [4msourcesAndCompiledWithNeoForge[0m in 2.07s
+Total runtime: 114.12s
 
 
 > Task :compileJava
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
-                    int players = lvl.getPlayers(p -> true).size();
-                                                 ^
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/MachineScreen.java:43: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+        g.drawString(font, font.substrByWidth(text, width), x, y, color, false);
+         ^
+    method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to Component)
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
 1 error
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1789813277883.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793201990113.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Shortcut-Terminal/Shortcut-Terminal/build/reports/problems/problems-report.html
 
@@ -69,13 +109,24 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
+  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/MachineScreen.java:43: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+          g.drawString(font, font.substrByWidth(text, width), x, y, color, false);
+           ^
+      method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to String)
+      method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to String)
+      method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+      method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+      method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to Component)
   Note: Recompile with -Xlint:deprecation for details.
   Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
   Note: Recompile with -Xlint:unchecked for details.
   Note: Some input files use or override a deprecated API.
-  /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
-                      int players = lvl.getPlayers(p -> true).size();
-                                                   ^
+  Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
   1 error
 
 * Try:
@@ -118,13 +169,24 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/client/MachineScreen.java:43: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+        g.drawString(font, font.substrByWidth(text, width), x, y, color, false);
+         ^
+    method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to Component)
 Note: Recompile with -Xlint:deprecation for details.
 Note: /home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/remote/RemoteControlManager.java uses unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
 Note: Some input files use or override a deprecated API.
-/home/runner/work/Shortcut-Terminal/Shortcut-Terminal/src/main/java/unsa/st/com/kernel/ProcFS.java:232: error: variable p is already defined in method read(String)
-                    int players = lvl.getPlayers(p -> true).size();
-                                                 ^
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
 1 error
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:89)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:50)
@@ -249,6 +311,6 @@ Note: Some input files use or override a deprecated API.
 	... 30 more
 
 
-BUILD FAILED in 20s
+BUILD FAILED in 2m 30s
 2 actionable tasks: 2 executed
 ```
