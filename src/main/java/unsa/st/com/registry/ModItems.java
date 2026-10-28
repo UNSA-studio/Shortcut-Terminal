@@ -106,5 +106,5 @@ public class ModItems {
 
     // ===== Final products =====
     public static final DeferredItem<Item> TERMINAL_PANEL = ITEMS.register("terminal_panel",
-            () -> new TerminalPanelItem(new Item.Properties()));
+            () -> new TerminalPanelItem(new Item.Properties().stacksTo(1)));
 }

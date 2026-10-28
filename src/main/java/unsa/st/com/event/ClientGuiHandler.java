@@ -1,21 +1,14 @@
 package unsa.st.com.event;
-
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import unsa.st.com.ShortcutTerminal;
 import unsa.st.com.client.AssemblyBenchScreen;
 import unsa.st.com.client.LithographyMachineScreen;
-
-/** 客户端 GUI 注册。 */
-@EventBusSubscriber(modid = ShortcutTerminal.MODID, value = Dist.CLIENT)
-public class ClientGuiHandler {
-    @SubscribeEvent
-    public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
-        event.register(unsa.st.com.registry.ModBlockEntities.LITHOGRAPHY_MACHINE_MENU.get(),
-                LithographyMachineScreen::new);
-        event.register(unsa.st.com.registry.ModBlockEntities.ASSEMBLY_BENCH_MENU.get(),
-                AssemblyBenchScreen::new);
+import unsa.st.com.registry.ModBlockEntities;
+public final class ClientGuiHandler {
+    private ClientGuiHandler() {}
+    public static void register(IEventBus bus) { bus.addListener(ClientGuiHandler::registerScreens); }
+    private static void registerScreens(RegisterMenuScreensEvent event) {
+        event.register(ModBlockEntities.LITHOGRAPHY_MACHINE_MENU.get(), LithographyMachineScreen::new);
+        event.register(ModBlockEntities.ASSEMBLY_BENCH_MENU.get(), AssemblyBenchScreen::new);
     }
 }

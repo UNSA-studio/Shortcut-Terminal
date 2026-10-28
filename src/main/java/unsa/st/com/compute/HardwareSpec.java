@@ -121,7 +121,7 @@ public final class HardwareSpec {
 
     /** 全部窗口是否已造成内存压力（总占用 ≥ 80% 容量）。 */
     public static boolean ramUnderPressure(int totalUsedLines, int capacityLines) {
-        return windowUsagePercent(totalUsedLines, capacityLines) >= RAM_PRESSURE_PERCENT;
+        return WindowResourcePolicy.underPressure(totalUsedLines, capacityLines);
     }
 
     /** 当前窗口数占用的内存记账（KB）。 */
@@ -164,7 +164,7 @@ public final class HardwareSpec {
         sb.append("Filesystem      Size    Used    Avail   Use% Mounted on\n");
         sb.append(String.format(Locale.ROOT, "/dev/ssd0       %-7s %-7s %-7s %3d%% /",
                 formatChars(quotaChars), formatChars(usedChars), formatChars(avail), pct));
-        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (%d lines total, %d windows, %d%% used)",
+        sb.append(String.format(Locale.ROOT, "\n/dev/ram0       %-7s (%d KiB budget, %d windows, %d%% used)",
                 formatRam(ramMb), totalMemoryCapacityLines(ramMb), windows,
                 windowUsagePercent(totalUsedLines, totalMemoryCapacityLines(ramMb))));
         return sb.toString();

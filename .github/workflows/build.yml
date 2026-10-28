@@ -36,6 +36,21 @@ jobs:
           code=${PIPESTATUS[0]}
           exit $code
 
+      - name: Server GUI logic regression tests
+        timeout-minutes: 10
+        run: |
+          mkdir -p run/gametest
+          echo 'eula=true' > run/gametest/eula.txt
+          ./gradlew runGameTestServer --no-daemon --stacktrace 2>&1 | tee -a build-output.log
+      - name: Upload regression reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GUI-Regression-Reports
+          path: |
+            run/gametest/logs/**
+            run/gametest/*.xml
+          if-no-files-found: ignore
       - name: Commit build log on failure
         if: failure()
         run: |

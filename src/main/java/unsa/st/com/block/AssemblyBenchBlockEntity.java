@@ -5,7 +5,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -13,152 +12,94 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import unsa.st.com.compute.HardwareSpec;
+import unsa.st.com.compute.ProcessorCapability;
 import unsa.st.com.menu.AssemblyBenchMenu;
 import unsa.st.com.registry.ModBlockEntities;
 import unsa.st.com.registry.ModItems;
 
-/**
- * 制造台方块实体：把配件按顺序装进铁壳子，最后涂胶封合。
- *
- * <p>槽位顺序（必须先完成前一步才能放下一步）：
- * 0 铁壳子 → 1 主板 → 2 处理器 → 3 RAM → 4 SSD → 5 显示器 → 6 缝合胶液 → 7 输出。</p>
- */
-public class AssemblyBenchBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
-    public static final int SLOT_SHELL = 0;
-    public static final int SLOT_MOTHERBOARD = 1;
-    public static final int SLOT_PROCESSOR = 2;
-    public static final int SLOT_RAM = 3;
-    public static final int SLOT_SSD = 4;
-    public static final int SLOT_DISPLAY = 5;
-    public static final int SLOT_GLUE = 6;
-    public static final int SLOT_OUTPUT = 7;
-    public static final int SIZE = 8;
-
+/** Server-authoritative assembly. The output is already paid, never an extractable preview. */
+public class AssemblyBenchBlockEntity extends BaseContainerBlockEntity {
+    public static final int SLOT_SHELL = 0, SLOT_MOTHERBOARD = 1, SLOT_PROCESSOR = 2,
+            SLOT_RAM = 3, SLOT_SSD = 4, SLOT_DISPLAY = 5, SLOT_GLUE = 6, SLOT_OUTPUT = 7, SIZE = 8;
     private final NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
-
     public AssemblyBenchBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ASSEMBLY_BENCH.get(), pos, state);
     }
-
-    /** 槽位 stage 是否接受该物品（类型校验）。 */
-    public static boolean slotAccepts(int stage, ItemStack s) {
-        if (s == null || s.isEmpty()) return false;
-        switch (stage) {
-            case SLOT_SHELL: return s.is(ModItems.IRON_SHELL.get());
-            case SLOT_MOTHERBOARD: return s.is(ModItems.TERMINAL_MOTHERBOARD.get());
-            case SLOT_PROCESSOR: return s.getItem().toString().contains("processor_l");
-            case SLOT_RAM: return HardwareSpec.ramMbOfItem(s) > 0;
-            case SLOT_SSD: return HardwareSpec.ssdGbOfItem(s) > 0;
-            case SLOT_DISPLAY: return s.is(ModItems.DISPLAY_SCREEN.get());
-            case SLOT_GLUE: return s.is(ModItems.BONDING_GLUE.get());
-            default: return false;
-        }
+    public static boolean slotAccepts(int slot, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return switch (slot) {
+            case SLOT_SHELL -> stack.is(ModItems.IRON_SHELL.get());
+            case SLOT_MOTHERBOARD -> stack.is(ModItems.TERMINAL_MOTHERBOARD.get());
+            case SLOT_PROCESSOR -> ProcessorCapability.levelOfProcessorItem(stack) > 0;
+            case SLOT_RAM -> HardwareSpec.ramMbOfItem(stack) > 0;
+            case SLOT_SSD -> HardwareSpec.ssdGbOfItem(stack) > 0;
+            case SLOT_DISPLAY -> stack.is(ModItems.DISPLAY_SCREEN.get());
+            case SLOT_GLUE -> stack.is(ModItems.BONDING_GLUE.get());
+            default -> false;
+        };
     }
-
-    /** 前 stage 个槽是否已填（顺序装配约束）。 */
-    public boolean previousStagesFilled(int stage) {
-        for (int i = 0; i < stage; i++) if (items.get(i).isEmpty()) return false;
+    public boolean previousStagesFilled(int slot) {
+        for (int i = 0; i < slot; i++) if (!slotAccepts(i, items.get(i))) return false;
         return true;
     }
-
-    /** 7 个输入槽是否全部按类型合法填满。 */
-    public boolean isAssembled() {
-        for (int i = 0; i <= SLOT_GLUE; i++) {
-            if (!slotAccepts(i, items.get(i))) return false;
-        }
+    public boolean canRemoveStage(int slot) {
+        if (slot == SLOT_OUTPUT) return true;
+        for (int i = slot + 1; i < SLOT_OUTPUT; i++) if (!items.get(i).isEmpty()) return false;
         return true;
     }
-
-    /** 输入齐了就产出成品；输入被破坏则清掉成品。 */
-    private void refreshOutput() {
-        if (isAssembled()) {
-            if (items.get(SLOT_OUTPUT).isEmpty()) {
-                items.set(SLOT_OUTPUT, new ItemStack(ModItems.TERMINAL_PANEL.get()));
-            }
-        } else if (items.get(SLOT_OUTPUT).is(ModItems.TERMINAL_PANEL.get())) {
-            items.set(SLOT_OUTPUT, ItemStack.EMPTY);
-        }
+    public boolean isAssembled() { return previousStagesFilled(SLOT_OUTPUT); }
+    public boolean assemble() {
+        if (level == null || level.isClientSide || !items.get(SLOT_OUTPUT).isEmpty() || !isAssembled()) return false;
+        ItemStack panel = new ItemStack(ModItems.TERMINAL_PANEL.get());
+        ProcessorCapability.install(panel, ProcessorCapability.levelOfProcessorItem(items.get(SLOT_PROCESSOR)));
+        HardwareSpec.installRam(panel, HardwareSpec.ramMbOfItem(items.get(SLOT_RAM)));
+        HardwareSpec.installSsd(panel, HardwareSpec.ssdGbOfItem(items.get(SLOT_SSD)));
+        for (int i = 0; i < SLOT_OUTPUT; i++) items.get(i).shrink(1);
+        items.set(SLOT_OUTPUT, panel);
         setChanged();
-    }
-
-    /** 取走成品时消耗全部输入各 1。 */
-    private void consumeInputs() {
-        for (int i = 0; i <= SLOT_GLUE; i++) {
-            ItemStack s = items.get(i);
-            if (!s.isEmpty()) {
-                s.shrink(1);
-                if (s.isEmpty()) items.set(i, ItemStack.EMPTY);
-            }
-        }
-    }
-
-    // ==================== Container 实现 ====================
-
-    @Override public int getContainerSize() { return SIZE; }
-    @Override public boolean isEmpty() {
-        for (ItemStack s : items) if (!s.isEmpty()) return false;
         return true;
     }
+    @Override public int getContainerSize() { return SIZE; }
+    @Override public int getMaxStackSize() { return 1; }
+    @Override public boolean isEmpty() { return items.stream().allMatch(ItemStack::isEmpty); }
     @Override public ItemStack getItem(int slot) { return items.get(slot); }
-
+    @Override public boolean canPlaceItem(int slot, ItemStack stack) {
+        return slot < SLOT_OUTPUT && items.get(SLOT_OUTPUT).isEmpty()
+                && previousStagesFilled(slot) && slotAccepts(slot, stack);
+    }
     @Override public ItemStack removeItem(int slot, int amount) {
-        ItemStack taken = net.minecraft.world.ContainerHelper.removeItem(items, slot, amount);
-        if (slot == SLOT_OUTPUT && !taken.isEmpty()) consumeInputs();
-        if (!taken.isEmpty()) refreshOutput();
-        return taken;
+        ItemStack result = net.minecraft.world.ContainerHelper.removeItem(items, slot, amount);
+        if (!result.isEmpty()) setChanged();
+        return result;
     }
-
-    @Override public ItemStack removeItemNoUpdate(int slot) {
-        ItemStack taken = net.minecraft.world.ContainerHelper.takeItem(items, slot);
-        if (slot == SLOT_OUTPUT && !taken.isEmpty()) consumeInputs();
-        refreshOutput();
-        return taken;
-    }
-
+    @Override public ItemStack removeItemNoUpdate(int slot) { return net.minecraft.world.ContainerHelper.takeItem(items, slot); }
     @Override public void setItem(int slot, ItemStack stack) {
         items.set(slot, stack);
+        if (!stack.isEmpty()) stack.setCount(Math.min(stack.getCount(), getMaxStackSize()));
         setChanged();
-        refreshOutput();
     }
-
     @Override public boolean stillValid(Player player) {
         return level != null && level.getBlockEntity(worldPosition) == this
-                && player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
+                && player.distanceToSqr(worldPosition.getX() + .5, worldPosition.getY() + .5, worldPosition.getZ() + .5) <= 64;
     }
-
-    @Override public void clearContent() {
-        for (int i = 0; i < SIZE; i++) items.set(i, ItemStack.EMPTY);
-        setChanged();
-    }
-
+    @Override public void clearContent() { items.clear(); setChanged(); }
     @Override protected NonNullList<ItemStack> getItems() { return items; }
-
-    @Override protected void setItems(NonNullList<ItemStack> newItems) {
-        for (int i = 0; i < SIZE; i++) {
-            items.set(i, i < newItems.size() ? newItems.get(i) : ItemStack.EMPTY);
-        }
+    @Override protected void setItems(NonNullList<ItemStack> value) {
+        for (int i = 0; i < SIZE; i++) items.set(i, i < value.size() ? value.get(i) : ItemStack.EMPTY);
     }
-
-    @Override protected Component getDefaultName() {
-        return Component.translatable("block.shortcutterminal.assembly_bench");
+    @Override protected Component getDefaultName() { return Component.translatable("block.shortcutterminal.assembly_bench"); }
+    @Override protected AbstractContainerMenu createMenu(int id, Inventory inventory) {
+        return new AssemblyBenchMenu(id, inventory, this, worldPosition);
     }
-
-    @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv) {
-        return new AssemblyBenchMenu(windowId, playerInv, worldPosition);
-    }
-
-    // ==================== NBT ====================
-
-    @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    @Override protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         net.minecraft.world.ContainerHelper.saveAllItems(tag, items, registries);
+        tag.putBoolean("OutputCommitted", true);
     }
-
-    @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         net.minecraft.world.ContainerHelper.loadAllItems(tag, items, registries);
+        // Old builds persisted an unpaid preview alongside the inputs. Retain the inputs, not that duplicate.
+        if (!tag.getBoolean("OutputCommitted") && isAssembled()) items.set(SLOT_OUTPUT, ItemStack.EMPTY);
     }
 }

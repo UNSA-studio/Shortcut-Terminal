@@ -42,6 +42,7 @@ public class ShortcutTerminal {
 
         // 客户端专属初始化必须放在 dist 检查里（专用服务器不得加载 net.minecraft.client.*）
         if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
+            unsa.st.com.event.ClientGuiHandler.register(modEventBus);
             LOGGER.info("Shortcut Terminal: client dist detected, client-only systems enabled");
         } else {
             LOGGER.info("Shortcut Terminal: dedicated server dist, client-only systems skipped");

@@ -5,646 +5,364 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
-import unsa.st.com.client.ClientCommandExecutor;
-import unsa.st.com.client.ClientVirtualFileSystem;
-import unsa.st.com.client.TerminalSessionManager;
+import unsa.st.com.ShortcutTerminal;
+import unsa.st.com.client.*;
 import unsa.st.com.client.TerminalSessionManager.SessionData;
-import unsa.st.com.network.ExecuteCommandPayload;
-import unsa.st.com.network.RequestServerSyncPayload;
-import unsa.st.com.network.SyncFileSystemPacket;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import unsa.st.com.compute.*;
+import unsa.st.com.network.*;
+import java.util.*;
 import java.util.concurrent.*;
 
+/** Main-thread UI, per-session state and output routing, scrollable tabs and clipped/wrapped output. */
 public class TerminalScreen extends Screen {
-    private static final int BORDER_COLOR = 0xFFFFFFFF;
-    private static final int BG_COLOR = 0xFF000000;
-    private static final int TEXT_COLOR = 0xFF55FF55;
-    private static final int GUI_WIDTH = 320;
-    private static final int GUI_HEIGHT = 200;
-    private static final int PADDING = 6;
-    private static final int SCROLLBAR_WIDTH = 6;
-    private static final double SCROLL_SPEED = 40.0;
-
-    private int leftPos, topPos;
-    private EditBox commandInput;
-    private List<String> outputLines = new ArrayList<>();
-    /** 启动动画调度器（守护线程，逐行渐显）。 */
-    private static final ScheduledExecutorService BOOT_SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "STOS-Boot");
-        t.setDaemon(true);
-        return t;
+    private static final int PAD = 7, TAB_H = 22, SCROLL_W = 5;
+    private static final ExecutorService COMMANDS = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "STOS-CommandIO"); t.setDaemon(true); return t;
     });
-    private final List<ScheduledFuture<?>> bootTasks = new ArrayList<>();
-    private double scrollOffset = 0;
-    private boolean isDraggingScrollbar = false;
-    private List<String> commandHistory = new ArrayList<>();
-    private int historyIndex = -1;
-    private String currentPrompt = "~ $ ";
     private static TerminalScreen instance;
-
-    /** 顶部标签栏每帧重建的点击区：{startX, width}。 */
-    private final List<int[]> tabBounds = new ArrayList<>();
-    /** "+"（新建窗口）按钮的起始 X；-1 表示尚未绘制。 */
-    private int addTabX = -1;
-    
-    private ClientCommandExecutor executor;
-    private String playerName;
+    private final ItemStack panel;
+    private int left, top, panelWidth, panelHeight, current, firstTab, historyIndex;
+    private int scroll, rowWidth = -1;
+    private boolean dragging, dirtyRows = true, followTail = true;
+    private EditBox input;
+    private String playerName, notice = "";
     private List<SessionData> sessions;
-    private int currentSessionIndex = 0;
-    
-    private boolean ctrlXPressed = false;
-    private boolean deletePressed = false;
-    
-    private boolean forcibleState = false;
-    private String forciblePrompt = "";
-    private SyncAction pendingSyncAction = null;
-    
+    private final List<TabHit> tabs = new ArrayList<>();
+    private final List<OutputRow> rows = new ArrayList<>();
+    private final Deque<SessionData> pendingServerResults = new ArrayDeque<>();
+    private SyncAction confirm;
     private enum SyncAction { TO_SERVER, TO_LOCAL }
+    private record TabHit(int index, int x, int width) {}
+    private record OutputRow(FormattedCharSequence text, int color) {}
 
-    public TerminalScreen() {
-        super(Component.literal("Terminal"));
+    public TerminalScreen() { this(ItemStack.EMPTY); }
+    public TerminalScreen(ItemStack panel) { super(Component.literal("STOS Terminal")); this.panel = panel.copy(); }
+    public static TerminalScreen getInstance() { return instance; }
+    public ItemStack hardwarePanel() { return panel; }
+    private SessionData session() { return sessions.get(current); }
+    private ClientCommandExecutor executor() { return session().createExecutor(); }
+    @Override protected void init() {
+        if (minecraft == null || minecraft.player == null) return;
         instance = this;
+        if (sessions == null) {
+            playerName = minecraft.player.getName().getString();
+            sessions = TerminalSessionManager.getSessions(playerName);
+        } else rememberInput();
+        panelWidth = Math.max(120, Math.min(600, width - 16));
+        panelHeight = Math.max(100, Math.min(340, height - 16));
+        left = (width - panelWidth) / 2; top = (height - panelHeight) / 2;
+        input = new EditBox(font, left + PAD, inputY(), panelWidth - 2 * PAD, font.lineHeight + 3, Component.literal("Command"));
+        input.setMaxLength(4096); input.setBordered(false); input.setTextColor(0xFF88EEAA);
+        input.setCanLoseFocus(false);
+        input.setResponder(value -> { if (sessions != null) session().draft = value; });
+        addRenderableWidget(input); setInitialFocus(input);
+        loadSession(current);
     }
-
-    public static TerminalScreen getInstance() {
-        return instance;
+    private int inputY() { return top + panelHeight - 2 * font.lineHeight - 13; }
+    private int outputTop() { return top + TAB_H + PAD; }
+    private int outputHeight() { return Math.max(font.lineHeight, inputY() - PAD - outputTop()); }
+    private int outputWidth() { return panelWidth - 3 * PAD - SCROLL_W; }
+    private void rememberInput() { if (input != null && sessions != null && !sessions.isEmpty()) session().draft = input.getValue(); }
+    private void saveCurrentSession() {
+        if (sessions == null) return;
+        rememberInput();
+        for (SessionData data : sessions) if (data.executor != null) data.updateFromExecutor(data.executor, data.outputLines);
+        TerminalSessionManager.saveCurrentSessions(playerName, sessions);
     }
-
-    @Override
-    protected void init() {
-        super.init();
-        this.leftPos = (this.width - GUI_WIDTH) / 2;
-        this.topPos = (this.height - GUI_HEIGHT) / 2;
-
-        this.playerName = Minecraft.getInstance().player.getName().getString();
-        this.sessions = TerminalSessionManager.getSessions(playerName);
-        this.currentSessionIndex = 0;
-        loadSession(0);
-
-        this.commandInput = new EditBox(
-                this.font, this.leftPos + PADDING, this.topPos + GUI_HEIGHT - this.font.lineHeight - PADDING,
-                GUI_WIDTH - 2 * PADDING, this.font.lineHeight + 2, Component.literal(""));
-        this.commandInput.setMaxLength(256);
-        this.commandInput.setBordered(false);
-        this.commandInput.setTextColor(TEXT_COLOR);
-        this.commandInput.setCanLoseFocus(false);
-        this.addRenderableWidget(this.commandInput);
-        this.setInitialFocus(this.commandInput);
-        this.commandInput.setFocused(true);
-        
-        updatePrompt();
-    }
-    
     private void loadSession(int index) {
         if (index < 0 || index >= sessions.size()) return;
-        cancelBootTasks(); // 切换/重载会话时停止未播完的启动动画
-        if (executor != null) {
-            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
-            TerminalSessionManager.saveCurrentSessions(playerName, sessions);
+        // init/resize must not reset current or write the old executor into a different index.
+        if (input != null && index != current) rememberInput();
+        current = index; confirm = null; notice = "";
+        SessionData data = session();
+        data.createExecutor().setOutputConsumer(result -> Minecraft.getInstance().execute(() -> appendResult(data, result)));
+        historyIndex = data.commandHistory.size();
+        input.setValue(data.draft); input.setFocused(true);
+        if (!data.booted && data.bootLines == null) {
+            data.bootLines = ComputePolicy.bootSequence(executor().stosLevel(), ClientHardware.clientRamMb(), ClientHardware.clientSsdGb());
+            data.nextBootMs = System.currentTimeMillis();
         }
-        currentSessionIndex = index;
-        SessionData data = sessions.get(index);
-        this.executor = data.createExecutor();
-        this.outputLines = new ArrayList<>(data.outputLines);
-        // 新会话首次播放 STOS 启动动画（逐行渐显，速度取决于处理器等级）
-        if (this.outputLines.isEmpty()) {
-            playBootSequence(executor.stosLevel());
-        }
-        this.commandHistory = new ArrayList<>(data.commandHistory);
-        this.historyIndex = commandHistory.size();
-        updatePrompt();
+        dirtyRows = true; followTail = true;
     }
-    
-    private void saveCurrentSession() {
-        if (executor != null) {
-            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
-            TerminalSessionManager.saveCurrentSessions(playerName, sessions);
-        }
-    }
-    
     private void newSession() {
-        // CPU 硬性上限：处理器线程数决定最多能开多少窗口（与每窗口用量无关）
-        int cpuLimit = unsa.st.com.client.ClientHardware.cpuWindowLimit();
-        if (sessions.size() >= cpuLimit) {
-            appendLine("STOS:There are no available CPU resources to calculate a new page");
-            saveCurrentSession();
-            scrollOffset = Double.MAX_VALUE;
-            return;
-        }
-        // RAM 容量：任一窗口占用已超过 80% 容量，就不允许再开新窗口
-        if (unsa.st.com.client.ClientHardware.ramUnderPressure()) {
-            appendLine("STOS:Insufficient RAM capacity to create a new window");
-            saveCurrentSession();
-            scrollOffset = Double.MAX_VALUE;
-            return;
-        }
-        SessionData newData = TerminalSessionManager.createSession(playerName);
-        sessions.add(newData);
-        TerminalSessionManager.saveCurrentSessions(playerName, sessions);
-        loadSession(sessions.size() - 1);
+        rememberInput();
+        String error = WindowResourcePolicy.creationError(sessions.size(), ClientHardware.cpuWindowLimit(),
+                totalMemoryUnits(), ClientHardware.totalMemoryCapacityLines());
+        if (error != null) { notice = error; appendLine(session(), error); return; }
+        saveCurrentSession();
+        TerminalSessionManager.createSession(playerName); // Manager owns the insertion. Never sessions.add again.
+        loadSession(sessions.size() - 1); saveCurrentSession();
     }
-
-    /** 关闭指定窗口；关闭当前窗口时自动切到相邻窗口。 */
     private void closeSession(int index) {
         if (sessions.size() <= 1 || index < 0 || index >= sessions.size()) return;
-        if (executor != null) {
-            sessions.get(currentSessionIndex).updateFromExecutor(executor, outputLines);
-            executor = null; // 阻止 loadSession 再把状态写回已删除的窗口
-        }
-        sessions.remove(index);
-        for (int i = 0; i < sessions.size(); i++) sessions.get(i).index = i;
-        if (currentSessionIndex >= sessions.size()) currentSessionIndex = sessions.size() - 1;
-        TerminalSessionManager.saveCurrentSessions(playerName, sessions);
-        loadSession(currentSessionIndex);
+        saveCurrentSession();
+        SessionData active = session(), removed = sessions.remove(index);
+        TerminalSessionManager.reindex(sessions);
+        current = active == removed ? Math.min(index, sessions.size() - 1) : sessions.indexOf(active);
+        // Drop the old input reference until the new session has been selected.
+        input.setValue(sessions.get(current).draft);
+        loadSession(current); saveCurrentSession();
     }
-
-    private void deleteCurrentSession() {
-        closeSession(currentSessionIndex);
-    }
-
-    // ==================== 启动动画 ====================
-
-    /** 播放 STOS 启动序列：逐行渐显，行间隔按处理器等级（L9 秒开 / 低等级慢吞吞）。 */
-    private void playBootSequence(int level) {
-        int delay = unsa.st.com.compute.ComputePolicy.bootLineDelayMs(level);
-        int ramMb = unsa.st.com.client.ClientHardware.clientRamMb();
-        int ssdGb = unsa.st.com.client.ClientHardware.clientSsdGb();
-        long at = 0;
-        for (String line : unsa.st.com.compute.ComputePolicy.bootSequence(level, ramMb, ssdGb)) {
-            at += delay;
-            final String text = line;
-            bootTasks.add(BOOT_SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> {
-                if (instance == this) {
-                    appendLine(text);
-                    scrollOffset = Double.MAX_VALUE;
-                }
-            }), at, TimeUnit.MILLISECONDS));
-        }
-    }
-
-    /** 取消未播完的启动动画任务。 */
-    private void cancelBootTasks() {
-        for (ScheduledFuture<?> f : bootTasks) {
-            try { f.cancel(false); } catch (Exception ignored) {}
-        }
-        bootTasks.clear();
-    }
-
-    private void updatePrompt() {
-        String path = executor.getCurrentPath();
-        String displayPath = path.equals("/") ? "" : path;
-        currentPrompt = "~/" + playerName + displayPath + " $ ";
-    }
-
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + GUI_HEIGHT, BG_COLOR);
-        guiGraphics.renderOutline(leftPos, topPos, GUI_WIDTH, GUI_HEIGHT, BORDER_COLOR);
-        renderTabBar(guiGraphics);
-
-        int outputStartX = leftPos + PADDING;
-        int outputStartY = terminalOutputTop();
-        int outputHeight = terminalOutputHeight();
-        int lineHeight = this.font.lineHeight + 1;
-        int maxVisibleLines = outputHeight / lineHeight;
-        
-        int totalContentHeight = outputLines.size() * lineHeight;
-        int maxScroll = Math.max(0, totalContentHeight - outputHeight);
-        scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
-        
-        int startLine = (int) (scrollOffset / lineHeight);
-        int endLine = Math.min(outputLines.size(), startLine + maxVisibleLines + 1);
-        
-        for (int i = startLine; i < endLine; i++) {
-            int y = outputStartY + (i - startLine) * lineHeight - (int)(scrollOffset % lineHeight);
-            if (y < outputStartY) y = outputStartY;
-            if (y + lineHeight > outputStartY + outputHeight) continue;
-            String line = outputLines.get(i);
-            int color = TEXT_COLOR;
-            if (line.startsWith("~/") && line.contains(" $ ")) {
-                color = 0xFF55FFFF;
-            } else if (line.startsWith("Error:") || line.startsWith("bash:")) {
-                color = 0xFFFF5555;
+    @Override public void tick() {
+        if (input == null || sessions == null) return;
+        SessionData data = session();
+        long now = System.currentTimeMillis();
+        if (!data.booted && data.bootLines != null && now >= data.nextBootMs) {
+            appendLine(data, data.bootLines.get(data.bootIndex++));
+            data.nextBootMs = now + ComputePolicy.bootLineDelayMs(executor().stosLevel());
+            if (data.bootIndex >= data.bootLines.size()) {
+                data.booted = true; data.bootLines = null; saveCurrentSession();
             }
-            guiGraphics.drawString(this.font, line, outputStartX, y, color);
         }
-        
-        if (maxScroll > 0) {
-            int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
-            int scrollbarHeight = outputHeight;
-            int thumbHeight = Math.max(10, (int)((float)outputHeight / totalContentHeight * scrollbarHeight));
-            int thumbY = topPos + PADDING + (int)(scrollOffset / maxScroll * (scrollbarHeight - thumbHeight));
-            guiGraphics.fill(scrollbarX, topPos + PADDING, scrollbarX + SCROLLBAR_WIDTH, topPos + PADDING + scrollbarHeight, 0xFF333333);
-            guiGraphics.fill(scrollbarX, thumbY, scrollbarX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFAAAAAA);
-        }
-
-        if (forcibleState) {
-            guiGraphics.drawString(this.font, forciblePrompt, leftPos + PADDING, this.commandInput.getY(), 0xFFFFFF55);
-            this.commandInput.setVisible(false);
-        } else {
-            String promptDisplay = currentPrompt;
-            int promptWidth = this.font.width(promptDisplay);
-            guiGraphics.drawString(this.font, promptDisplay, leftPos + PADDING, this.commandInput.getY(), 0xFF55FF55);
-            this.commandInput.setX(leftPos + PADDING + promptWidth);
-            this.commandInput.setWidth(GUI_WIDTH - 2 * PADDING - promptWidth - SCROLLBAR_WIDTH);
-            this.commandInput.setVisible(true);
-        }
-        
-        int ramPct = unsa.st.com.compute.HardwareSpec.windowUsagePercent(totalUsedLines(),
-                unsa.st.com.client.ClientHardware.totalMemoryCapacityLines());
-        String sessionInfo = "[" + (currentSessionIndex + 1) + "/" + sessions.size() + " win] RAM " + ramPct + "%";
-        int infoWidth = this.font.width(sessionInfo);
-        guiGraphics.drawString(this.font, sessionInfo, 
-                leftPos + GUI_WIDTH - PADDING - infoWidth - SCROLLBAR_WIDTH, 
-                topPos + GUI_HEIGHT - this.font.lineHeight - PADDING, 0xFFAAAAAA);
-        
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
-
-    // ==================== 顶部标签栏（Windows Terminal 风格） ====================
-
-    /** 标签栏高度。 */
-    private int tabBarHeight() { return this.font.lineHeight + 6; }
-
-    /** 输出区域顶部 Y。 */
-    private int terminalOutputTop() { return topPos + tabBarHeight() + PADDING; }
-
-    /** 输出区域高度。 */
-    private int terminalOutputHeight() {
-        return GUI_HEIGHT - tabBarHeight() - this.font.lineHeight - 4 * PADDING;
+    private static int sessionUnits(SessionData data) {
+        long units = WindowResourcePolicy.WINDOW_OVERHEAD_UNITS;
+        for (String line : data.outputLines) units += Math.max(1, (line.length() * 2L + 32 + 1023) / 1024);
+        for (String line : data.commandHistory) units += Math.max(1, (line.length() * 2L + 32 + 1023) / 1024);
+        if (!data.draft.isEmpty()) units += Math.max(1, (data.draft.length() * 2L + 1023) / 1024);
+        return (int) Math.min(Integer.MAX_VALUE, units);
     }
-
-    /** 绘制顶部标签栏：可点击切换 / 关闭窗口，"+" 新建窗口。 */
-    private void renderTabBar(GuiGraphics g) {
-        int tabH = tabBarHeight();
-        g.fill(leftPos, topPos, leftPos + GUI_WIDTH, topPos + tabH, 0xFF141414);
-        g.fill(leftPos, topPos + tabH - 1, leftPos + GUI_WIDTH, topPos + tabH, 0xFF444444);
-
-        int addW = 14;
-        int avail = GUI_WIDTH - addW - 6;
-        int n = Math.max(1, sessions.size());
-        int tabW = Math.min(88, Math.max(24, avail / n));
-        if (tabW * n > avail) tabW = Math.max(18, avail / n);
-
-        tabBounds.clear();
-        int x = leftPos + 2;
-        for (int i = 0; i < sessions.size(); i++) {
-            boolean active = i == currentSessionIndex;
-            g.fill(x, topPos + 2, x + tabW, topPos + tabH - 3, active ? 0xFF2C2C2C : 0xFF0A0A0A);
-            if (active) g.fill(x, topPos + 2, x + tabW, topPos + 3, 0xFF55FFFF);
-            String label = trimToWidth(tabLabel(i), tabW - 16);
-            g.drawString(this.font, label, x + 4, topPos + (tabH - this.font.lineHeight) / 2,
-                    active ? 0xFFFFFFFF : 0xFF808080);
-            g.drawString(this.font, "x", x + tabW - 9, topPos + (tabH - this.font.lineHeight) / 2,
-                    active ? 0xFFFF8888 : 0xFF777777);
-            tabBounds.add(new int[]{x, tabW});
-            x += tabW + 1;
-        }
-        this.addTabX = x;
-        g.fill(x, topPos + 2, x + addW, topPos + tabH - 3, 0xFF1C1C1C);
-        g.drawString(this.font, "+", x + 5, topPos + (tabH - this.font.lineHeight) / 2, 0xFFCCCCCC);
+    private int usedMemoryUnits() {
+        long total = 0; for (SessionData data : sessions) total += sessionUnits(data);
+        return (int) Math.min(Integer.MAX_VALUE, total);
     }
-
-    /** 标签标题：序号 + 当前目录名。 */
-    private String tabLabel(int i) {
-        String path = (i == currentSessionIndex && executor != null)
-                ? executor.getCurrentPath() : sessions.get(i).currentPath;
-        if (path == null || path.isEmpty()) path = "/";
-        String name = path.equals("/") ? "/" : path.substring(path.lastIndexOf('/') + 1);
-        if (name.isEmpty()) name = "/";
-        return (i + 1) + ": " + name;
+    public static int totalMemoryUnits() {
+        return instance == null || instance.sessions == null ? 0 : instance.usedMemoryUnits();
     }
-
-    /** 按像素宽度裁剪字符串（超出加省略号）。 */
-    private String trimToWidth(String s, int maxWidth) {
-        if (maxWidth <= 0) return "";
-        if (this.font.width(s) <= maxWidth) return s;
-        String ell = "..";
-        int ew = this.font.width(ell);
-        StringBuilder sb = new StringBuilder();
-        int w = 0;
-        for (int i = 0; i < s.length(); i++) {
-            String c = String.valueOf(s.charAt(i));
-            int cw = this.font.width(c);
-            if (w + cw + ew > maxWidth) break;
-            sb.append(c);
-            w += cw;
-        }
-        return sb + ell;
-    }
-
-    /** 当前打开的窗口数量（硬件统计用）。 */
-    public static int windowCount() {
-        return instance == null || instance.sessions == null ? 1 : instance.sessions.size();
-    }
-
-    /** 全部窗口的输出行数总和（RAM 总占用判定用）。 */
     public static int totalUsedLines() {
         if (instance == null || instance.sessions == null) return 0;
-        int idx = instance.currentSessionIndex;
-        int total = instance.outputLines != null ? instance.outputLines.size() : 0;
-        for (int i = 0; i < instance.sessions.size(); i++) {
-            if (i == idx) continue;
-            java.util.List<String> lines = instance.sessions.get(i).outputLines;
-            if (lines != null) total += lines.size();
-        }
-        return total;
+        int total = 0; for (SessionData data : instance.sessions) total += data.outputLines.size(); return total;
     }
-
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        return mouseX >= leftPos && mouseX <= leftPos + GUI_WIDTH && mouseY >= topPos && mouseY <= topPos + GUI_HEIGHT;
+    public static int windowCount() { return instance == null || instance.sessions == null ? 0 : instance.sessions.size(); }
+    private void appendLine(SessionData target, String line) {
+        if (!sessions.contains(target)) return;
+        if (line == null) line = "";
+        // A single addon/result cannot allocate unbounded UI text.
+        if (line.length() > 16384) line = line.substring(0, 16384) + " [truncated]";
+        target.outputLines.add(line);
+        int cap = ClientHardware.totalMemoryCapacityLines();
+        while (usedMemoryUnits() > cap && !target.outputLines.isEmpty()) target.outputLines.remove(0);
+        while (usedMemoryUnits() > cap && target.commandHistory.size() > 1) target.commandHistory.remove(0);
+        if (target.executor != null) target.executor.setCommandHistory(target.commandHistory);
+        if (target == session()) { dirtyRows = true; followTail = true; }
     }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (isMouseOver(mouseX, mouseY)) {
-            scrollOffset -= scrollY * SCROLL_SPEED;
-            return true;
+    private void appendResult(SessionData target, String result) {
+        if (!sessions.contains(target) || result == null) return;
+        if (instance != null && instance != this && instance.sessions == sessions) {
+            instance.appendResult(target, result); return;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        for (String line : result.split("\\R", -1)) appendLine(target, line);
+        if (target.executor != null) target.currentPath = target.executor.getCurrentPath();
+        saveCurrentSession();
     }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && mouseY >= topPos && mouseY <= topPos + tabBarHeight()) {
-            if (addTabX >= 0 && mouseX >= addTabX && mouseX <= addTabX + 14) {
-                newSession();
-                return true;
-            }
-            for (int i = 0; i < tabBounds.size(); i++) {
-                int[] b = tabBounds.get(i);
-                if (mouseX >= b[0] && mouseX <= b[0] + b[1]) {
-                    if (mouseX >= b[0] + b[1] - 11) closeSession(i);
-                    else loadSession(i);
-                    return true;
-                }
-            }
-            return true;
+    public void addOutputLine(String text) { appendResult(session(), text); }
+    private void rebuildRows() {
+        if (!dirtyRows && rowWidth == outputWidth()) return;
+        rows.clear(); rowWidth = outputWidth();
+        for (String line : session().outputLines) {
+            int color = line.startsWith("STOS:") || line.startsWith("Error:") || line.startsWith("bash:") ? 0xFFFF8888
+                    : line.contains(" $ ") ? 0xFF88DDDD : 0xFF77DD99;
+            var parts = font.split(Component.literal(line.isEmpty() ? " " : line), rowWidth);
+            for (FormattedCharSequence part : parts) rows.add(new OutputRow(part, color));
         }
-        if (button == 0) {
-            int scrollbarX = leftPos + GUI_WIDTH - PADDING - SCROLLBAR_WIDTH;
-            int outputStartY = terminalOutputTop();
-            int outputHeight = terminalOutputHeight();
-            if (mouseX >= scrollbarX && mouseX <= scrollbarX + SCROLLBAR_WIDTH && mouseY >= outputStartY && mouseY <= outputStartY + outputHeight) {
-                isDraggingScrollbar = true;
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
+        dirtyRows = false;
     }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) isDraggingScrollbar = false;
-        return super.mouseReleased(mouseX, mouseY, button);
+    @Override public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        if (input == null || sessions == null) return;
+        g.fill(0, 0, width, height, 0x88000000);
+        g.fill(left, top, left + panelWidth, top + panelHeight, 0xFF080D13);
+        g.renderOutline(left, top, panelWidth, panelHeight, 0xFF748391);
+        renderTabs(g);
+        rebuildRows();
+        int lineHeight = font.lineHeight + 1, max = Math.max(0, rows.size() * lineHeight - outputHeight());
+        if (followTail) scroll = max;
+        scroll = Math.max(0, Math.min(scroll, max));
+        g.enableScissor(left + PAD, outputTop(), left + PAD + outputWidth(), outputTop() + outputHeight());
+        int first = scroll / lineHeight;
+        for (int i = first; i < Math.min(rows.size(), first + outputHeight() / lineHeight + 2); i++)
+            g.drawString(font, rows.get(i).text(), left + PAD, outputTop() + i * lineHeight - scroll, rows.get(i).color(), false);
+        g.disableScissor();
+        if (max > 0) {
+            int x = left + panelWidth - PAD - SCROLL_W, thumb = Math.max(10, outputHeight() * outputHeight() / (rows.size() * lineHeight));
+            int y = outputTop() + (int)((long)scroll * (outputHeight() - thumb) / max);
+            g.fill(x, outputTop(), x + SCROLL_W, outputTop() + outputHeight(), 0xFF273340);
+            g.fill(x, y, x + SCROLL_W, y + thumb, 0xFF8BA7B6);
+        }
+        g.fill(left + PAD, inputY() - 4, left + panelWidth - PAD, inputY() - 3, 0xFF283544);
+        String prompt = "~/" + playerName + executor().getCurrentPath() + " $ ";
+        prompt = font.plainSubstrByWidth(prompt, panelWidth / 2);
+        int promptW = font.width(prompt);
+        input.setX(left + PAD + promptW); input.setY(inputY()); input.setWidth(Math.max(24, panelWidth - 2 * PAD - promptW));
+        input.setVisible(confirm == null); input.setEditable(!session().busy && confirm == null);
+        if (confirm == null) g.drawString(font, prompt, left + PAD, inputY(), 0xFF88DDDD, false);
+        else g.drawString(font, font.plainSubstrByWidth("Sync " + (confirm == SyncAction.TO_SERVER ? "to server" : "from server") + "? [Y/N]", panelWidth - 2 * PAD), left + PAD, inputY(), 0xFFFFDD77, false);
+        int pct = WindowResourcePolicy.usagePercent(totalMemoryUnits(), ClientHardware.totalMemoryCapacityLines());
+        String status = notice.isEmpty() ? "CPU " + sessions.size() + "/" + ClientHardware.cpuWindowLimit() + "  RAM " + pct + "%"
+                + (session().busy ? "  Working..." : "  Ctrl+T new | Ctrl+W close") : notice;
+        g.drawString(font, font.plainSubstrByWidth(status, panelWidth - 2 * PAD), left + PAD, top + panelHeight - font.lineHeight - 3, notice.isEmpty() ? 0xFF99AABB : 0xFFFF8888, false);
+        super.render(g, mouseX, mouseY, partialTick);
     }
-
-    @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (isDraggingScrollbar) {
-            int outputHeight = terminalOutputHeight();
-            int totalContentHeight = outputLines.size() * (this.font.lineHeight + 1);
-            int maxScroll = Math.max(0, totalContentHeight - outputHeight);
-            float ratio = (float)(mouseY - topPos - PADDING) / outputHeight;
-            scrollOffset = ratio * maxScroll;
-            return true;
+    private void renderTabs(GuiGraphics g) {
+        g.fill(left + 1, top + 1, left + panelWidth - 1, top + TAB_H, 0xFF1B2531);
+        int visible = WindowResourcePolicy.visibleTabCount(panelWidth);
+        firstTab = WindowResourcePolicy.firstVisibleTab(current, firstTab, visible, sessions.size());
+        int tabWidth = Math.min(110, (panelWidth - 64) / visible);
+        tabs.clear();
+        for (int i = firstTab, x = left + 20; i < Math.min(sessions.size(), firstTab + visible); i++, x += tabWidth) {
+            boolean active = i == current;
+            g.fill(x, top + 2, x + tabWidth - 2, top + TAB_H - 1, active ? 0xFF344354 : 0xFF151D27);
+            if (active) g.fill(x, top + 2, x + tabWidth - 2, top + 4, 0xFF70D9D1);
+            String path = sessions.get(i).currentPath;
+            String label = (i + 1) + ": " + (path == null || path.equals("/") ? "~" : path.substring(path.lastIndexOf('/') + 1));
+            g.drawString(font, font.plainSubstrByWidth(label, tabWidth - 20), x + 4, top + 8, active ? 0xFFFFFFFF : 0xFF99AABB, false);
+            g.drawString(font, "x", x + tabWidth - 13, top + 8, 0xFFCC9999, false);
+            tabs.add(new TabHit(i, x, tabWidth));
         }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        g.drawString(font, "<", left + 6, top + 8, 0xFFBBDDDD, false);
+        g.drawString(font, ">", left + panelWidth - 38, top + 8, 0xFFBBDDDD, false);
+        g.drawString(font, "+", left + panelWidth - 18, top + 8, 0xFFBBDDDD, false);
     }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
-        
-        if (forcibleState) {
-            if (keyCode == GLFW.GLFW_KEY_Y) {
-                performSync();
-                forcibleState = false;
-                pendingSyncAction = null;
-                return true;
-            } else if (keyCode == GLFW.GLFW_KEY_N) {
-                forcibleState = false;
-                pendingSyncAction = null;
-                appendLine("Sync cancelled.");
-                return true;
-            }
-            return true;
-        }
-        
-        if (ctrl) {
-            if (keyCode == GLFW.GLFW_KEY_T) {
-                newSession();
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_W) {
-                closeSession(currentSessionIndex);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_X) {
-                if (!ctrlXPressed) { ctrlXPressed = true; newSession(); }
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_Z) {
-                if (currentSessionIndex > 0) loadSession(currentSessionIndex - 1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_C) {
-                if (currentSessionIndex < sessions.size() - 1) loadSession(currentSessionIndex + 1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_L) {
-                outputLines.clear(); saveCurrentSession(); scrollOffset = 0;
-                return true;
-            }
-        } else {
-            if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
-                ctrlXPressed = false; deletePressed = false;
-            }
-        }
-        
-        if (keyCode == GLFW.GLFW_KEY_DELETE) {
-            if (!deletePressed) { deletePressed = true; deleteCurrentSession(); }
-            return true;
-        }
-        
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-            String command = this.commandInput.getValue();
-            if (!command.isBlank()) {
-                processCommand(command);
+    @Override public boolean mouseClicked(double x, double y, int button) {
+        if (input == null) return false;
+        if (button == 0 && x >= left && x < left + panelWidth && y >= top && y < top + TAB_H) {
+            if (confirm != null) return true;
+            if (x >= left + panelWidth - 25) newSession();
+            else if (x >= left + panelWidth - 45) loadSession(Math.min(sessions.size() - 1, firstTab + WindowResourcePolicy.visibleTabCount(panelWidth)));
+            else if (x < left + 20) loadSession(Math.max(0, firstTab - 1));
+            else for (TabHit hit : tabs) if (x >= hit.x && x < hit.x + hit.width) {
+                if (x >= hit.x + hit.width - 17) closeSession(hit.index); else loadSession(hit.index);
+                break;
             }
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_UP) {
-            if (!commandHistory.isEmpty() && historyIndex > 0) {
-                historyIndex--;
-                this.commandInput.setValue(commandHistory.get(historyIndex));
-            }
+        if (button == 0 && x >= left + panelWidth - PAD - SCROLL_W && x <= left + panelWidth - PAD && y >= outputTop() && y < outputTop() + outputHeight()) {
+            dragging = true; setScrollFromMouse(y); return true;
+        }
+        return super.mouseClicked(x, y, button);
+    }
+    private void setScrollFromMouse(double y) {
+        rebuildRows(); followTail = false;
+        int max = Math.max(0, rows.size() * (font.lineHeight + 1) - outputHeight());
+        scroll = (int)(Math.max(0, Math.min(1, (y - outputTop()) / outputHeight())) * max);
+    }
+    @Override public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
+        if (dragging) { setScrollFromMouse(y); return true; }
+        return super.mouseDragged(x, y, button, dx, dy);
+    }
+    @Override public boolean mouseReleased(double x, double y, int button) {
+        if (button == 0) dragging = false;
+        return super.mouseReleased(x, y, button);
+    }
+    @Override public boolean mouseScrolled(double x, double y, double sx, double sy) {
+        if (x >= left && x <= left + panelWidth && y >= outputTop() && y < outputTop() + outputHeight()) {
+            followTail = false; scroll -= (int)(sy * 30); return true;
+        }
+        return super.mouseScrolled(x, y, sx, sy);
+    }
+    @Override public boolean keyPressed(int key, int scan, int mods) {
+        if (input == null) return super.keyPressed(key, scan, mods);
+        boolean ctrl = (mods & GLFW.GLFW_MOD_CONTROL) != 0, shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
+        if (key == GLFW.GLFW_KEY_ESCAPE && confirm != null) { confirm = null; return true; }
+        if (confirm != null) {
+            if (key == GLFW.GLFW_KEY_Y) { performSync(); confirm = null; }
+            else if (key == GLFW.GLFW_KEY_N) confirm = null;
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_DOWN) {
-            if (historyIndex < commandHistory.size() - 1) {
-                historyIndex++;
-                this.commandInput.setValue(commandHistory.get(historyIndex));
-            } else {
-                historyIndex = commandHistory.size();
-                this.commandInput.setValue("");
-            }
-            return true;
+        if (ctrl && key == GLFW.GLFW_KEY_T) { newSession(); return true; }
+        if (ctrl && key == GLFW.GLFW_KEY_W) { closeSession(current); return true; }
+        if (ctrl && (key == GLFW.GLFW_KEY_TAB || key == GLFW.GLFW_KEY_PAGE_UP || key == GLFW.GLFW_KEY_PAGE_DOWN)) {
+            int direction = key == GLFW.GLFW_KEY_PAGE_UP || shift ? -1 : 1;
+            loadSession(Math.floorMod(current + direction, sessions.size())); return true;
         }
-        return this.commandInput.keyPressed(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
-    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_LEFT_CONTROL || keyCode == GLFW.GLFW_KEY_RIGHT_CONTROL) {
-            ctrlXPressed = false; deletePressed = false;
+        if (ctrl && key == GLFW.GLFW_KEY_L) { clearSession(); return true; }
+        // Delete/Ctrl+C/Ctrl+X are editing keys, NOT destructive close/switch shortcuts.
+        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+            if (!session().busy && !input.getValue().isBlank()) processCommand(input.getValue()); return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_DELETE) deletePressed = false;
-        return super.keyReleased(keyCode, scanCode, modifiers);
+        List<String> history = executor().getCommandHistory();
+        if (key == GLFW.GLFW_KEY_UP) {
+            if (historyIndex > 0) input.setValue(history.get(--historyIndex)); return true;
+        }
+        if (key == GLFW.GLFW_KEY_DOWN) {
+            if (historyIndex < history.size() - 1) input.setValue(history.get(++historyIndex));
+            else { historyIndex = history.size(); input.setValue(""); } return true;
+        }
+        return super.keyPressed(key, scan, mods);
     }
-
-    @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        if (forcibleState) return true;
-        return this.commandInput.charTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
+    @Override public boolean charTyped(char c, int mods) { return confirm != null || super.charTyped(c, mods); }
+    private void clearSession() {
+        SessionData data = session(); data.outputLines.clear(); data.booted = true; data.bootLines = null;
+        scroll = 0; dirtyRows = true; notice = ""; saveCurrentSession();
     }
-
     private void processCommand(String command) {
-        appendLine(currentPrompt + command);
-        executor.addCommandToHistory(command);
-        commandHistory = executor.getCommandHistory();
-        historyIndex = commandHistory.size();
-        
-        String[] parts = command.trim().split("\\s+");
-        String cmd = parts[0];
-        String[] args = new String[parts.length - 1];
-        System.arraycopy(parts, 1, args, 0, args.length);
-        
-        if (cmd.equals("run") && args.length >= 1 && args[0].equals("synchrony")) {
-            if (args.length >= 2) {
-                if (args[1].equals("-server")) { 
-                    pendingSyncAction = SyncAction.TO_LOCAL; 
-                    forcibleState = true; 
-                    forciblePrompt = "Are you sure you want to sync from server? [Y/N]"; 
-                    this.commandInput.setValue(""); 
-                    return; 
-                } else if (args[1].equals("-local")) { 
-                    pendingSyncAction = SyncAction.TO_SERVER; 
-                    forcibleState = true; 
-                    forciblePrompt = "Are you sure you want to sync to server? [Y/N]"; 
-                    this.commandInput.setValue(""); 
-                    return; 
-                }
-            }
+        SessionData target = session(); ClientCommandExecutor exec = executor();
+        input.setValue(""); target.draft = "";
+        String[] parts = command.trim().split("\\s+"); String cmd = parts[0].toLowerCase(Locale.ROOT);
+        String[] args = Arrays.copyOfRange(parts, 1, parts.length);
+        exec.addCommandToHistory(command);
+        while (exec.getCommandHistory().size() > 256) exec.getCommandHistory().remove(0);
+        target.commandHistory = exec.getCommandHistory(); historyIndex = target.commandHistory.size();
+        if (cmd.equals("clear")) { clearSession(); return; }
+        appendLine(target, "~/" + playerName + exec.getCurrentPath() + " $ " + command);
+        if (cmd.equals("run") && args.length >= 2 && args[0].equalsIgnoreCase("synchrony")) {
+            confirm = args[1].equalsIgnoreCase("-server") ? SyncAction.TO_LOCAL
+                    : args[1].equalsIgnoreCase("-local") ? SyncAction.TO_SERVER : null;
+            if (confirm != null) { saveCurrentSession(); return; }
         }
-        
-        String result = executor.execute(cmd, args);
-        if (result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) appendLine(line);
-        }
-        
-        if (cmd.equalsIgnoreCase("refresh") || cmd.equalsIgnoreCase("user")) {
-            PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
+        if (cmd.equals("refresh") || cmd.equals("user")) {
+            pendingServerResults.add(target); PacketDistributor.sendToServer(new ExecuteCommandPayload(command));
+        } else if (cmd.equals("pkg") || cmd.equals("winget")) {
+            target.busy = true;
+            COMMANDS.execute(() -> {
+                String result;
+                try { result = exec.execute(cmd, args); }
+                catch (Exception e) { ShortcutTerminal.LOGGER.error("Terminal command failed", e); result = "Error: " + e.getMessage(); }
+                final String output = result;
+                Minecraft.getInstance().execute(() -> { target.busy = false; appendResult(target, output); });
+            });
         } else {
-            if (executor.hasPendingChanges()) {
-                syncFileSystemToServer();
-                executor.clearPendingChanges();
-            }
+            try { appendResult(target, exec.execute(cmd, args)); }
+            catch (Exception e) { ShortcutTerminal.LOGGER.error("Terminal command failed", e); appendResult(target, "Error: " + e.getMessage()); }
+            if (exec.hasPendingChanges()) { syncFileSystemToServer(); exec.clearPendingChanges(); }
         }
-        
-        saveCurrentSession();
-        this.commandInput.setValue("");
-        updatePrompt();
-        scrollOffset = Double.MAX_VALUE;
+        target.currentPath = exec.getCurrentPath(); saveCurrentSession();
     }
-    
     private void performSync() {
-    if (pendingSyncAction == SyncAction.TO_SERVER) {
-        // 显示开始消息
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.displayClientMessage(Component.literal("§e[Sync] File sync started, please do not shut down the game."), false);
-        }
-        syncFileSystemToServer();
-        appendLine("Local data synced to server.");
-        // 显示完成消息
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Sync] File synchronization completed."), false);
-        }
-    } else if (pendingSyncAction == SyncAction.TO_LOCAL) {
-        requestSyncFromServer();
+        if (confirm == SyncAction.TO_SERVER) { syncFileSystemToServer(); appendLine(session(), "[Sync] Sent local files to server."); }
+        else if (confirm == SyncAction.TO_LOCAL) requestSyncFromServer();
+        saveCurrentSession();
     }
-    saveCurrentSession();
-    updatePrompt();
-    scrollOffset = Double.MAX_VALUE;
-}
-
     private void syncFileSystemToServer() {
-        var snapshot = ClientVirtualFileSystem.getFileSystemSnapshot(executor.getPlayerUuid().toString());
-        PacketDistributor.sendToServer(new SyncFileSystemPacket(executor.getPlayerUuid().toString(), snapshot));
+        var id = executor().getPlayerUuid(); if (id == null) return;
+        PacketDistributor.sendToServer(new SyncFileSystemPacket(id.toString(), ClientVirtualFileSystem.getFileSystemSnapshot(id.toString())));
     }
-
     public void requestSyncFromServer() {
-        PacketDistributor.sendToServer(new RequestServerSyncPayload(executor.getPlayerUuid().toString()));
-        appendLine("Requesting file list from server...");
+        var id = executor().getPlayerUuid(); if (id == null) return;
+        PacketDistributor.sendToServer(new RequestServerSyncPayload(id.toString()));
+        appendLine(session(), "[Sync] Requesting server files...");
     }
-
     public static void receiveServerSyncData(String uuid, Map<String, String> files) {
-        if (instance == null) return;
-        boolean storageFull = false;
-        for (Map.Entry<String, String> entry : files.entrySet()) {
-            String fullPath = entry.getKey();
-            String content = entry.getValue();
-            int lastSlash = fullPath.lastIndexOf('/');
-            String dirPath = lastSlash > 0 ? fullPath.substring(0, lastSlash + 1) : "/";
-            String fileName = fullPath.substring(lastSlash + 1);
-            if (!ClientVirtualFileSystem.writeFile(instance.playerName, dirPath, fileName, content)) {
-                storageFull = true;
-            }
+        var mc = Minecraft.getInstance(); if (mc.player == null) return;
+        String owner = mc.player.getUUID().toString(); int written = 0;
+        for (var entry : files.entrySet()) {
+            String path = ClientVirtualFileSystem.normalizePath("/", entry.getKey());
+            int slash = path.lastIndexOf('/');
+            if (ClientVirtualFileSystem.writeFile(owner, slash <= 0 ? "/" : path.substring(0, slash), path.substring(slash + 1), entry.getValue())) written++;
         }
-        instance.addOutputLine("§a[Sync] Received and applied " + files.size() + " files from server.");
-        if (storageFull) instance.appendLine("§c[Sync] Storage full - some files were not written (install a bigger SSD).");
+        if (instance != null) instance.addOutputLine("[Sync] Applied " + written + "/" + files.size() + " files."
+                + (written < files.size() ? " Storage full or invalid paths." : ""));
     }
-
     public static void receiveCommandResult(String result) {
-        if (instance != null && result != null && !result.isEmpty()) {
-            for (String line : result.split("\n")) instance.appendLine(line);
-            instance.saveCurrentSession();
-            instance.scrollOffset = Double.MAX_VALUE;
-        }
+        if (instance == null || instance.sessions == null) return;
+        SessionData target = instance.pendingServerResults.pollFirst();
+        instance.appendResult(target == null ? instance.session() : target, result);
     }
-
-    /** 追加输出行，并按面板 RAM 限制历史缓冲行数（超出时丢弃最老的输出）。 */
-    private void appendLine(String line) {
-        outputLines.add(line);
-        int limit = unsa.st.com.client.ClientHardware.scrollbackLimit();
-        if (limit > 0 && outputLines.size() > limit) {
-            outputLines.subList(0, outputLines.size() - limit).clear();
-        }
-    }
-
-    public void addOutputLine(String line) {
-        appendLine(line);
-        saveCurrentSession();
-        scrollOffset = Double.MAX_VALUE;
-    }
-
     @Override public boolean isPauseScreen() { return false; }
-    @Override public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
-    @Override
-    public void removed() {
-        super.removed();
-        cancelBootTasks();
-        if (instance == this) instance = null;
-    }
-    @Override public boolean shouldCloseOnEsc() { saveCurrentSession(); return true; }
-    @Override
-    public void onClose() {
-        saveCurrentSession();
-        super.onClose();
-    }
+    @Override public void renderBackground(GuiGraphics g, int x, int y, float p) {}
+    @Override public void removed() { saveCurrentSession(); if (instance == this) instance = null; super.removed(); }
+    @Override public void onClose() { saveCurrentSession(); super.onClose(); }
 }

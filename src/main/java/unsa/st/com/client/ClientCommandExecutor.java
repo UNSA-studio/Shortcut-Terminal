@@ -32,7 +32,12 @@ public class ClientCommandExecutor {
     private final String playerName;
     private UUID playerUuid;
     private String currentPath = "/";
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2, r -> {
+        Thread t = new Thread(r, "STOS-ClientScheduler"); t.setDaemon(true); return t;
+    });
+    private java.util.function.Consumer<String> outputConsumer = result -> {};
+    public void setOutputConsumer(java.util.function.Consumer<String> consumer) { outputConsumer = consumer; }
+
     private final List<String> outputBuffer = new ArrayList<>();
     private List<String> commandHistory = new ArrayList<>();
     private boolean pendingChanges = false;
@@ -48,7 +53,7 @@ public class ClientCommandExecutor {
     public void setCurrentPath(String path) { this.currentPath = path; }
     public List<String> getCommandHistory() { return commandHistory; }
     public void setCommandHistory(List<String> history) { this.commandHistory = new ArrayList<>(history); }
-    public void addCommandToHistory(String cmd) { commandHistory.add(cmd); pendingChanges = true; }
+    public void addCommandToHistory(String cmd) { commandHistory.add(cmd); }
     public boolean hasPendingChanges() { return pendingChanges; }
     public void clearPendingChanges() { pendingChanges = false; }
     public UUID getPlayerUuid() { return playerUuid; }
@@ -87,22 +92,7 @@ public class ClientCommandExecutor {
 
     /** 当前面板的处理器等级（从打开终端的玩家主手/副手查找面板）。 */
     public int stosLevel() {
-        var mc = Minecraft.getInstance();
-        if (mc.player == null) return 0;
-        for (net.minecraft.world.item.ItemStack held : mc.player.getHandSlots()) {
-            if (held.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
-                return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(held);
-            }
-        }
-        // 也扫描主背包 36 格（面板可能没拿在手上）
-        var inv = mc.player.getInventory();
-        for (int i = 0; i < inv.items.size(); i++) {
-            net.minecraft.world.item.ItemStack s = inv.items.get(i);
-            if (s.getItem() instanceof unsa.st.com.item.TerminalPanelItem) {
-                return unsa.st.com.compute.ProcessorCapability.getInstalledLevel(s);
-            }
-        }
-        return 0;
+        return ClientHardware.clientProcessorLevel();
     }
 
     private long lastGateRejectMs = 0;
@@ -190,12 +180,14 @@ public class ClientCommandExecutor {
     private String executeMkdir(String[] args) {
         if (args.length == 0) return "Usage: mkdir <directory>";
         boolean ok = ClientVirtualFileSystem.createDirectory(playerName, currentPath, args[0]);
+        if (ok) pendingChanges = true;
         return ok ? "Directory created." : "Error: Failed to create directory.";
     }
 
     private String executeTouch(String[] args) {
         if (args.length == 0) return "Usage: touch <file>";
         boolean ok = ClientVirtualFileSystem.createFile(playerName, currentPath, args[0]);
+        if (ok) pendingChanges = true;
         return ok ? "File created." : "Error: Failed to create file.";
     }
 
@@ -205,6 +197,7 @@ public class ClientCommandExecutor {
         String target = recursive ? (args.length > 1 ? args[1] : "") : args[0];
         if (target.isEmpty()) return "Invalid target.";
         boolean ok = ClientVirtualFileSystem.delete(playerName, currentPath, target, recursive);
+        if (ok) pendingChanges = true;
         return ok ? "Deleted." : "Error: Failed to delete.";
     }
 
@@ -228,7 +221,7 @@ public class ClientCommandExecutor {
             return "Changed directory to: /";
         }
         String newPath = ClientVirtualFileSystem.normalizePath(currentPath, args[0]);
-        if (ClientVirtualFileSystem.listDirectory(playerName, newPath) != null) {
+        if (ClientVirtualFileSystem.directoryExists(playerName, newPath)) {
             currentPath = newPath;
             return "Changed directory to: " + (currentPath.isEmpty() ? "/" : currentPath);
         }
@@ -268,12 +261,7 @@ public class ClientCommandExecutor {
 
     // ========== WINGET (system passthrough on desktop / built-in on Android) ==========
     private String executeWinget(String[] args) {
-        return unsa.st.com.winget.WingetManager.dispatch(args, true, result -> {
-            Minecraft.getInstance().execute(() -> {
-                TerminalScreen screen = TerminalScreen.getInstance();
-                if (screen != null) screen.addOutputLine(result);
-            });
-        });
+        return unsa.st.com.winget.WingetManager.dispatch(args, true, result -> outputConsumer.accept(result));
     }
 
     // ========== RUN ==========

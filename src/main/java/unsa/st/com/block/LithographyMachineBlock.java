@@ -52,18 +52,30 @@ public class LithographyMachineBlock extends BaseEntityBlock {
     }
 
     @Override
+    protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack,
+            BlockState state, Level level, BlockPos pos, Player player,
+            net.minecraft.world.InteractionHand hand, BlockHitResult hit) {
+        useWithoutItem(state, level, pos, player, hit);
+        return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof LithographyMachineBlockEntity machine) {
-                if (!machine.isFormed()) {
-                    player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                            "Multiblock incomplete: surround this controller with 8 Machine Casings (flat 3x3)."), true);
-                    return InteractionResult.CONSUME;
-                }
                 player.openMenu(machine, pos);
             }
         }
         return InteractionResult.SUCCESS;
     }
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState next, boolean moved) {
+        if (!state.is(next.getBlock()) && level.getBlockEntity(pos) instanceof LithographyMachineBlockEntity machine) {
+            net.minecraft.world.Containers.dropContents(level, pos, machine);
+            level.updateNeighbourForOutputSignal(pos, this);
+        }
+        super.onRemove(state, level, pos, next, moved);
+    }
+
 }

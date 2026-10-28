@@ -22,6 +22,10 @@ import java.util.UUID;
  */
 public final class ClientPayloadHandler {
     private ClientPayloadHandler() {}
+    public static void openTerminal(net.minecraft.world.item.ItemStack panel) {
+        Minecraft.getInstance().setScreen(new TerminalScreen(panel));
+    }
+
 
     /** TriggerSyncPayload：本地 ↔ 服务端文件同步。 */
     public static void onTriggerSync(boolean toServer) {

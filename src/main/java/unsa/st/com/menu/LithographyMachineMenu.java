@@ -1,86 +1,80 @@
 package unsa.st.com.menu;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.*;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import unsa.st.com.block.LithographyMachineBlockEntity;
 import unsa.st.com.registry.ModBlockEntities;
+import unsa.st.com.registry.ModBlocks;
 import unsa.st.com.registry.ModItems;
 
-/**
- * 光刻机 GUI 菜单：3 机器槽 + 玩家背包。
- * 机器槽：0 晶圆(输入)、1 掩膜、2 电源线圈、3 输出(只出不进)。
- */
 public class LithographyMachineMenu extends AbstractContainerMenu {
-    public final LithographyMachineBlockEntity machine;
+    public static final int WIDTH = 212, HEIGHT = 200;
+    public static final int[][] POSITIONS = {{14,40},{46,40},{78,40},{130,40},{154,40},{178,40}};
+    private final Container inventory;
+    private final ContainerData data;
     private final ContainerLevelAccess access;
-
-    /** 客户端工厂（IContainerFactory）。 */
-    /** 客户端工厂（IContainerFactory）。 */
-    public LithographyMachineMenu(int windowId, Inventory playerInv, net.minecraft.network.RegistryFriendlyByteBuf buf) {
-        this(windowId, playerInv, BlockPos.STREAM_CODEC.decode(buf));
+    public LithographyMachineMenu(int id, Inventory inv, RegistryFriendlyByteBuf buf) {
+        this(id, inv, new SimpleContainer(6), new SimpleContainerData(5), buf.readBlockPos());
     }
-
-    public LithographyMachineMenu(int windowId, Inventory playerInv, BlockPos pos) {
-        super(ModBlockEntities.LITHOGRAPHY_MACHINE_MENU.get(), windowId);
-        this.access = ContainerLevelAccess.create(playerInv.player.level(), pos);
-        Level lvl = playerInv.player.level();
-        BlockEntity be = lvl.getBlockEntity(pos);
-        this.machine = be instanceof LithographyMachineBlockEntity m ? m : null;
-
-        if (machine != null) {
-            // BE 自身实现 Container（getContainerSize/getItem/...），Slot 直接持有
-            addSlot(new Slot(machine, 0, 44, 35) { @Override public boolean mayPlace(ItemStack s){ return s.is(ModItems.LOGIC_WAFER.get()); } });  // wafer
-            addSlot(new Slot(machine, 1, 80, 35) { @Override public boolean mayPlace(ItemStack s){ return s.getItem().toString().contains("lithography_mask_l"); } });  // mask
-            addSlot(new Slot(machine, 2, 116, 35) { @Override public boolean mayPlace(ItemStack s){ return s.is(ModItems.POWER_COIL.get()); } }); // power coil
-            addSlot(new Slot(machine, 3, 152, 35) { // output (extract only)
-                @Override public boolean mayPlace(ItemStack stack) { return false; }
-                @Override public boolean mayPickup(Player player) { return true; }
+    public LithographyMachineMenu(int id, Inventory inv, Container inventory, ContainerData data, BlockPos pos) {
+        super(ModBlockEntities.LITHOGRAPHY_MACHINE_MENU.get(), id);
+        checkContainerSize(inventory, 6);
+        checkContainerDataCount(data, 5);
+        this.inventory = inventory; this.data = data;
+        this.access = ContainerLevelAccess.create(inv.player.level(), pos);
+        for (int i = 0; i < 6; i++) {
+            final int slot = i;
+            addSlot(new Slot(inventory, i, POSITIONS[i][0], POSITIONS[i][1]) {
+                @Override public boolean mayPlace(ItemStack stack) {
+                    if (isWorking()) return false;
+                    return switch (slot) {
+                        case 0 -> stack.is(ModItems.LOGIC_WAFER.get());
+                        case 1 -> LithographyMachineBlockEntity.maskLevelFromItem(stack) > 0;
+                        case 2 -> stack.is(ModItems.POWER_COIL.get());
+                        default -> false;
+                    };
+                }
+                @Override public boolean mayPickup(Player player) { return slot >= 3 || !isWorking(); }
             });
         }
-        // 玩家背包 27 + 热栏 9
-        for (int row = 0; row < 3; row++)
-            for (int col = 0; col < 9; col++)
-                addSlot(new Slot(playerInv, 9 + row * 9 + col, 8 + col * 18, 84 + row * 18));
-        for (int col = 0; col < 9; col++)
-            addSlot(new Slot(playerInv, col, 8 + col * 18, 142));
+        addDataSlots(data);
+        for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++)
+            addSlot(new Slot(inv, 9 + row * 9 + col, 26 + col * 18, 116 + row * 18));
+        for (int col = 0; col < 9; col++) addSlot(new Slot(inv, col, 26 + col * 18, 174));
     }
-
-    @Override
-    public ItemStack quickMoveStack(Player player, int index) {
+    public int getProgress() { return data.get(0); }
+    public int getTargetLevel() { return data.get(1); }
+    public int getFuelBatches() { return data.get(2); }
+    public boolean isFormed() { return data.get(3) != 0; }
+    public boolean isWorking() { return data.get(4) != 0; }
+    public boolean outputBlocked() { for (int i = 3; i < 6; i++) if (!inventory.getItem(i).isEmpty()) return true; return false; }
+    @Override public ItemStack quickMoveStack(Player player, int index) {
+        if (index < 0 || index >= slots.size()) return ItemStack.EMPTY;
         Slot slot = slots.get(index);
-        if (!slot.hasItem()) return ItemStack.EMPTY;
-        ItemStack stack = slot.getItem();
-        ItemStack original = stack.copy();
-        // 机器槽区间 [0,3]，玩家背包 [4,39]
-        if (index < 4) {
-            if (!moveItemStackTo(stack, 4, 40, true)) return ItemStack.EMPTY;
+        if (!slot.hasItem() || !slot.mayPickup(player)) return ItemStack.EMPTY;
+        ItemStack stack = slot.getItem(), original = stack.copy();
+        if (index < 6) {
+            if (!moveItemStackTo(stack, 6, 42, true)) return ItemStack.EMPTY;
         } else {
-            // 快捷投放：晶圆→0，掩膜→1，线圈→2
-            if (stack.is(ModItems.LOGIC_WAFER.get())) {
-                if (!moveItemStackTo(stack, 0, 1, false)) return ItemStack.EMPTY;
-            } else if (stack.getItem().toString().endsWith("lithography_mask_l1")
-                    || stack.getItem().toString().contains("lithography_mask_l")) {
-                if (!moveItemStackTo(stack, 1, 2, false)) return ItemStack.EMPTY;
-            } else if (stack.is(ModItems.POWER_COIL.get())) {
-                if (!moveItemStackTo(stack, 2, 3, false)) return ItemStack.EMPTY;
-            } else {
-                if (!moveItemStackTo(stack, 0, 3, false)) return ItemStack.EMPTY;
-            }
+            int target = stack.is(ModItems.LOGIC_WAFER.get()) ? 0
+                    : LithographyMachineBlockEntity.maskLevelFromItem(stack) > 0 ? 1
+                    : stack.is(ModItems.POWER_COIL.get()) ? 2 : -1;
+            if (target >= 0) {
+                if (!slots.get(target).mayPlace(stack) || !moveItemStackTo(stack, target, target + 1, false)) return ItemStack.EMPTY;
+            } else if (index < 33) {
+                if (!moveItemStackTo(stack, 33, 42, false)) return ItemStack.EMPTY;
+            } else if (!moveItemStackTo(stack, 6, 33, false)) return ItemStack.EMPTY;
         }
-        if (stack.isEmpty()) slot.setByPlayer(ItemStack.EMPTY);
-        else slot.setChanged();
+        if (stack.isEmpty()) slot.setByPlayer(ItemStack.EMPTY); else slot.setChanged();
+        if (stack.getCount() == original.getCount()) return ItemStack.EMPTY;
+        slot.onTake(player, original.copyWithCount(original.getCount() - stack.getCount()));
         return original;
     }
-
-    @Override
-    public boolean stillValid(Player player) {
-        return machine != null && machine.stillValid(player);
-    }
+    @Override public boolean stillValid(Player player) { return stillValid(access, player, ModBlocks.LITHOGRAPHY_MACHINE.get()); }
 }

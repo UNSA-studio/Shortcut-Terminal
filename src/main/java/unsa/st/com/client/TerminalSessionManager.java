@@ -5,127 +5,92 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
 import unsa.st.com.ShortcutTerminal;
-
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 管理多个终端会话，支持持久化
- */
-public class TerminalSessionManager {
+/** Persist sessions atomically. Creating a session adds it exactly ONCE. */
+public final class TerminalSessionManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<String, List<SessionData>> playerSessions = new ConcurrentHashMap<>();
-    
-    /**
-     * 获取玩家名对应的会话列表
-     */
-    public static List<SessionData> getSessions(String playerName) {
-        return playerSessions.computeIfAbsent(playerName, k -> {
-            List<SessionData> loaded = loadSessionsFromFile(playerName);
-            if (loaded.isEmpty()) {
-                SessionData defaultSession = new SessionData(playerName);
-                defaultSession.index = 0;
-                loaded.add(defaultSession);
-            }
+    private TerminalSessionManager() {}
+    public static List<SessionData> getSessions(String name) {
+        return playerSessions.computeIfAbsent(name, k -> {
+            List<SessionData> loaded = load(name);
+            if (loaded.isEmpty()) loaded.add(new SessionData(name));
+            reindex(loaded);
             return loaded;
         });
     }
-    
-    /**
-     * 为玩家创建一个新会话
-     */
-    public static SessionData createSession(String playerName) {
-        List<SessionData> sessions = getSessions(playerName);
-        SessionData session = new SessionData(playerName);
-        session.index = sessions.size();
-        sessions.add(session);
-        saveSessionsToFile(playerName, sessions);
-        return session;
+    public static SessionData createSession(String name) {
+        List<SessionData> list = getSessions(name);
+        SessionData data = new SessionData(name);
+        list.add(data); reindex(list);
+        return data;
     }
-    
-    /**
-     * 保存指定玩家的所有会话
-     */
-    public static void saveCurrentSessions(String playerName, List<SessionData> sessions) {
-        playerSessions.put(playerName, sessions);
-        saveSessionsToFile(playerName, sessions);
+    public static void reindex(List<SessionData> list) {
+        for (int i = 0; i < list.size(); i++) list.get(i).index = i;
     }
-    
-    /**
-     * 从文件加载会话（不触发递归保存）
-     */
-    private static List<SessionData> loadSessionsFromFile(String playerName) {
-        Path file = getSessionsFile(playerName);
-        if (!Files.exists(file)) {
-            return new ArrayList<>();
-        }
+    private static Path file(String name) {
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("terminal_sessions").resolve(name + "_sessions.json");
+    }
+    private static List<SessionData> load(String name) {
+        Path file = file(name);
+        if (!Files.isRegularFile(file)) return new ArrayList<>();
         try (Reader reader = Files.newBufferedReader(file)) {
-            List<SessionData> loaded = GSON.fromJson(reader, new TypeToken<List<SessionData>>(){}.getType());
-            if (loaded == null) {
-                loaded = new ArrayList<>();
+            List<SessionData> result = GSON.fromJson(reader, new TypeToken<List<SessionData>>(){}.getType());
+            if (result == null) return new ArrayList<>();
+            result.removeIf(Objects::isNull);
+            for (SessionData data : result) {
+                data.playerName = name;
+                if (data.currentPath == null) data.currentPath = "/";
+                if (data.outputLines == null) data.outputLines = new ArrayList<>();
+                if (data.commandHistory == null) data.commandHistory = new ArrayList<>();
+                data.outputLines.removeIf(Objects::isNull); data.commandHistory.removeIf(Objects::isNull);
+                if (data.draft == null) data.draft = "";
+                if (!data.outputLines.isEmpty()) data.booted = true;
             }
-            // 重新索引
-            for (int i = 0; i < loaded.size(); i++) {
-                loaded.get(i).index = i;
-            }
-            return loaded;
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to load terminal sessions", e);
+            return result;
+        } catch (IOException | RuntimeException e) {
+            ShortcutTerminal.LOGGER.error("Failed to load terminal sessions; keeping a recovery copy", e);
+            try { Files.copy(file, file.resolveSibling(file.getFileName() + ".broken-" + System.currentTimeMillis())); }
+            catch (IOException copyError) { ShortcutTerminal.LOGGER.warn("Could not back up sessions", copyError); }
             return new ArrayList<>();
         }
     }
-    
-    /**
-     * 写入文件（纯文件操作，不修改内存Map）
-     */
-    private static void saveSessionsToFile(String playerName, List<SessionData> sessions) {
-        Path file = getSessionsFile(playerName);
+    public static void saveCurrentSessions(String name, List<SessionData> sessions) {
+        playerSessions.put(name, sessions);
+        Path file = file(name), temp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
             Files.createDirectories(file.getParent());
-            try (Writer writer = Files.newBufferedWriter(file)) {
-                GSON.toJson(sessions, writer);
-            }
-        } catch (IOException e) {
-            ShortcutTerminal.LOGGER.error("Failed to save terminal sessions", e);
-        }
+            try (Writer writer = Files.newBufferedWriter(temp)) { GSON.toJson(sessions, writer); }
+            try { Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
+            catch (AtomicMoveNotSupportedException e) { Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING); }
+        } catch (IOException e) { ShortcutTerminal.LOGGER.error("Failed to save terminal sessions", e); }
     }
-    
-    private static Path getSessionsFile(String playerName) {
-        return Paths.get(Minecraft.getInstance().gameDirectory.getAbsolutePath(), 
-                "terminal_sessions", playerName + "_sessions.json");
-    }
-    
-    /**
-     * 会话数据
-     */
     public static class SessionData {
         public transient int index;
-        public String playerName;
-        public String currentPath = "/";
-        public List<String> outputLines = new ArrayList<>();
-        public List<String> commandHistory = new ArrayList<>();
-        
+        public String playerName, currentPath = "/", draft = "";
+        public List<String> outputLines = new ArrayList<>(), commandHistory = new ArrayList<>();
+        public boolean booted;
+        public transient boolean busy;
+        public transient ClientCommandExecutor executor;
+        public transient List<String> bootLines;
+        public transient int bootIndex;
+        public transient long nextBootMs;
         public SessionData() {}
-        
-        public SessionData(String playerName) {
-            this.playerName = playerName;
-        }
-        
+        public SessionData(String name) { playerName = name; }
         public ClientCommandExecutor createExecutor() {
-            ClientCommandExecutor executor = new ClientCommandExecutor(playerName);
-            executor.setCurrentPath(currentPath);
-            executor.setCommandHistory(new ArrayList<>(commandHistory));
+            if (executor == null) {
+                executor = new ClientCommandExecutor(playerName);
+                executor.setCurrentPath(currentPath); executor.setCommandHistory(commandHistory);
+            }
             return executor;
         }
-        
-        public void updateFromExecutor(ClientCommandExecutor executor, List<String> outputLines) {
-            this.currentPath = executor.getCurrentPath();
-            this.commandHistory = new ArrayList<>(executor.getCommandHistory());
-            this.outputLines = new ArrayList<>(outputLines);
+        public void updateFromExecutor(ClientCommandExecutor value, List<String> lines) {
+            currentPath = value.getCurrentPath(); commandHistory = new ArrayList<>(value.getCommandHistory());
+            if (lines != outputLines) outputLines = new ArrayList<>(lines);
         }
     }
 }

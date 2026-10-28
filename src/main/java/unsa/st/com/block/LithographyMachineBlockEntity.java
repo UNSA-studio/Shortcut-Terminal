@@ -2,208 +2,135 @@ package unsa.st.com.block;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import unsa.st.com.compute.ProcessorCapability;
-import unsa.st.com.compute.YieldTable;
 import unsa.st.com.menu.LithographyMachineMenu;
 import unsa.st.com.registry.ModBlockEntities;
 import unsa.st.com.registry.ModItems;
-
-import java.util.List;
 import java.util.Random;
 
-/**
- * 光刻机方块实体：3×3 多方块核心。
- * 槽位：0=逻辑晶圆（输入）、1=掩膜（决定目标等级，不消耗）、2=电源线圈（燃料）、3=输出。
- * 加工 20s（400 ticks）一片晶圆 → 一批 10 颗 CPU（良品率掷骰）。
- */
-public class LithographyMachineBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
-    public static final int PROCESS_TICKS = 400;
-    /** 掩膜等级 = 目标等级。 */
-    private int targetLevel = 0;
-    private int progress = 0;
-    private boolean working = false;
+/** A wafer + a permanent mask => ten graded processors. One coil powers two batches. */
+public class LithographyMachineBlockEntity extends BaseContainerBlockEntity {
+    public static final int PROCESS_TICKS = 400, SIZE = 6, DATA_SIZE = 5;
+    private final NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
     private final Random random = new Random();
-
-    /** 方块实体直接持有 NonNullList（BaseContainerBlockEntity 约定 getItems/setItems 抽象）。 */
-    private final net.minecraft.core.NonNullList<ItemStack> items = net.minecraft.core.NonNullList.withSize(4, ItemStack.EMPTY);
-
+    private int targetLevel, progress, fuelBatches;
+    private boolean working;
+    public final ContainerData data = new ContainerData() {
+        @Override public int get(int i) { return switch (i) {
+            case 0 -> progress; case 1 -> targetLevel; case 2 -> fuelBatches;
+            case 3 -> isFormed() ? 1 : 0; case 4 -> working ? 1 : 0; default -> 0;
+        }; }
+        @Override public void set(int i, int value) { /* server-owned; client uses SimpleContainerData */ }
+        @Override public int getCount() { return DATA_SIZE; }
+    };
     public LithographyMachineBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.LITHOGRAPHY_MACHINE.get(), pos, state);
     }
-
-    // ==================== 多方块成型 ====================
-
-    /** 检查 3×3 平放成型：自身以外的 8 格全是外壳。 */
-    public boolean isFormed() {
-        if (level == null) return false;
-        BlockPos origin = getBlockPos();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) continue;
-                BlockState st = level.getBlockState(origin.offset(dx, 0, dz));
-                if (!(st.getBlock() instanceof unsa.st.com.block.MachineCasingBlock)) return false;
-            }
-        }
-        return true;
-    }
-
-    // ==================== 服务器 tick ====================
-
-    public void serverTick(Level lvl, BlockPos pos) {
-        if (!isFormed()) { working = false; progress = 0; return; }
-        if (!working) tryStart();
-        if (working) {
-            progress++;
-            if (progress >= PROCESS_TICKS) finishBatch(lvl, pos);
-        }
-        // 进度同步给打开的 GUI（低频广播）
-        if (progress % 20 == 0) setChanged();
-    }
-
-    private void tryStart() {
-        if (this.items.get(0).is(ModItems.LOGIC_WAFER.get())
-                && this.items.get(2).is(ModItems.POWER_COIL.get())) {
-            int maskLevel = maskLevelFromItem(this.items.get(1));
-            if (maskLevel >= 1) {
-                targetLevel = maskLevel;
-                working = true;
-                progress = 0;
-            }
-        }
-    }
-
-    private void finishBatch(Level lvl, BlockPos pos) {
-        // 消耗 1 晶圆 + 1 线圈（1 线圈 = 2 批能量：偶数批耗线圈）
-        this.items.set(0, splitDecrement(this.items.get(0), 1));
-        if (progress / PROCESS_TICKS % 2 == 0) this.items.set(2, splitDecrement(this.items.get(2), 1));
-        // 产出
-        List<ItemStack> batch = ProcessorCapability.produceBatch(targetLevel, random);
-        ItemStack out = this.items.get(3);
-        for (ItemStack produced : batch) {
-            // 输出槽尽量塞
-            if (out.isEmpty()) { this.items.set(3, produced); out = this.items.get(3); }
-            else if (ItemStack.isSameItemSameComponents(out, produced) && out.getCount() + produced.getCount() <= out.getMaxStackSize()) {
-                out.grow(produced.getCount());
-            } else {
-                lvl.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(
-                        lvl, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, produced));
-            }
-        }
-        Component summary = Component.literal(YieldTable.batchSummary(targetLevel,
-                YieldTable.rollBatch(targetLevel, random)));
-        // 通知附近玩家（简化：直接给全员范围内广播）
-        Player nearest = lvl.getNearestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 8.0, false);
-        if (nearest != null) nearest.displayClientMessage(summary, true);
-        working = false;
-        progress = 0;
-        setChanged();
-    }
-
-    /** 掩膜物品 → 等级（lithography_mask_l3 → 3）。 */
-    private int maskLevelFromItem(ItemStack mask) {
-        if (mask.isEmpty()) return 0;
-        String s = mask.getItem().toString().toLowerCase(java.util.Locale.ROOT);
-        for (int l = 9; l >= 1; l--) {
-            if (s.endsWith("_l" + l)) return l;
-        }
+    public static int maskLevelFromItem(ItemStack stack) {
+        for (int i = 1; i <= 9; i++) if (stack.is(ModItems.LITHO_MASKS.get(i).get())) return i;
         return 0;
     }
-
-    // ==================== Container 实现 ====================
-
-    @Override public int getContainerSize() { return this.items.size(); }
-    @Override public boolean isEmpty() {
-        for (ItemStack s : this.items) if (!s.isEmpty()) return false;
+    public boolean isFormed() {
+        if (level == null) return false;
+        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+            if (x == 0 && z == 0) continue;
+            if (!(level.getBlockState(worldPosition.offset(x, 0, z)).getBlock() instanceof MachineCasingBlock)) return false;
+        }
         return true;
     }
-    @Override public ItemStack getItem(int slot) { return this.items.get(slot); }
+    private boolean outputsEmpty() {
+        for (int i = 3; i < SIZE; i++) if (!items.get(i).isEmpty()) return false;
+        return true;
+    }
+    private boolean validInputs() {
+        return items.get(0).is(ModItems.LOGIC_WAFER.get()) && maskLevelFromItem(items.get(1)) > 0;
+    }
+    public void serverTick(Level lvl, BlockPos pos) {
+        if (!isFormed() || !validInputs()) {
+            if (working || progress != 0) { working = false; progress = 0; setChanged(); }
+            return;
+        }
+        if (!working) {
+            if (!outputsEmpty()) return;
+            if (fuelBatches == 0) {
+                if (!items.get(2).is(ModItems.POWER_COIL.get())) return;
+                items.get(2).shrink(1);
+                fuelBatches = 2;
+            }
+            targetLevel = maskLevelFromItem(items.get(1));
+            working = true;
+            progress = 0;
+            setChanged();
+        }
+        if (maskLevelFromItem(items.get(1)) != targetLevel) { working = false; progress = 0; setChanged(); return; }
+        progress++;
+        if (progress >= PROCESS_TICKS && outputsEmpty()) {
+            var batch = ProcessorCapability.produceBatch(targetLevel, random);
+            // The yield table has at most three distinct grades. No world-item spill or output loss.
+            for (int i = 0; i < batch.size(); i++) items.set(3 + i, batch.get(i));
+            items.get(0).shrink(1);
+            fuelBatches--;
+            working = false;
+            progress = 0;
+        }
+        setChanged();
+    }
+    public boolean isWorking() { return working; }
+    @Override public boolean canPlaceItem(int slot, ItemStack stack) {
+        if (working) return false;
+        return switch (slot) {
+            case 0 -> stack.is(ModItems.LOGIC_WAFER.get());
+            case 1 -> maskLevelFromItem(stack) > 0;
+            case 2 -> stack.is(ModItems.POWER_COIL.get());
+            default -> false;
+        };
+    }
+    @Override public int getContainerSize() { return SIZE; }
+    @Override public boolean isEmpty() { return items.stream().allMatch(ItemStack::isEmpty); }
+    @Override public ItemStack getItem(int slot) { return items.get(slot); }
     @Override public ItemStack removeItem(int slot, int amount) {
-        ItemStack taken = net.minecraft.world.ContainerHelper.removeItem(this.items, slot, amount);
-        if (!taken.isEmpty()) this.setChanged();
-        return taken;
+        ItemStack result = net.minecraft.world.ContainerHelper.removeItem(items, slot, amount);
+        if (!result.isEmpty()) setChanged();
+        return result;
     }
-    @Override public ItemStack removeItemNoUpdate(int slot) {
-        return net.minecraft.world.ContainerHelper.takeItem(this.items, slot);
-    }
-    @Override public void setItem(int slot, ItemStack stack) {
-        this.items.set(slot, stack);
-        this.setChanged();
-    }
+    @Override public ItemStack removeItemNoUpdate(int slot) { return net.minecraft.world.ContainerHelper.takeItem(items, slot); }
+    @Override public void setItem(int slot, ItemStack stack) { items.set(slot, stack); setChanged(); }
     @Override public boolean stillValid(Player player) {
         return level != null && level.getBlockEntity(worldPosition) == this
-                && player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
+                && player.distanceToSqr(worldPosition.getX() + .5, worldPosition.getY() + .5, worldPosition.getZ() + .5) <= 64;
     }
-    @Override public void clearContent() { fillEmpty(); }
-
-    /** 清空所有槽位。 */
-    private void fillEmpty() {
-        for (int i = 0; i < this.items.size(); i++) this.items.set(i, ItemStack.EMPTY);
-        this.setChanged();
+    @Override public void clearContent() { items.clear(); setChanged(); }
+    @Override protected NonNullList<ItemStack> getItems() { return items; }
+    @Override protected void setItems(NonNullList<ItemStack> value) {
+        for (int i = 0; i < SIZE; i++) items.set(i, i < value.size() ? value.get(i) : ItemStack.EMPTY);
     }
-
-    /** 槽位减 amount（单堆内扣，耗尽返回 EMPTY）。 */
-    private static ItemStack splitDecrement(ItemStack stack, int amount) {
-        if (stack.isEmpty()) return ItemStack.EMPTY;
-        stack.shrink(amount);
-        return stack.isEmpty() ? ItemStack.EMPTY : stack;
+    @Override protected Component getDefaultName() { return Component.translatable("block.shortcutterminal.lithography_machine"); }
+    @Override protected AbstractContainerMenu createMenu(int id, Inventory inv) {
+        return new LithographyMachineMenu(id, inv, this, data, worldPosition);
     }
-
-    /** BaseContainerBlockEntity 抽象：暴露内部 NonNullList。 */
-    @Override
-    protected net.minecraft.core.NonNullList<ItemStack> getItems() { return this.items; }
-
-    /** BaseContainerBlockEntity 抽象：读档时整体替换。 */
-    @Override
-    protected void setItems(net.minecraft.core.NonNullList<ItemStack> newItems) {
-        for (int i = 0; i < this.items.size(); i++) {
-            this.items.set(i, i < newItems.size() ? newItems.get(i) : ItemStack.EMPTY);
-        }
-    }
-
-    @Override protected Component getDefaultName() {
-        return Component.translatable("block.shortcutterminal.lithography_machine");
-    }
-
-    @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv) {
-        return new LithographyMachineMenu(windowId, playerInv, worldPosition);
-    }
-
-    // ==================== NBT ====================
-
-    @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    @Override protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        net.minecraft.world.ContainerHelper.saveAllItems(tag, this.items, registries);
-        tag.putInt("Progress", progress);
-        tag.putBoolean("Working", working);
-        tag.putInt("TargetLevel", targetLevel);
+        net.minecraft.world.ContainerHelper.saveAllItems(tag, items, registries);
+        tag.putInt("Progress", progress); tag.putInt("TargetLevel", targetLevel);
+        tag.putInt("FuelBatches", fuelBatches); tag.putBoolean("Working", working);
     }
-
-    @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        net.minecraft.world.ContainerHelper.loadAllItems(tag, this.items, registries);
-        progress = tag.getInt("Progress");
-        working = tag.getBoolean("Working");
-        targetLevel = tag.getInt("TargetLevel");
+        net.minecraft.world.ContainerHelper.loadAllItems(tag, items, registries);
+        progress = Math.max(0, Math.min(PROCESS_TICKS, tag.getInt("Progress")));
+        targetLevel = Math.max(0, Math.min(9, tag.getInt("TargetLevel")));
+        fuelBatches = Math.max(0, Math.min(2, tag.getInt("FuelBatches")));
+        working = tag.getBoolean("Working") && fuelBatches > 0;
     }
-
-    // ==================== GUI 数据访问 ====================
-
-    public int getProgress() { return progress; }
-    public int getProcessTicks() { return PROCESS_TICKS; }
-    public int getTargetLevel() { return targetLevel; }
-    public net.minecraft.core.NonNullList<ItemStack> getMachineItems() { return this.items; }
 }

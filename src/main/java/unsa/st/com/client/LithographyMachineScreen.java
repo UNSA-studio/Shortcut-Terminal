@@ -1,61 +1,33 @@
 package unsa.st.com.client;
-
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import unsa.st.com.menu.LithographyMachineMenu;
+import unsa.st.com.block.LithographyMachineBlockEntity;
 
-/**
- * 光刻机 GUI：进度条 + 槽位。
- * 占位贴图策略：背景用纯色填充（与项目现行原版贴图占位策略一致）。
- */
-public class LithographyMachineScreen extends AbstractContainerScreen<LithographyMachineMenu> {
-    private static final int IMAGE_WIDTH = 176;
-    private static final int IMAGE_HEIGHT = 166;
-
-    public LithographyMachineScreen(LithographyMachineMenu menu, Inventory playerInv, Component title) {
-        super(menu, playerInv, title);
-        this.imageWidth = IMAGE_WIDTH;
-        this.imageHeight = IMAGE_HEIGHT;
+public class LithographyMachineScreen extends MachineScreen<LithographyMachineMenu> {
+    public LithographyMachineScreen(LithographyMachineMenu menu, Inventory inv, Component title) {
+        super(menu, inv, title, LithographyMachineMenu.WIDTH, LithographyMachineMenu.HEIGHT, 104);
     }
-
-    @Override
-    protected void init() {
-        super.init();
+    @Override protected String emptySlotKey(int i) {
+        return switch (i) {
+            case 0 -> "gui.shortcutterminal.wafer"; case 1 -> "gui.shortcutterminal.mask";
+            case 2 -> "gui.shortcutterminal.coil"; case 3,4,5 -> "gui.shortcutterminal.output"; default -> null;
+        };
     }
-
-    @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
-        renderBackground(gfx, mouseX, mouseY, partialTick);
-        super.render(gfx, mouseX, mouseY, partialTick);
-        renderTooltip(gfx, mouseX, mouseY);
-    }
-
-    @Override
-    protected void renderBg(GuiGraphics gfx, float partialTick, int mouseX, int mouseY) {
-        int x = (this.width - this.imageWidth) / 2;
-        int y = (this.height - this.imageHeight) / 2;
-        // 占位背景：深灰面板 + 边框（等专属贴图后替换为 blit）
-        gfx.fill(x, y, x + imageWidth, y + imageHeight, 0xFF2B2B2B);
-        gfx.renderOutline(x, y, imageWidth, imageHeight, 0xFF777777);
-
-        // 机器槽区域
-        gfx.renderOutline(x + 40, y + 30, 118, 22, 0xFF555555);
-        gfx.drawString(this.font, "Wafer   Mask   Coil   Output", x + 42, y + 20, 0xFFAAAAAA, false);
-
-        // 进度条
-        if (menu.machine != null) {
-            int progress = menu.machine.getProgress();
-            int total = menu.machine.getProcessTicks();
-            int barW = 100;
-            int filled = total > 0 ? (int) ((progress / (float) total) * barW) : 0;
-            gfx.fill(x + 38, y + 62, x + 38 + barW, y + 68, 0xFF444444);
-            if (filled > 0) gfx.fill(x + 38, y + 62, x + 38 + filled, y + 68, 0xFF55FF55);
-            gfx.drawString(this.font, progress + " / " + total + " ticks", x + 38, y + 72, 0xFFAAAAAA, false);
-            if (menu.machine.getTargetLevel() > 0) {
-                gfx.drawString(this.font, "Target: L" + menu.machine.getTargetLevel(), x + 38, y + 84, 0xFFFFFF55, false);
-            }
-        }
+    @Override protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
+        frame(g, 3);
+        for (int i = 0; i < 3; i++)
+            text(g, Component.translatable(emptySlotKey(i)), leftPos + 12 + i * 32, topPos + 27, 30, 0xFFB8CEDB);
+        text(g, Component.translatable("gui.shortcutterminal.output"), leftPos + 129, topPos + 27, 70, 0xFFB8CEDB);
+        String status = !menu.isFormed() ? "structure" : menu.isWorking() ? "running"
+                : menu.outputBlocked() ? "collect" : "idle";
+        text(g, Component.translatable("gui.shortcutterminal.litho." + status), leftPos + 10, topPos + 64, imageWidth - 20,
+                menu.isFormed() ? 0xFF9EDDDD : 0xFFFFCC77);
+        int percent = Math.min(100, menu.getProgress() * 100 / LithographyMachineBlockEntity.PROCESS_TICKS);
+        g.fill(leftPos + 12, topPos + 79, leftPos + imageWidth - 12, topPos + 87, 0xFF111923);
+        g.fill(leftPos + 12, topPos + 79, leftPos + 12 + (imageWidth - 24) * percent / 100, topPos + 87, 0xFF4EB8BA);
+        text(g, Component.translatable("gui.shortcutterminal.litho.progress", percent, menu.getTargetLevel(), menu.getFuelBatches()),
+                leftPos + 12, topPos + 91, imageWidth - 24, 0xFFB8CEDB);
     }
 }

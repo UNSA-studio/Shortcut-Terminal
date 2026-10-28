@@ -39,6 +39,12 @@ neoForge {
     runs {
         client { client() }
         server { server() }
+        gameTestServer {
+            type = "gameTestServer"
+            gameDirectory = project.file('run/gametest')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'shortcutterminal'
+        }
+
     }
     mods {
         shortcutterminal {

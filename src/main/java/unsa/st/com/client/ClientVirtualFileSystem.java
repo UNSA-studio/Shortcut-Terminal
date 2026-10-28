@@ -16,6 +16,8 @@ public class ClientVirtualFileSystem {
     private static final Map<String, Map<String, VirtualFile>> playerFileSystems = new ConcurrentHashMap<>();
 
     private static Map<String, VirtualFile> getFsForPlayer(String uuid) {
+        var player = net.minecraft.client.Minecraft.getInstance().player;
+        if (player != null && uuid.equals(player.getName().getString())) uuid = player.getUUID().toString();
         return playerFileSystems.computeIfAbsent(uuid, k -> {
             Map<String, VirtualFile> fs = new ConcurrentHashMap<>();
             fs.put("/", new VirtualFile("/", true, true));
@@ -26,7 +28,7 @@ public class ClientVirtualFileSystem {
     public static List<String> listDirectory(String uuid, String path) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        if (!fs.containsKey(np)) return null;
+        if (!fs.containsKey(np) || !fs.get(np).isDirectory) return null;
         List<String> res = new ArrayList<>();
         String prefix = np.equals("/") ? "/" : np + "/";
         for (String k : fs.keySet()) {
@@ -36,14 +38,18 @@ public class ClientVirtualFileSystem {
                 else { String d = rel.substring(0, rel.indexOf('/')); if (!res.contains(d + "/")) res.add(d + "/"); }
             }
         }
+        java.util.Collections.sort(res);
         return res;
     }
 
     public static boolean createDirectory(String uuid, String path, String name) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         if (fs.containsKey(full)) return false;
+        int slash = full.lastIndexOf('/');
+        VirtualFile parent = fs.get(slash == 0 ? "/" : full.substring(0, slash));
+        if (parent == null || !parent.isDirectory) return false;
         fs.put(full, new VirtualFile(full, true, true));
         return true;
     }
@@ -51,8 +57,11 @@ public class ClientVirtualFileSystem {
     public static boolean createFile(String uuid, String path, String name) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         if (fs.containsKey(full)) return false;
+        int slash = full.lastIndexOf('/');
+        VirtualFile parent = fs.get(slash == 0 ? "/" : full.substring(0, slash));
+        if (parent == null || !parent.isDirectory) return false;
         fs.put(full, new VirtualFile(full, false, false));
         return true;
     }
@@ -60,9 +69,9 @@ public class ClientVirtualFileSystem {
     public static boolean delete(String uuid, String path, String name, boolean recursive) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         VirtualFile vf = fs.get(full);
-        if (vf == null) return false;
+        if (vf == null || full.equals("/")) return false;
         if (vf.isDirectory) {
             String prefix = full + "/";
             boolean hasChildren = fs.keySet().stream().anyMatch(k -> k.startsWith(prefix));
@@ -76,7 +85,7 @@ public class ClientVirtualFileSystem {
     public static String readFile(String uuid, String path, String name) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         VirtualFile vf = fs.get(full);
         return (vf == null || vf.isDirectory) ? null : vf.content == null ? "" : vf.content;
     }
@@ -88,8 +97,9 @@ public class ClientVirtualFileSystem {
     public static boolean writeFile(String uuid, String path, String name, String content) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         VirtualFile vf = fs.get(full);
+        if (full.equals("/") || content == null || vf != null && vf.isDirectory || !ensureParents(fs, full)) return false;
         long oldLen = (vf != null && !vf.isDirectory && vf.content != null) ? vf.content.length() : 0;
         try {
             long quota = ClientHardware.storageQuotaChars();
@@ -126,7 +136,7 @@ public class ClientVirtualFileSystem {
     public static boolean setExecutable(String uuid, String path, String name, boolean exec) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String full = np.equals("/") ? "/" + name : np + "/" + name;
+        String full = normalizePath(np, name);
         VirtualFile vf = fs.get(full);
         if (vf == null) return false;
         vf.executable = exec;
@@ -140,33 +150,56 @@ public class ClientVirtualFileSystem {
     }
 
     public static String normalizePath(String current, String target) {
-        if (target.isEmpty() || target.equals(".")) return current;
-        if (target.equals("..")) { int i = current.lastIndexOf('/'); return i > 0 ? current.substring(0, i) : "/"; }
-        if (target.startsWith("/")) return target;
-        return current.equals("/") ? "/" + target : current + "/" + target;
+        if (current == null || current.isEmpty()) current = "/";
+        if (target == null || target.isEmpty()) target = ".";
+        String combined = target.startsWith("/") ? target : current + "/" + target;
+        java.util.Deque<String> parts = new java.util.ArrayDeque<>();
+        for (String part : combined.split("/")) {
+            if (part.isEmpty() || part.equals(".")) continue;
+            if (part.equals("..")) { if (!parts.isEmpty()) parts.removeLast(); }
+            else parts.addLast(part);
+        }
+        return "/" + String.join("/", parts);
     }
-    private static String normalizePath(String p) { return p.isEmpty() ? "/" : (p.startsWith("/") ? p : "/" + p); }
+    private static String normalizePath(String path) { return normalizePath("/", path); }
+    private static boolean ensureParents(Map<String, VirtualFile> fs, String path) {
+        int slash = path.lastIndexOf('/');
+        if (slash <= 0) return true;
+        String parent = path.substring(0, slash);
+        VirtualFile entry = fs.get(parent);
+        if (entry != null) return entry.isDirectory;
+        if (!ensureParents(fs, parent)) return false;
+        fs.put(parent, new VirtualFile(parent, true, true)); return true;
+    }
 
     public static boolean copy(String uuid, String path, String src, String dst, boolean recursive) {
         Map<String, VirtualFile> fs = getFsForPlayer(uuid);
         String np = normalizePath(path);
-        String srcPath = np.equals("/") ? "/" + src : np + "/" + src;
-        String dstPath = np.equals("/") ? "/" + dst : np + "/" + dst;
+        String srcPath = normalizePath(np, src);
+        String dstPath = normalizePath(np, dst);
         VirtualFile sv = fs.get(srcPath);
         if (sv == null || (sv.isDirectory && !recursive)) return false;
-        deepCopy(fs, srcPath, dstPath);
-        return true;
-    }
-    private static void deepCopy(Map<String, VirtualFile> fs, String src, String dst) {
-        VirtualFile sv = fs.get(src);
-        if (sv == null) return;
-        VirtualFile dv = new VirtualFile(dst, sv.isDirectory, sv.executable);
-        dv.content = sv.content;
-        fs.put(dst, dv);
-        if (sv.isDirectory) {
-            String prefix = src + "/";
-            for (String k : fs.keySet()) if (k.startsWith(prefix)) deepCopy(fs, k, dst + k.substring(src.length()));
+        if (srcPath.equals("/") || srcPath.equals(dstPath) || dstPath.startsWith(srcPath + "/")) return false;
+        Map<String, VirtualFile> additions = new HashMap<>();
+        for (var entry : new ArrayList<>(fs.entrySet())) {
+            String key = entry.getKey();
+            if (!key.equals(srcPath) && !key.startsWith(srcPath + "/")) continue;
+            VirtualFile old = entry.getValue();
+            String target = dstPath + key.substring(srcPath.length());
+            VirtualFile copy = new VirtualFile(target, old.isDirectory, old.executable); copy.content = old.content;
+            VirtualFile existing = fs.get(target);
+            if (existing != null && existing.isDirectory != copy.isDirectory) return false;
+            additions.put(target, copy);
         }
+        long newTotal = totalChars(uuid);
+        for (var entry : additions.entrySet()) {
+            VirtualFile old = fs.get(entry.getKey()), value = entry.getValue();
+            if (old != null && old.content != null) newTotal -= old.content.length();
+            if (value.content != null) newTotal += value.content.length();
+        }
+        if (newTotal > ClientHardware.storageQuotaChars() || !ensureParents(fs, dstPath)) return false;
+        fs.putAll(additions);
+        return true;
     }
 
     public static boolean move(String uuid, String path, String src, String dst) {

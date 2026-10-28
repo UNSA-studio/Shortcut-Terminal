@@ -3,6 +3,7 @@ package unsa.st.com.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import unsa.st.com.compute.ComputePolicy;
+import unsa.st.com.compute.WindowResourcePolicy;
 import unsa.st.com.compute.HardwareSpec;
 import unsa.st.com.compute.ProcessorCapability;
 import unsa.st.com.item.TerminalPanelItem;
@@ -21,6 +22,9 @@ public final class ClientHardware {
     private static int panelStat(ToIntFunction<ItemStack> fn, int def) {
         var mc = Minecraft.getInstance();
         if (mc.player == null) return def;
+        var screen = unsa.st.com.gui.TerminalScreen.getInstance();
+        if (screen != null && !screen.hardwarePanel().isEmpty()) return fn.applyAsInt(screen.hardwarePanel());
+
         for (ItemStack held : mc.player.getHandSlots()) {
             if (held.getItem() instanceof TerminalPanelItem) return fn.applyAsInt(held);
         }
@@ -94,7 +98,7 @@ public final class ClientHardware {
 
     /** 全部窗口总占用是否已用满 80% RAM 总容量。 */
     public static boolean ramUnderPressure() {
-        return HardwareSpec.ramUnderPressure(totalUsedLines(), totalMemoryCapacityLines());
+        return WindowResourcePolicy.underPressure(unsa.st.com.gui.TerminalScreen.totalMemoryUnits(), totalMemoryCapacityLines());
     }
 
     /** 客户端 df 报告。 */
@@ -102,6 +106,6 @@ public final class ClientHardware {
         long quota = storageQuotaChars();
         long used = 0;
         try { used = ClientVirtualFileSystem.totalChars(playerName); } catch (Throwable ignored) {}
-        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount(), totalUsedLines());
+        return HardwareSpec.dfReport(quota, used, clientRamMb(), currentWindowCount(), unsa.st.com.gui.TerminalScreen.totalMemoryUnits());
     }
 }

@@ -31,19 +31,11 @@ public final class ProcessorCapability {
 
     /** 物品 ID → 等级（processor_l3 → 3）。非处理器物品返回 -1。 */
     public static int levelOfProcessorItem(ItemStack stack) {
-        String id = stack.getItem().toString();
-        // Item.toString() 默认为注册名短形式（如 item.shortcutterminal.processor_l3 由
-        // DeferredItem 提供）；做宽松解析
-        String s = id.toLowerCase(Locale.ROOT);
-        if (s.endsWith("_l1")) return 1;
-        if (s.endsWith("_l2")) return 2;
-        if (s.endsWith("_l3")) return 3;
-        if (s.endsWith("_l4")) return 4;
-        if (s.endsWith("_l5")) return 5;
-        if (s.endsWith("_l6")) return 6;
-        if (s.endsWith("_l7")) return 7;
-        if (s.endsWith("_l8")) return 8;
-        if (s.endsWith("_l9")) return 9;
+        if (stack == null || stack.isEmpty()) return -1;
+        for (int i = 1; i <= 9; i++) {
+            var item = unsa.st.com.registry.ModItems.PROCESSORS.get(i);
+            if (item != null && stack.is(item.get())) return i;
+        }
         return -1;
     }
 
