@@ -70,7 +70,10 @@ public class AssemblyBenchMenu extends AbstractContainerMenu {
         if (index < 0 || index >= slots.size()) return ItemStack.EMPTY;
         Slot slot = slots.get(index);
         if (!slot.hasItem() || !slot.mayPickup(player)) return ItemStack.EMPTY;
-        ItemStack stack = slot.getItem(), original = stack.copy();
+        ItemStack stack = slot.getItem();
+        // Attach identity BEFORE transferring a copy to the player's inventory.
+        if (index == 7 && !player.level().isClientSide) stack.onCraftedBy(player.level(), player, stack.getCount());
+        ItemStack original = stack.copy();
         if (index < 8) {
             if (!moveItemStackTo(stack, 8, 44, true)) return ItemStack.EMPTY;
         } else {

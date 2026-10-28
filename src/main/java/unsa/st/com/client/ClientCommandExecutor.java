@@ -35,6 +35,9 @@ public class ClientCommandExecutor {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2, r -> {
         Thread t = new Thread(r, "STOS-ClientScheduler"); t.setDaemon(true); return t;
     });
+    private static final java.util.concurrent.ExecutorService PROGRAM_IO = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "STOS-ProgramIO"); t.setDaemon(true); return t;
+    });
     private java.util.function.Consumer<String> outputConsumer = result -> {};
     public void setOutputConsumer(java.util.function.Consumer<String> consumer) { outputConsumer = consumer; }
 
@@ -156,7 +159,10 @@ public class ClientCommandExecutor {
     }
 
     private String executeExternalProgram(Path programPath, String[] args) {
-        return unsa.st.com.util.ExternalRunner.run(programPath, java.util.Arrays.asList(args), 30);
+        java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> unsa.st.com.util.ExternalRunner.run(programPath, java.util.Arrays.asList(args), 30), PROGRAM_IO)
+                .thenAccept(result -> outputConsumer.accept(result));
+        return "STOS: program started in background.";
     }
 
     private String getHelp() {

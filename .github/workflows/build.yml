@@ -42,6 +42,8 @@ jobs:
           mkdir -p run/gametest
           echo 'eula=true' > run/gametest/eula.txt
           ./gradlew runGameTestServer --no-daemon --stacktrace 2>&1 | tee -a build-output.log
+          grep -F 'All 4 required tests passed' build-output.log
+          if grep -F 'Parsing error loading recipe shortcutterminal:' build-output.log; then exit 1; fi
       - name: Upload regression reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,6 +78,7 @@ jobs:
           mkdir -p dist
           rm -f dist/*.jar
           cp build/libs/*.jar dist/
+          grep -E 'Shortcut Terminal|Enabled Gametest|GAME TEST|All 4 required tests passed|ERROR' build-output.log > dist/GUI_REGRESSION_REPORT.txt
           ls -la dist/
           git add -A dist
           git commit -m "ci: publish build jar to dist [skip ci]" || echo "nothing to commit"
