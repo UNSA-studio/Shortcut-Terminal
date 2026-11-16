@@ -20,15 +20,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Assemble patch from chunks
+      - name: Reassemble patch from hex chunks
         run: |
           set -euo pipefail
-          : > cookie.patch.b64
-          for f in $(ls patch-parts/c*.b64 | sort); do
-            tr -d '\n\r\t ' < "$f" >> cookie.patch.b64
+          : > cookie.gz.hex
+          for f in $(ls patch-parts/h*.txt | sort); do
+            tr -d ' \n\r\t' < "$f" >> cookie.gz.hex
           done
-          base64 -d cookie.patch.b64 > gopeed-cookie.patch
-          echo "patch bytes: $(wc -c < gopeed-cookie.patch)"
+          echo "hex chars: $(wc -c < cookie.gz.hex)"
+          python - <<'PY'
+import gzip
+h = open('cookie.gz.hex').read().strip()
+raw = bytes.fromhex(h)
+open('gopeed-cookie.patch','wb').write(gzip.decompress(raw))
+print('patch bytes:', len(open('gopeed-cookie.patch','rb').read()))
+PY
           head -3 gopeed-cookie.patch
 
       - name: Clone upstream gopeed
@@ -45,7 +51,7 @@ jobs:
           git apply --verbose ../gopeed-cookie.patch
           echo "--- userscript ---"
           ls -l ui/flutter/assets/userscript/gopeed-cookie.user.js
-          echo "--- l10n keys ---"
+          echo "--- l10n cookie keys in zh ---"
           grep -c cookieUserscript ui/flutter/lib/l10n/app_zh.arb
 
       - name: Setup Go
