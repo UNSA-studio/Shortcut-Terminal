@@ -9,13 +9,26 @@ permissions:
 env:
   GO_VERSION: "1.25.4"
   FLUTTER_VERSION: "3.41.6"
+  GOPEED_REF: "main"
 
 jobs:
   build-windows-amd64:
     runs-on: windows-2022
     steps:
-      - name: Checkout
+      - name: Checkout (workflow + patch only)
         uses: actions/checkout@v4
+
+      - name: Clone upstream gopeed
+        run: |
+          git clone --depth 1 --branch $env:GOPEED_REF https://github.com/GopeedLab/gopeed.git src
+          cd src
+          git log --oneline -1
+
+      - name: Apply cookie-bridge patch
+        run: |
+          cd src
+          git apply --verbose ..\gopeed-cookie.patch
+          Write-Host "patch applied"
 
       - name: Enable long paths
         run: git config --global core.longpaths true
@@ -32,29 +45,38 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      - name: Verify patch content
+        working-directory: src
+        run: |
+          Write-Host "=== userscript present? ==="
+          Get-Item ui/flutter/assets/userscript/gopeed-cookie.user.js | Select-Object Name,Length
+          Write-Host "=== settings page touched? ==="
+          Select-String -Path ui/flutter/lib/features/settings/presentation/pages/settings_page.dart -Pattern "cookieUserscript" | Select-Object -First 3
+
       - name: Build Go native pieces
+        working-directory: src
         run: |
           go build -tags nosqlite -ldflags="-w -s" -buildmode=c-shared -o ui/flutter/windows/libgopeed.dll github.com/GopeedLab/gopeed/bind/desktop
           go build -ldflags="-w -s" -o ui/flutter/assets/exec/host.exe github.com/GopeedLab/gopeed/cmd/host
           go build -ldflags="-w -s" -o ui/flutter/assets/exec/updater.exe github.com/GopeedLab/gopeed/cmd/updater
 
       - name: Generate l10n
-        working-directory: ui/flutter
+        working-directory: src/ui/flutter
         run: |
           flutter pub get
           flutter gen-l10n
 
       - name: Analyze
-        working-directory: ui/flutter
+        working-directory: src/ui/flutter
         continue-on-error: true
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build Windows
-        working-directory: ui/flutter
+        working-directory: src/ui/flutter
         run: flutter build windows --release --dart-define="UPDATE_CHANNEL=windowsPortable"
 
       - name: Bundle runtime DLLs
-        working-directory: ui/flutter
+        working-directory: src/ui/flutter
         run: |
           $release = "build\windows\x64\runner\Release\"
           $system = "C:\Windows\System32"
@@ -78,7 +100,7 @@ jobs:
           }
 
       - name: Package portable zip
-        working-directory: ui/flutter
+        working-directory: src/ui/flutter
         run: |
           New-Item -Path build\windows\Output -ItemType Directory -Force | Out-Null
           Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "build\windows\Output\Gopeed-CookieBridge-windows-amd64-portable.zip" -Force
@@ -87,5 +109,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Gopeed-CookieBridge-windows-amd64
-          path: ui/flutter/build/windows/Output/Gopeed-CookieBridge-windows-amd64-portable.zip
+          path: src/ui/flutter/build/windows/Output/Gopeed-CookieBridge-windows-amd64-portable.zip
           if-no-files-found: error
